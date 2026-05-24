@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="grid two">
+  <form method="post" action="/logs" class="panel">
+    <div class="section-title">
+      <h1>Dispatch Log</h1>
+      <a class="pill" href="/bulletins">{{ pending_count }} pending bulletins</a>
+    </div>
+    <label>User / Tactical Assignment
+      <select name="user_id" required>
+        {% for user in users %}
+        <option value="{{ user.id }}">
+          {{ user.tactical_callsign or user.display_name }}{% if user.default_location %}/{{ user.default_location }}{% endif %} - {{ user.display_name }}{% if user.operator_callsign %} ({{ user.operator_callsign }}){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        <option>In service</option>
+        <option>Out of service</option>
+        <option>In transit to location</option>
+      </select>
+    </label>
+    <label>Location<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
+    <label>Message<textarea name="message" rows="5" required></textarea></label>
+    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> Forward as approved bulletin</label>
+    <button>Save Log Entry</button>
+  </form>
+
+  <section class="panel">
+    <div class="section-title">
+      <h2>Race Data</h2>
+      <div class="actions">
+        <a class="button secondary" href="/export/logs.csv">Export Logs</a>
+        <a class="button secondary" href="/export/aprs.csv">Export APRS CSV</a>
+        <a class="button secondary" href="/export/aprs.geojson">Export GeoJSON</a>
+      </div>
+    </div>
+    <form method="post" action="/clear-race" class="clear-form">
+      <label>Clear logs, bulletins, and waypoint history
+        <input name="confirm" placeholder="Type CLEAR">
+      </label>
+      <button class="danger">Clear Race Data</button>
+    </form>
+  </section>
+</section>
+
+<section class="panel">
+  <h2>Recent Logs</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Time</th><th>User</th><th>Status</th><th>Location</th><th>Message</th><th>APRS</th></tr></thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.created_at }}</td>
+          <td>{{ log.user_label }}</td>
+          <td>{{ log.status }}</td>
+          <td>{{ log.location }}</td>
+          <td>{{ log.message }}</td>
+          <td>{% if log.lat %}{{ log.aprs_station }} {{ "%.5f"|format(log.lat) }}, {{ "%.5f"|format(log.lon) }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="/static/review-alert.js"></script>
+{% endblock %}
+

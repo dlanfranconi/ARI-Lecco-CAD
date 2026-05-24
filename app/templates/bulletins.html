@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Pending Bulletin Review</h1>
+  <div class="cards">
+    {% for item in pending %}
+    <article class="card">
+      <p class="meta">{{ item.created_at }} from {{ item.submitter_name or "Unknown" }}</p>
+      <p class="bulletin-text">{{ item.message }}</p>
+      <div class="actions">
+        <form method="post" action="/bulletins/{{ item.id }}/approve"><button>Approve</button></form>
+        <form method="post" action="/bulletins/{{ item.id }}/reject"><button class="danger">Reject</button></form>
+      </div>
+    </article>
+    {% else %}
+    <p>No pending bulletins.</p>
+    {% endfor %}
+  </div>
+</section>
+<section class="panel">
+  <h2>Approved Bulletins</h2>
+  <div class="cards">
+    {% for item in approved %}
+    <article class="card">
+      <p class="meta">{{ item.approved_at or item.created_at }} from {{ item.submitter_name or item.source }}</p>
+      <p>{{ item.message }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="/static/review-alert.js"></script>
+{% endblock %}
+

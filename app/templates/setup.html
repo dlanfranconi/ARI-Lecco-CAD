@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="grid two">
+  <form method="post" action="/setup/users" class="panel">
+    <h1>Add User / Operator</h1>
+    <label>Display Name<input name="display_name" required></label>
+    <label>Operator Callsign<input name="operator_callsign"></label>
+    <label>Tactical Callsign<input name="tactical_callsign" placeholder="Aid 1, Net Control"></label>
+    <label>Default Location<input name="default_location"></label>
+    <label>Assigned APRS Station
+      <select name="aprs_station_id">
+        <option value="">None</option>
+        {% for station in stations if station.active %}
+        <option value="{{ station.id }}">{{ station.callsign }}{% if station.label %} - {{ station.label }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button>Add User</button>
+  </form>
+
+  <form method="post" action="/setup/stations" class="panel">
+    <h1>Add APRS Station</h1>
+    <label>Station Callsign<input name="callsign" placeholder="IU2ABC-9" required></label>
+    <label>Label<input name="label" placeholder="Vehicle 1"></label>
+    <button>Add Station</button>
+  </form>
+</section>
+
+<section class="grid two">
+  <section class="panel">
+    <h2>Users</h2>
+    <div class="cards">
+      {% for user in users %}
+      <article class="card">
+        <form method="post" action="/setup/users/{{ user.id }}" class="edit-grid">
+          <label>Name<input name="display_name" value="{{ user.display_name }}" required></label>
+          <label>Operator Callsign<input name="operator_callsign" value="{{ user.operator_callsign }}"></label>
+          <label>Tactical<input name="tactical_callsign" value="{{ user.tactical_callsign }}"></label>
+          <label>Location<input name="default_location" value="{{ user.default_location }}"></label>
+          <label>APRS
+            <select name="aprs_station_id">
+              <option value="">None</option>
+              {% for station in stations %}
+              <option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button>Save</button>
+        </form>
+        <form method="post" action="/setup/users/{{ user.id }}/toggle" class="inline-form">
+          <span>{{ "Active" if user.active else "Disabled" }}</span>
+          <button class="secondary">{{ "Disable" if user.active else "Enable" }}</button>
+        </form>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>APRS Stations</h2>
+    <div class="cards">
+      {% for station in stations %}
+      <article class="card">
+        <form method="post" action="/setup/stations/{{ station.id }}" class="edit-grid compact">
+          <label>Callsign<input name="callsign" value="{{ station.callsign }}" required></label>
+          <label>Label<input name="label" value="{{ station.label }}"></label>
+          <button>Save</button>
+        </form>
+        <form method="post" action="/setup/stations/{{ station.id }}/toggle" class="inline-form">
+          <span>{{ "Active" if station.active else "Disabled" }}</span>
+          <button class="secondary">{{ "Disable" if station.active else "Enable" }}</button>
+        </form>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

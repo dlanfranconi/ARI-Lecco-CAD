@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ARI Lecco CAD{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% if dispatch_user %}
+  <header class="topbar">
+    <a class="brand" href="/">ARI Lecco CAD</a>
+    <nav>
+      <a href="/">Log</a>
+      <a href="/map">APRS Map</a>
+      <a href="/bulletins">Bulletins</a>
+      <a href="/setup">Setup</a>
+      <a href="/announcer" target="_blank">Announcer</a>
+    </nav>
+    <form method="post" action="/logout"><button class="ghost">Logout</button></form>
+  </header>
+  {% endif %}
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+

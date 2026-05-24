@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login">
+  <form method="post" action="/bulletin-submit" class="panel narrow">
+    <h1>Submit Bulletin</h1>
+    {% if request.query_params.get("sent") %}<p class="success">Bulletin sent to dispatch for review.</p>{% endif %}
+    <label>Your Name or Callsign<input name="submitter_name"></label>
+    <label>Bulletin Message<textarea name="message" rows="6" required></textarea></label>
+    <button>Send to Dispatch</button>
+  </form>
+</section>
+{% endblock %}
+

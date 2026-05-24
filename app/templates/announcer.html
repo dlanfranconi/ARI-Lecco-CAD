@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Announcer Bulletin</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="announcer">
+  <main>
+    <div class="announcer-label">Current Bulletin</div>
+    <div id="bulletin" class="teleprompter">
+      {% if latest %}{{ latest.message }}{% else %}No approved bulletin{% endif %}
+    </div>
+    <div id="timestamp" class="announcer-time">{% if latest %}{{ latest.approved_at or latest.created_at }}{% endif %}</div>
+  </main>
+  <script src="/static/announcer.js"></script>
+</body>
+</html>
+
