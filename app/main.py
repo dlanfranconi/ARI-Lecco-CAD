@@ -210,9 +210,7 @@ async def create_log(
     user_id: int = Form(...),
     status: str = Form(...),
     location: str = Form(""),
-    message: str = Form(""),
-    runner_bib: str = Form(""),
-    checkpoint: str = Form(""),
+    message: str = Form(...),
     forward_bulletin: str | None = Form(None),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
@@ -228,30 +226,14 @@ async def create_log(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    runner_name = ""
-    runner_hometown = ""
-    if runner_bib:
-        runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (runner_bib,))
-        if runner:
-            runner_name = runner["name"]
-            runner_hometown = runner["hometown"]
-            if not message and checkpoint:
-                message = compose_runner_notice(runner_bib, runner_name, checkpoint)
-    if not message:
-        raise HTTPException(status_code=400, detail="Message is required")
-
     latest = latest_position_for_user(user)
     label = user_label(user, location)
     notice_id = None
     with connect() as conn:
         if forward_bulletin:
             cur = conn.execute(
-                """
-                INSERT INTO bulletins
-                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, status, approved_at, approved_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
-                """,
-                ("dispatch", label, message, runner_bib, runner_name, runner_hometown, checkpoint, admin["username"]),
+                "INSERT INTO bulletins (source, submitter_name, message, status, approved_at, approved_by) VALUES (?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)",
+                ("dispatch", label, message, admin["username"]),
             )
             notice_id = cur.lastrowid
         conn.execute(
@@ -280,11 +262,31 @@ async def create_log(
 
 
 @app.post("/notices/direct")
-async def direct_notice(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
+async def direct_notice(
+    message: str = Form(""),
+    runner_bib: str = Form(""),
+    checkpoint: str = Form(""),
+    admin: Any = Depends(require_admin),
+) -> RedirectResponse:
+    runner_name = ""
+    runner_hometown = ""
+    if runner_bib:
+        runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (runner_bib,))
+        if runner:
+            runner_name = runner["name"]
+            runner_hometown = runner["hometown"]
+            if not message and checkpoint:
+                message = compose_runner_notice(runner_bib, runner_name, checkpoint)
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
     with connect() as conn:
         cur = conn.execute(
-            "INSERT INTO bulletins (source, submitter_name, message, status, approved_at, approved_by) VALUES ('dispatch', ?, ?, 'approved', CURRENT_TIMESTAMP, ?)",
-            (admin["display_name"], message, admin["username"]),
+            """
+            INSERT INTO bulletins
+                (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, status, approved_at, approved_by)
+            VALUES ('dispatch', ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+            """,
+            (admin["display_name"], message, runner_bib, runner_name, runner_hometown, checkpoint, admin["username"]),
         )
         notice_id = cur.lastrowid
     await broadcast_approved_bulletin(notice_id)
@@ -293,7 +295,7 @@ async def direct_notice(message: str = Form(...), admin: Any = Depends(require_a
 
 @app.post("/bulletins/direct")
 async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    return await direct_notice(message, admin)
+    return await direct_notice(message=message, admin=admin)
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -774,6 +776,38 @@ async def add_tactical_callsign(
             """,
             (name.strip(), location_preposition.strip()),
         )
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/tactical-callsigns/{tac_id}")
+async def update_tactical_callsign(
+    tac_id: int,
+    name: str = Form(...),
+    location_preposition: str = Form(""),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE tactical_callsigns SET name = ?, location_preposition = ? WHERE id = ?",
+            (name.strip(), location_preposition.strip(), tac_id),
+        )
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/tactical-callsigns/{tac_id}/toggle")
+async def toggle_tactical_callsign(tac_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE tactical_callsigns SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (tac_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/tactical-callsigns/{tac_id}/delete")
+async def delete_tactical_callsign(tac_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    tac = row("SELECT name FROM tactical_callsigns WHERE id = ?", (tac_id,))
+    with connect() as conn:
+        if tac:
+            conn.execute("UPDATE users SET tactical_callsign = '' WHERE tactical_callsign = ?", (tac["name"],))
+        conn.execute("DELETE FROM tactical_callsigns WHERE id = ?", (tac_id,))
     return RedirectResponse("/setup", status_code=303)
 
 

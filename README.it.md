@@ -93,3 +93,8 @@ Quando usi `Cancella tutto` o cambi nome gara, inserisci un nome file archivio. 
 ## Preposizioni postazione
 
 I nominativi tattici/postazioni possono includere una preposizione nel Setup, per esempio `a`, `al`, `alla`. Le notizie generate per gli atleti usano quel valore nel testo automatico.
+
+
+## Nominativi tattici
+
+I nominativi tattici restano tra una gara e l'altra. Gestiscili in Configurazione: aggiungi, modifica, disabilita o rimuovi. La rimozione toglie l'assegnazione dagli utenti/operatori ma non elimina gli utenti.

@@ -214,3 +214,8 @@ bib number,name,home town
 ## Checkpoint Prepositions
 
 Tactical callsigns/checkpoints can include a preposition in Setup, such as `to`, `a`, `al`, or `alla`. Runner notices use that value when auto-generating arrival messages.
+
+
+## Tactical Callsigns
+
+Tactical callsigns persist between races. Manage them in Setup: add, edit, disable, or remove them. Removing a tactical callsign unassigns it from users/operators but does not delete those users.

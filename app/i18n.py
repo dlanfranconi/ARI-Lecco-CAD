@@ -115,6 +115,7 @@ TRANSLATIONS = {
         "delete_archive": "Delete Archive",
         "import_archive": "Import Archive",
         "preposition": "Preposition",
+        "remove": "Remove",
     },
     "it": {
         "app_title": "ARI Lecco CAD",
@@ -232,6 +233,7 @@ TRANSLATIONS = {
         "delete_archive": "Elimina archivio",
         "import_archive": "Importa archivio",
         "preposition": "Preposizione",
+        "remove": "Rimuovi",
     },
 }
 
