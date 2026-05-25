@@ -21,8 +21,22 @@
         <option>{{ t.in_transit }}</option>
       </select>
     </label>
+    <div class="grid two runner-compose" data-runner-compose>
+      <label>{{ t.bib_number }}<input class="runner-bib" name="runner_bib"></label>
+      <label>{{ t.checkpoint }}
+        <select class="checkpoint" name="checkpoint">
+          <option value=""></option>
+          {% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="runner-reference-inline" data-runner-reference>
+      <span>{{ t.bib_number }}: <strong class="runner-ref-bib"></strong></span>
+      <span>{{ t.runner_name }}: <strong class="runner-ref-name"></strong></span>
+      <span>{{ t.hometown }}: <strong class="runner-ref-town"></strong></span>
+    </div>
     <label>{{ t.location }}<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
-    <label>{{ t.message }}<textarea name="message" rows="5" required></textarea></label>
+    <label>{{ t.message }}<textarea class="notice-message" name="message" rows="5"></textarea></label>
     <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_notice }}</label>
     <button>{{ t.save_log }}</button>
   </form>
@@ -65,5 +79,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}{% endif %}
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script>{% endif %}
 {% endblock %}

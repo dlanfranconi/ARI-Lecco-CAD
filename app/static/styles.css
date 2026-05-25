@@ -144,3 +144,5 @@ th { color: var(--muted); font-size: 13px; }
 
 .runner-details { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 28px; font-size: 30px; color: #d6eeee; font-weight: 700; }
 .hidden { display: none !important; }
+
+.runner-reference-inline { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); margin: 0 0 12px; }

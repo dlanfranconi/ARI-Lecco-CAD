@@ -36,6 +36,7 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS tactical_callsigns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
+                location_preposition TEXT DEFAULT '',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -147,6 +148,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     }.items():
         if column not in user_cols:
             conn.execute(sql)
+
+    tac_cols = {item[1] for item in conn.execute("PRAGMA table_info(tactical_callsigns)")}
+    if "location_preposition" not in tac_cols:
+        conn.execute("ALTER TABLE tactical_callsigns ADD COLUMN location_preposition TEXT DEFAULT ''")
 
     log_cols = {item[1] for item in conn.execute("PRAGMA table_info(log_entries)")}
     if "hidden_at" not in log_cols:

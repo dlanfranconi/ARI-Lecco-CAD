@@ -22,6 +22,7 @@
   <form method="post" action="/setup/tactical-callsigns" class="panel">
     <h1>{{ t.tactical_callsigns }}</h1>
     <label>{{ t.tactical_callsign }}<input name="name" required></label>
+    <label>{{ t.preposition }}<input name="location_preposition" placeholder="to / a / al / alla"></label>
     <button>{{ t.add }}</button>
   </form>
 </section>
@@ -39,7 +40,7 @@
           <form method="post" action="/setup/users">
             <td><input name="display_name" required></td>
             <td><input name="operator_callsign"></td>
-            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns if tac.active %}<option value="{{ tac.name }}">{{ tac.name }}</option>{% endfor %}</select></td>
+            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns if tac.active %}<option value="{{ tac.name }}">{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
             <td><input name="default_location"></td>
             <td><select name="aprs_station_id"><option value=""></option>{% for station in stations if station.active %}<option value="{{ station.id }}">{{ station.callsign }}</option>{% endfor %}</select></td>
             <td><input name="dstar_callsign"></td>
@@ -55,7 +56,7 @@
           <form method="post" action="/setup/users/{{ user.id }}">
             <td><input name="display_name" value="{{ user.display_name }}" required></td>
             <td><input name="operator_callsign" value="{{ user.operator_callsign }}"></td>
-            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}</option>{% endfor %}</select></td>
+            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
             <td><input name="default_location" value="{{ user.default_location }}"></td>
             <td><select name="aprs_station_id"><option value=""></option>{% for station in stations %}<option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>{% endfor %}</select></td>
             <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>

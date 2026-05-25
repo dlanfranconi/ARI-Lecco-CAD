@@ -88,3 +88,8 @@ Nel setup CAD assegna lo stesso nominativo D-STAR all'utente/operatore.
 ## Archivi
 
 Quando usi `Cancella tutto` o cambi nome gara, inserisci un nome file archivio. Il browser scarica un file JSON sul PC locale. Gli archivi restano anche visualizzabili, scaricabili, eliminabili e reimportabili dalla pagina Configurazione.
+
+
+## Preposizioni postazione
+
+I nominativi tattici/postazioni possono includere una preposizione nel Setup, per esempio `a`, `al`, `alla`. Le notizie generate per gli atleti usano quel valore nel testo automatico.

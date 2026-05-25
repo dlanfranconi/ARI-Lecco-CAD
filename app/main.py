@@ -154,6 +154,18 @@ def user_label(user: Any, location: str) -> str:
     return f"{tactical_label} - {callsign} ({user['display_name']})"
 
 
+def checkpoint_preposition(checkpoint: str) -> str:
+    tac = row("SELECT location_preposition FROM tactical_callsigns WHERE name = ?", (checkpoint,))
+    if tac and tac["location_preposition"]:
+        return tac["location_preposition"]
+    return "a" if current_language() == "it" else "to"
+
+
+def compose_runner_notice(runner_bib: str, runner_name: str, checkpoint: str) -> str:
+    template = TRANSLATIONS[current_language()]["arrival_template"]
+    return template.format(bib=runner_bib, name=runner_name, checkpoint=checkpoint, prep=checkpoint_preposition(checkpoint))
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, user: Any = Depends(require_user_or_admin)) -> HTMLResponse:
     users = rows(
@@ -167,7 +179,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
     )
     logs = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id DESC LIMIT 100")
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
-    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user)
+    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -198,7 +210,9 @@ async def create_log(
     user_id: int = Form(...),
     status: str = Form(...),
     location: str = Form(""),
-    message: str = Form(...),
+    message: str = Form(""),
+    runner_bib: str = Form(""),
+    checkpoint: str = Form(""),
     forward_bulletin: str | None = Form(None),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
@@ -214,14 +228,30 @@ async def create_log(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    runner_name = ""
+    runner_hometown = ""
+    if runner_bib:
+        runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (runner_bib,))
+        if runner:
+            runner_name = runner["name"]
+            runner_hometown = runner["hometown"]
+            if not message and checkpoint:
+                message = compose_runner_notice(runner_bib, runner_name, checkpoint)
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
     latest = latest_position_for_user(user)
     label = user_label(user, location)
     notice_id = None
     with connect() as conn:
         if forward_bulletin:
             cur = conn.execute(
-                "INSERT INTO bulletins (source, submitter_name, message, status, approved_at, approved_by) VALUES (?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)",
-                ("dispatch", label, message, admin["username"]),
+                """
+                INSERT INTO bulletins
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, status, approved_at, approved_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                """,
+                ("dispatch", label, message, runner_bib, runner_name, runner_hometown, checkpoint, admin["username"]),
             )
             notice_id = cur.lastrowid
         conn.execute(
@@ -489,8 +519,7 @@ async def notice_submit(
             runner_name = runner["name"]
             runner_hometown = runner["hometown"]
             if not message and checkpoint:
-                template = TRANSLATIONS[current_language()]["arrival_template"]
-                message = template.format(bib=runner_bib, name=runner_name, checkpoint=checkpoint)
+                message = compose_runner_notice(runner_bib, runner_name, checkpoint)
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
     with connect() as conn:
@@ -732,9 +761,19 @@ async def update_race_name(race_name: str = Form(...), archive_filename: str = F
 
 
 @app.post("/setup/tactical-callsigns")
-async def add_tactical_callsign(name: str = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def add_tactical_callsign(
+    name: str = Form(...),
+    location_preposition: str = Form(""),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
     with connect() as conn:
-        conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (name.strip(),))
+        conn.execute(
+            """
+            INSERT INTO tactical_callsigns (name, location_preposition) VALUES (?, ?)
+            ON CONFLICT(name) DO UPDATE SET location_preposition = excluded.location_preposition
+            """,
+            (name.strip(), location_preposition.strip()),
+        )
     return RedirectResponse("/setup", status_code=303)
 
 

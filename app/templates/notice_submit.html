@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="grid two">
-  <form method="post" action="{{ submit_notice_url }}" class="panel">
+  <form method="post" action="{{ submit_notice_url }}" class="panel" data-runner-compose>
     <h1>{{ t.submit_notice }}</h1>
     {% if request.query_params.get("sent") %}<p class="success">{{ t.sent_to_dispatch }}</p>{% endif %}
-    <label>{{ t.bib_number }}<input id="runner-bib" name="runner_bib"></label>
+    <label>{{ t.bib_number }}<input id="runner-bib" class="runner-bib" name="runner_bib"></label>
     <label>{{ t.checkpoint }}
-      <select id="checkpoint" name="checkpoint"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}">{{ tac.name }}</option>{% endfor %}</select>
+      <select id="checkpoint" class="checkpoint" name="checkpoint"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}</select>
     </label>
-    <label>{{ t.notice_message }}<textarea id="notice-message" name="message" rows="6"></textarea></label>
+    <label>{{ t.notice_message }}<textarea id="notice-message" class="notice-message" name="message" rows="6"></textarea></label>
     <button>{{ t.send_notice }}</button>
   </form>
   <section class="panel">
     <h2>{{ t.runner_reference }}</h2>
     <div class="card">
-      <p><strong>{{ t.bib_number }}:</strong> <span id="runner-ref-bib"></span></p>
-      <p><strong>{{ t.runner_name }}:</strong> <span id="runner-ref-name"></span></p>
-      <p><strong>{{ t.hometown }}:</strong> <span id="runner-ref-town"></span></p>
+      <p><strong>{{ t.bib_number }}:</strong> <span id="runner-ref-bib" class="runner-ref-bib"></span></p>
+      <p><strong>{{ t.runner_name }}:</strong> <span id="runner-ref-name" class="runner-ref-name"></span></p>
+      <p><strong>{{ t.hometown }}:</strong> <span id="runner-ref-town" class="runner-ref-town"></span></p>
     </div>
   </section>
 </section>

@@ -209,3 +209,8 @@ Setup supports CSV import and manual add/edit/disable for athletes. CSV headers:
 bib number,name,home town
 101,Mario Rossi,Lecco
 ```
+
+
+## Checkpoint Prepositions
+
+Tactical callsigns/checkpoints can include a preposition in Setup, such as `to`, `a`, `al`, or `alla`. Runner notices use that value when auto-generating arrival messages.
