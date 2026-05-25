@@ -1,24 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang|default('en') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ARI Lecco CAD{% endblock %}</title>
+  <title>{% block title %}{{ t.app_title }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css">
   {% block head %}{% endblock %}
 </head>
 <body>
   {% if dispatch_user %}
   <header class="topbar">
-    <a class="brand" href="/">ARI Lecco CAD</a>
+    <a class="brand" href="/">{{ t.app_title }}</a>
     <nav>
-      <a href="/">Log</a>
-      <a href="/map">APRS Map</a>
-      <a href="/bulletins">Bulletins</a>
-      <a href="/setup">Setup</a>
-      <a href="/announcer" target="_blank">Announcer</a>
+      <a href="/">{{ t.dispatch_log }}</a>
+      <a href="/map">{{ t.aprs_map }}</a>
+      <a href="/bulletins">{{ t.bulletins }}</a>
+      <a href="/setup">{{ t.setup }}</a>
+      <a href="/announcer" target="_blank">{{ t.announcer }}</a>
     </nav>
-    <form method="post" action="/logout"><button class="ghost">Logout</button></form>
+    <form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
   </header>
   {% endif %}
   <main class="content">
@@ -27,4 +27,3 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
-

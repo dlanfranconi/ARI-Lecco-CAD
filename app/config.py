@@ -8,6 +8,7 @@ class Settings:
     aprsfi_api_key: str = os.getenv("APRSFI_API_KEY", "")
     aprs_poll_seconds: int = int(os.getenv("APRS_POLL_SECONDS", "60"))
     database_path: str = os.getenv("DATABASE_PATH", "/data/cad.sqlite3")
+    drats_ingest_token: str = os.getenv("DRATS_INGEST_TOKEN", "")
 
 
 settings = Settings()

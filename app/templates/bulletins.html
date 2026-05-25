@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel">
-  <h1>Pending Bulletin Review</h1>
+  <h1>{{ t.new_bulletin }}</h1>
   <div class="cards">
     {% for item in pending %}
     <article class="card">
       <p class="meta">{{ item.created_at }} from {{ item.submitter_name or "Unknown" }}</p>
       <p class="bulletin-text">{{ item.message }}</p>
       <div class="actions">
-        <form method="post" action="/bulletins/{{ item.id }}/approve"><button>Approve</button></form>
-        <form method="post" action="/bulletins/{{ item.id }}/reject"><button class="danger">Reject</button></form>
+        <form method="post" action="/bulletins/{{ item.id }}/approve"><button>{{ t.approve }}</button></form>
+        <form method="post" action="/bulletins/{{ item.id }}/reject"><button class="danger">{{ t.reject }}</button></form>
       </div>
     </article>
     {% else %}
@@ -30,6 +30,6 @@
 </section>
 {% endblock %}
 {% block scripts %}
+<script>window.CAD_LABELS = {{ t|tojson }};</script>
 <script src="/static/review-alert.js"></script>
 {% endblock %}
-

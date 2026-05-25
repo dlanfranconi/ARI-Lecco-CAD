@@ -24,6 +24,7 @@ def init_db() -> None:
                 tactical_callsign TEXT DEFAULT '',
                 default_location TEXT DEFAULT '',
                 aprs_station_id INTEGER,
+                dstar_callsign TEXT DEFAULT '',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -51,6 +52,20 @@ def init_db() -> None:
                 FOREIGN KEY(station_id) REFERENCES aprs_stations(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS dstar_positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                callsign TEXT NOT NULL,
+                lat REAL NOT NULL,
+                lon REAL NOT NULL,
+                source TEXT NOT NULL DEFAULT 'd-rats',
+                speed REAL,
+                course REAL,
+                altitude REAL,
+                comment TEXT DEFAULT '',
+                radio_time TEXT DEFAULT '',
+                fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS log_entries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -67,6 +82,11 @@ def init_db() -> None:
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
             );
 
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS bulletins (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source TEXT NOT NULL DEFAULT 'dispatch',
@@ -79,6 +99,13 @@ def init_db() -> None:
             );
             """
         )
+        _migrate(conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    user_cols = {item[1] for item in conn.execute("PRAGMA table_info(users)")}
+    if "dstar_callsign" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN dstar_callsign TEXT DEFAULT ''")
 
 
 def rows(sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:

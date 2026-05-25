@@ -1,56 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="grid two">
-  <form method="post" action="/logs" class="panel">
+<section class="grid three">
+  <form method="post" action="/logs" class="panel span-two">
     <div class="section-title">
-      <h1>Dispatch Log</h1>
-      <a class="pill" href="/bulletins">{{ pending_count }} pending bulletins</a>
+      <h1>{{ t.dispatch_log }}</h1>
+      <a class="pill" href="/bulletins">{{ pending_count }} {{ t.pending_bulletins }}</a>
     </div>
-    <label>User / Tactical Assignment
+    <label>{{ t.user_assignment }}
       <select name="user_id" required>
         {% for user in users %}
         <option value="{{ user.id }}">
-          {{ user.tactical_callsign or user.display_name }}{% if user.default_location %}/{{ user.default_location }}{% endif %} - {{ user.display_name }}{% if user.operator_callsign %} ({{ user.operator_callsign }}){% endif %}
+          {{ user.tactical_callsign or user.display_name }}{% if user.default_location %}/{{ user.default_location }}{% endif %} - {{ user.display_name }}{% if user.operator_callsign %} ({{ user.operator_callsign }}){% endif %}{% if user.dstar_callsign %} D-STAR: {{ user.dstar_callsign }}{% endif %}
         </option>
         {% endfor %}
       </select>
     </label>
-    <label>Status
+    <label>{{ t.status }}
       <select name="status">
-        <option>In service</option>
-        <option>Out of service</option>
-        <option>In transit to location</option>
+        <option>{{ t.in_service }}</option>
+        <option>{{ t.out_of_service }}</option>
+        <option>{{ t.in_transit }}</option>
       </select>
     </label>
-    <label>Location<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
-    <label>Message<textarea name="message" rows="5" required></textarea></label>
-    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> Forward as approved bulletin</label>
-    <button>Save Log Entry</button>
+    <label>{{ t.location }}<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
+    <label>{{ t.message }}<textarea name="message" rows="5" required></textarea></label>
+    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_bulletin }}</label>
+    <button>{{ t.save_log }}</button>
   </form>
 
-  <section class="panel">
-    <div class="section-title">
-      <h2>Race Data</h2>
-      <div class="actions">
-        <a class="button secondary" href="/export/logs.csv">Export Logs</a>
-        <a class="button secondary" href="/export/aprs.csv">Export APRS CSV</a>
-        <a class="button secondary" href="/export/aprs.geojson">Export GeoJSON</a>
-      </div>
-    </div>
-    <form method="post" action="/clear-race" class="clear-form">
-      <label>Clear logs, bulletins, and waypoint history
-        <input name="confirm" placeholder="Type CLEAR">
-      </label>
-      <button class="danger">Clear Race Data</button>
-    </form>
-  </section>
+  <form method="post" action="/bulletins/direct" class="panel">
+    <h2>{{ t.send_bulletin }}</h2>
+    <label>{{ t.bulletin_message }}<textarea name="message" rows="7" required></textarea></label>
+    <button>{{ t.post_bulletin }}</button>
+  </form>
 </section>
 
 <section class="panel">
-  <h2>Recent Logs</h2>
+  <div class="section-title">
+    <h2>{{ t.race_data }}</h2>
+    <div class="actions">
+      <a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a>
+      <a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a>
+      <a class="button secondary" href="/export/dstar.csv">Export D-STAR CSV</a>
+      <a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a>
+      <a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a>
+    </div>
+  </div>
+  <form method="post" action="/clear-race" class="clear-form">
+    <label>Clear logs, bulletins, and waypoint history
+      <input name="confirm" placeholder="Type CLEAR">
+    </label>
+    <button class="danger">Clear Race Data</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>{{ t.recent_logs }}</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Time</th><th>User</th><th>Status</th><th>Location</th><th>Message</th><th>APRS</th></tr></thead>
+      <thead><tr><th>Time</th><th>User</th><th>{{ t.status }}</th><th>{{ t.location }}</th><th>{{ t.message }}</th><th>Position</th></tr></thead>
       <tbody>
         {% for log in logs %}
         <tr>
@@ -68,6 +76,6 @@
 </section>
 {% endblock %}
 {% block scripts %}
+<script>window.CAD_LABELS = {{ t|tojson }};</script>
 <script src="/static/review-alert.js"></script>
 {% endblock %}
-

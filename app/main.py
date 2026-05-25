@@ -3,16 +3,18 @@ import csv
 import io
 import json
 from contextlib import suppress
+from typing import Any
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi import Body, Depends, FastAPI, Form, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .aprs import poll_aprs_once
-from .auth import COOKIE_NAME, is_dispatch, make_session, read_session
+from .auth import COOKIE_NAME, make_session, read_session
 from .config import settings
 from .db import connect, init_db, row, rows
+from .i18n import TRANSLATIONS, normalize_language
 
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
@@ -44,6 +46,23 @@ async def aprs_loop() -> None:
         await asyncio.sleep(max(settings.aprs_poll_seconds, 30))
 
 
+def setting(key: str, default: str = "") -> str:
+    item = row("SELECT value FROM app_settings WHERE key = ?", (key,))
+    return item["value"] if item else default
+
+
+def save_setting(key: str, value: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+
+
+def current_language() -> str:
+    return normalize_language(setting("language", "en"))
+
+
 def require_dispatch(request: Request) -> str:
     username = read_session(request)
     if username != settings.admin_username:
@@ -52,8 +71,41 @@ def require_dispatch(request: Request) -> str:
 
 
 def page(request: Request, name: str, **context: object) -> HTMLResponse:
+    lang = current_language()
     context.setdefault("dispatch_user", read_session(request))
+    context.setdefault("lang", lang)
+    context.setdefault("t", TRANSLATIONS[lang])
     return templates.TemplateResponse(request, name, context)
+
+
+def latest_position_for_user(user: Any) -> dict[str, Any] | None:
+    candidates: list[dict[str, Any]] = []
+    if user["aprs_station_id"]:
+        latest = row(
+            "SELECT callsign, lat, lon, fetched_at, 'APRS' AS source FROM aprs_positions WHERE station_id = ? ORDER BY id DESC LIMIT 1",
+            (user["aprs_station_id"],),
+        )
+        if latest:
+            candidates.append(dict(latest))
+    if user["dstar_callsign"]:
+        latest = row(
+            "SELECT callsign, lat, lon, fetched_at, 'D-STAR' AS source FROM dstar_positions WHERE UPPER(callsign) = UPPER(?) ORDER BY id DESC LIMIT 1",
+            (user["dstar_callsign"],),
+        )
+        if latest:
+            candidates.append(dict(latest))
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda item: str(item.get("fetched_at", "")), reverse=True)[0]
+
+
+def user_label(user: Any, location: str) -> str:
+    label_parts = [part for part in [user["tactical_callsign"], location or user["default_location"]] if part]
+    tactical_label = "/".join(label_parts) if label_parts else user["display_name"]
+    label = f"{tactical_label} - {user['display_name']}"
+    if user["operator_callsign"]:
+        label += f" ({user['operator_callsign']})"
+    return label
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -95,7 +147,6 @@ async def logout() -> RedirectResponse:
 
 @app.post("/logs")
 async def create_log(
-    request: Request,
     user_id: int = Form(...),
     status: str = Form(...),
     location: str = Form(""),
@@ -115,25 +166,14 @@ async def create_log(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    latest = None
-    if user["aprs_station_id"]:
-        latest = row(
-            "SELECT * FROM aprs_positions WHERE station_id = ? ORDER BY id DESC LIMIT 1",
-            (user["aprs_station_id"],),
-        )
-
-    label_parts = [part for part in [user["tactical_callsign"], location or user["default_location"]] if part]
-    tactical_label = "/".join(label_parts) if label_parts else user["display_name"]
-    user_label = f"{tactical_label} - {user['display_name']}"
-    if user["operator_callsign"]:
-        user_label += f" ({user['operator_callsign']})"
-
+    latest = latest_position_for_user(user)
+    label = user_label(user, location)
     bulletin_id = None
     with connect() as conn:
         if forward_bulletin:
             cur = conn.execute(
                 "INSERT INTO bulletins (source, submitter_name, message, status, approved_at, approved_by) VALUES (?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)",
-                ("dispatch", user_label, message, settings.admin_username),
+                ("dispatch", label, message, settings.admin_username),
             )
             bulletin_id = cur.lastrowid
         conn.execute(
@@ -144,13 +184,13 @@ async def create_log(
             """,
             (
                 user_id,
-                user_label,
+                label,
                 status,
                 location,
                 message,
                 1 if forward_bulletin else 0,
                 bulletin_id,
-                user["aprs_callsign"] or "",
+                latest["callsign"] if latest else (user["aprs_callsign"] or user["dstar_callsign"] or ""),
                 latest["lat"] if latest else None,
                 latest["lon"] if latest else None,
             ),
@@ -158,6 +198,18 @@ async def create_log(
 
     if bulletin_id:
         await broadcast_approved_bulletin(bulletin_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/bulletins/direct")
+async def direct_bulletin(message: str = Form(...), _: str = Depends(require_dispatch)) -> RedirectResponse:
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO bulletins (source, submitter_name, message, status, approved_at, approved_by) VALUES ('dispatch', ?, ?, 'approved', CURRENT_TIMESTAMP, ?)",
+            (settings.admin_username, message, settings.admin_username),
+        )
+        bulletin_id = cur.lastrowid
+    await broadcast_approved_bulletin(bulletin_id)
     return RedirectResponse("/", status_code=303)
 
 
@@ -175,6 +227,12 @@ async def setup(request: Request, _: str = Depends(require_dispatch)) -> HTMLRes
     return page(request, "setup.html", users=users, stations=stations)
 
 
+@app.post("/setup/settings")
+async def update_settings(language: str = Form("en"), _: str = Depends(require_dispatch)) -> RedirectResponse:
+    save_setting("language", normalize_language(language))
+    return RedirectResponse("/setup", status_code=303)
+
+
 @app.post("/setup/users")
 async def add_user(
     display_name: str = Form(...),
@@ -182,16 +240,17 @@ async def add_user(
     tactical_callsign: str = Form(""),
     default_location: str = Form(""),
     aprs_station_id: str = Form(""),
+    dstar_callsign: str = Form(""),
     _: str = Depends(require_dispatch),
 ) -> RedirectResponse:
     station_id = int(aprs_station_id) if aprs_station_id else None
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (display_name, operator_callsign, tactical_callsign, default_location, station_id),
+            (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper()),
         )
     return RedirectResponse("/setup", status_code=303)
 
@@ -211,6 +270,7 @@ async def update_user(
     tactical_callsign: str = Form(""),
     default_location: str = Form(""),
     aprs_station_id: str = Form(""),
+    dstar_callsign: str = Form(""),
     _: str = Depends(require_dispatch),
 ) -> RedirectResponse:
     station_id = int(aprs_station_id) if aprs_station_id else None
@@ -219,10 +279,10 @@ async def update_user(
             """
             UPDATE users
             SET display_name = ?, operator_callsign = ?, tactical_callsign = ?,
-                default_location = ?, aprs_station_id = ?
+                default_location = ?, aprs_station_id = ?, dstar_callsign = ?
             WHERE id = ?
             """,
-            (display_name, operator_callsign, tactical_callsign, default_location, station_id, user_id),
+            (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), user_id),
         )
     return RedirectResponse("/setup", status_code=303)
 
@@ -265,36 +325,81 @@ async def manual_aprs_poll(_: str = Depends(require_dispatch)) -> RedirectRespon
     return RedirectResponse("/map", status_code=303)
 
 
+@app.post("/api/dstar/positions")
+async def ingest_dstar_position(
+    payload: dict[str, Any] = Body(...),
+    authorization: str | None = Header(None),
+    x_drats_token: str | None = Header(None, alias="X-D-RATS-Token"),
+) -> dict[str, Any]:
+    if settings.drats_ingest_token:
+        bearer = authorization.removeprefix("Bearer ").strip() if authorization else ""
+        if x_drats_token != settings.drats_ingest_token and bearer != settings.drats_ingest_token:
+            raise HTTPException(status_code=401, detail="Invalid D-RATS ingest token")
+    callsign = str(payload.get("callsign", "")).strip().upper()
+    if not callsign:
+        raise HTTPException(status_code=400, detail="callsign is required")
+    try:
+        lat = float(payload["lat"])
+        lon = float(payload["lon"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="lat and lon are required numeric values") from exc
+    with connect() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO dstar_positions (callsign, lat, lon, source, speed, course, altitude, comment, radio_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                callsign,
+                lat,
+                lon,
+                str(payload.get("source", "d-rats")),
+                _float_or_none(payload.get("speed")),
+                _float_or_none(payload.get("course")),
+                _float_or_none(payload.get("altitude")),
+                str(payload.get("comment", "")),
+                str(payload.get("time", payload.get("radio_time", ""))),
+            ),
+        )
+    return {"ok": True, "id": cur.lastrowid}
+
+
+def _float_or_none(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 @app.get("/map", response_class=HTMLResponse)
 async def aprs_map(request: Request, _: str = Depends(require_dispatch)) -> HTMLResponse:
-    positions = rows(
-        """
-        SELECT p.*, s.label
-        FROM aprs_positions p
-        JOIN (
-            SELECT station_id, MAX(id) AS id FROM aprs_positions GROUP BY station_id
-        ) latest ON latest.id = p.id
-        LEFT JOIN aprs_stations s ON s.id = p.station_id
-        ORDER BY p.callsign
-        """
-    )
-    return page(request, "map.html", positions=positions, aprs_enabled=bool(settings.aprsfi_api_key))
+    return page(request, "map.html", aprs_enabled=bool(settings.aprsfi_api_key))
 
 
 @app.get("/api/map")
 async def api_map() -> list[dict[str, object]]:
-    latest = rows(
+    return combined_latest_positions()
+
+
+def combined_latest_positions() -> list[dict[str, object]]:
+    aprs_latest = rows(
         """
-        SELECT p.*, s.label
+        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, s.label, 'APRS' AS source
         FROM aprs_positions p
-        JOIN (
-            SELECT station_id, MAX(id) AS id FROM aprs_positions GROUP BY station_id
-        ) latest ON latest.id = p.id
+        JOIN (SELECT station_id, MAX(id) AS id FROM aprs_positions GROUP BY station_id) latest ON latest.id = p.id
         LEFT JOIN aprs_stations s ON s.id = p.station_id
-        ORDER BY p.callsign
         """
     )
-    return [dict(item) for item in latest]
+    dstar_latest = rows(
+        """
+        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, '' AS label, 'D-STAR' AS source
+        FROM dstar_positions p
+        JOIN (SELECT UPPER(callsign) AS callsign_key, MAX(id) AS id FROM dstar_positions GROUP BY UPPER(callsign)) latest ON latest.id = p.id
+        """
+    )
+    return [dict(item) for item in [*aprs_latest, *dstar_latest]]
 
 
 @app.get("/bulletins", response_class=HTMLResponse)
@@ -321,22 +426,52 @@ async def bulletin_submit(submitter_name: str = Form(""), message: str = Form(..
     return RedirectResponse("/bulletin-submit?sent=1", status_code=303)
 
 
+@app.get("/api/bulletins/{bulletin_id}")
+async def api_bulletin(bulletin_id: int, _: str = Depends(require_dispatch)) -> dict[str, object]:
+    bulletin = row("SELECT * FROM bulletins WHERE id = ?", (bulletin_id,))
+    if not bulletin:
+        raise HTTPException(status_code=404, detail="Bulletin not found")
+    return dict(bulletin)
+
+
 @app.post("/bulletins/{bulletin_id}/approve")
 async def approve_bulletin(bulletin_id: int, _: str = Depends(require_dispatch)) -> RedirectResponse:
+    await approve_bulletin_id(bulletin_id)
+    return RedirectResponse("/bulletins", status_code=303)
+
+
+@app.post("/api/bulletins/{bulletin_id}/approve")
+async def api_approve_bulletin(bulletin_id: int, _: str = Depends(require_dispatch)) -> dict[str, object]:
+    bulletin = await approve_bulletin_id(bulletin_id)
+    return {"ok": True, "bulletin": bulletin}
+
+
+async def approve_bulletin_id(bulletin_id: int) -> dict[str, object]:
     with connect() as conn:
         conn.execute(
             "UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?",
             (settings.admin_username, bulletin_id),
         )
     await broadcast_approved_bulletin(bulletin_id)
-    return RedirectResponse("/bulletins", status_code=303)
+    bulletin = row("SELECT * FROM bulletins WHERE id = ?", (bulletin_id,))
+    return dict(bulletin) if bulletin else {}
 
 
 @app.post("/bulletins/{bulletin_id}/reject")
 async def reject_bulletin(bulletin_id: int, _: str = Depends(require_dispatch)) -> RedirectResponse:
+    reject_bulletin_id(bulletin_id)
+    return RedirectResponse("/bulletins", status_code=303)
+
+
+@app.post("/api/bulletins/{bulletin_id}/reject")
+async def api_reject_bulletin(bulletin_id: int, _: str = Depends(require_dispatch)) -> dict[str, object]:
+    reject_bulletin_id(bulletin_id)
+    return {"ok": True}
+
+
+def reject_bulletin_id(bulletin_id: int) -> None:
     with connect() as conn:
         conn.execute("UPDATE bulletins SET status = 'rejected' WHERE id = ?", (bulletin_id,))
-    return RedirectResponse("/bulletins", status_code=303)
 
 
 @app.get("/announcer", response_class=HTMLResponse)
@@ -382,7 +517,10 @@ async def broadcast_approved_bulletin(bulletin_id: int) -> None:
 
 
 async def broadcast_review_notice(bulletin_id: int) -> None:
-    payload = json.dumps({"type": "pending_bulletin", "id": bulletin_id})
+    bulletin = row("SELECT * FROM bulletins WHERE id = ?", (bulletin_id,))
+    if not bulletin:
+        return
+    payload = json.dumps({"type": "pending_bulletin", "bulletin": dict(bulletin), "labels": TRANSLATIONS[current_language()]})
     await _broadcast(review_clients, payload)
 
 
@@ -409,9 +547,25 @@ async def export_aprs(_: str = Depends(require_dispatch)) -> StreamingResponse:
     return csv_response("aprs_waypoints.csv", data)
 
 
+@app.get("/export/dstar.csv")
+async def export_dstar(_: str = Depends(require_dispatch)) -> StreamingResponse:
+    data = rows("SELECT * FROM dstar_positions ORDER BY callsign, id")
+    return csv_response("dstar_waypoints.csv", data)
+
+
 @app.get("/export/aprs.geojson")
 async def export_aprs_geojson(_: str = Depends(require_dispatch)) -> StreamingResponse:
-    data = rows("SELECT * FROM aprs_positions ORDER BY station_id, id")
+    data = rows("SELECT *, 'APRS' AS source FROM aprs_positions ORDER BY station_id, id")
+    return geojson_response("aprs_waypoints.geojson", data)
+
+
+@app.get("/export/dstar.geojson")
+async def export_dstar_geojson(_: str = Depends(require_dispatch)) -> StreamingResponse:
+    data = rows("SELECT *, 'D-STAR' AS source FROM dstar_positions ORDER BY callsign, id")
+    return geojson_response("dstar_waypoints.geojson", data)
+
+
+def geojson_response(filename: str, data: list[Any]) -> StreamingResponse:
     features = [
         {
             "type": "Feature",
@@ -424,11 +578,11 @@ async def export_aprs_geojson(_: str = Depends(require_dispatch)) -> StreamingRe
     return StreamingResponse(
         io.StringIO(content),
         media_type="application/geo+json",
-        headers={"Content-Disposition": 'attachment; filename="aprs_waypoints.geojson"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
-def csv_response(filename: str, data: list[object]) -> StreamingResponse:
+def csv_response(filename: str, data: list[Any]) -> StreamingResponse:
     output = io.StringIO()
     if data:
         writer = csv.DictWriter(output, fieldnames=data[0].keys())
@@ -450,5 +604,5 @@ async def clear_race(confirm: str = Form(""), _: str = Depends(require_dispatch)
         conn.execute("DELETE FROM log_entries")
         conn.execute("DELETE FROM bulletins")
         conn.execute("DELETE FROM aprs_positions")
+        conn.execute("DELETE FROM dstar_positions")
     return RedirectResponse("/", status_code=303)
-

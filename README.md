@@ -52,6 +52,7 @@ services:
       SESSION_SECRET: replace-with-a-long-random-string
       APRSFI_API_KEY: ""
       APRS_POLL_SECONDS: 60
+      DRATS_INGEST_TOKEN: change-this-token
       DATABASE_PATH: /data/cad.sqlite3
     ports:
       - "8000:8000"
@@ -99,3 +100,16 @@ CAD_ADMIN_PASSWORD=change-me
 
 Change the password before real use, even on an internal network.
 
+
+## D-RATS / D-STAR Position Ingest
+
+The CAD app accepts D-STAR GPS positions from a D-RATS helper, D-PRS bridge, or other local script over HTTP:
+
+```bash
+curl -X POST http://SERVER-IP:8000/api/dstar/positions \
+  -H "Content-Type: application/json" \
+  -H "X-D-RATS-Token: change-this-token" \
+  -d '{"callsign":"IU2ABC","lat":45.85,"lon":9.39,"source":"d-rats"}'
+```
+
+Set `DRATS_INGEST_TOKEN` in Portainer to require that token. Assign the same D-STAR callsign to a user in Setup, and new log entries from that user will attach the latest D-STAR or APRS position available.

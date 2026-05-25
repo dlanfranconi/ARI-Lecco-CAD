@@ -1,6 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="grid two">
+<section class="grid three">
+  <form method="post" action="/setup/settings" class="panel">
+    <h1>{{ t.setup }}</h1>
+    <label>{{ t.language }}
+      <select name="language">
+        <option value="en" {% if lang == 'en' %}selected{% endif %}>{{ t.english }}</option>
+        <option value="it" {% if lang == 'it' %}selected{% endif %}>{{ t.italian }}</option>
+      </select>
+    </label>
+    <button>{{ t.save_settings }}</button>
+  </form>
+
   <form method="post" action="/setup/users" class="panel">
     <h1>Add User / Operator</h1>
     <label>Display Name<input name="display_name" required></label>
@@ -15,6 +26,7 @@
         {% endfor %}
       </select>
     </label>
+    <label>D-STAR Callsign<input name="dstar_callsign" placeholder="IU2ABC"></label>
     <button>Add User</button>
   </form>
 
@@ -45,6 +57,7 @@
               {% endfor %}
             </select>
           </label>
+          <label>D-STAR<input name="dstar_callsign" value="{{ user.dstar_callsign }}"></label>
           <button>Save</button>
         </form>
         <form method="post" action="/setup/users/{{ user.id }}/toggle" class="inline-form">
