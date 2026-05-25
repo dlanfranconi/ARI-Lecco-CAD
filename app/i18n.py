@@ -112,6 +112,8 @@ TRANSLATIONS = {
         "add_athlete": "Add Athlete",
         "select_athlete_to_edit": "Select athlete to edit",
         "all_athletes": "All Athletes",
+        "delete_archive": "Delete Archive",
+        "import_archive": "Import Archive",
     },
     "it": {
         "app_title": "ARI Lecco CAD",
@@ -215,7 +217,7 @@ TRANSLATIONS = {
         "hometown": "Citta",
         "checkpoint": "Postazione",
         "compose_runner_notice": "Componi notizia atleta",
-        "arrival_template": "L'atleta {name} sta arrivando a {checkpoint}.",
+        "arrival_template": "E' in arrivo l'atleta numero {bib}, {name} a/alla {checkpoint}.",
         "runner_reference": "Riferimento atleta",
         "tactical_callsigns": "Nominativi tattici",
         "select_user_to_edit": "Seleziona utente da modificare",
@@ -226,6 +228,8 @@ TRANSLATIONS = {
         "add_athlete": "Aggiungi atleta",
         "select_athlete_to_edit": "Seleziona atleta da modificare",
         "all_athletes": "Tutti gli atleti",
+        "delete_archive": "Elimina archivio",
+        "import_archive": "Importa archivio",
     },
 }
 

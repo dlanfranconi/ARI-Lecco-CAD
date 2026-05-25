@@ -161,7 +161,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
         SELECT users.*, aprs_stations.callsign AS aprs_callsign
         FROM users
         LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-        WHERE users.active = 1
+        WHERE users.active = 1 AND users.role != 'announcer'
         ORDER BY tactical_callsign, display_name
         """
     )
@@ -490,7 +490,7 @@ async def notice_submit(
             runner_hometown = runner["hometown"]
             if not message and checkpoint:
                 template = TRANSLATIONS[current_language()]["arrival_template"]
-                message = template.format(name=runner_name, checkpoint=checkpoint)
+                message = template.format(bib=runner_bib, name=runner_name, checkpoint=checkpoint)
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
     with connect() as conn:
@@ -795,6 +795,27 @@ async def toggle_runner(runner_id: int, _: Any = Depends(require_admin)) -> Redi
 async def api_runner(bib_number: str, _: Any = Depends(require_user_or_admin)) -> dict[str, object]:
     runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib_number,))
     return dict(runner) if runner else {}
+
+
+@app.post("/archive/{archive_id}/delete")
+async def delete_archive(archive_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("DELETE FROM race_archives WHERE id = ?", (archive_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/archive/import")
+async def import_archive(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    content = (await file.read()).decode("utf-8-sig")
+    snapshot = json.loads(content)
+    race_name = file.filename.rsplit(".", 1)[0] if file.filename else "Imported Race"
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO race_archives (race_name, reason, snapshot_json) VALUES (?, 'imported', ?)",
+            (race_name, json.dumps(snapshot)),
+        )
+        archive_id = cur.lastrowid
+    return RedirectResponse(f"/archive/{archive_id}", status_code=303)
 
 
 @app.get("/archive/{archive_id}/download")

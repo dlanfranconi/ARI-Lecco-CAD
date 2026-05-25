@@ -27,3 +27,19 @@ function composeMessage() {
 bib?.addEventListener("change", lookupRunner);
 bib?.addEventListener("blur", lookupRunner);
 checkpoint?.addEventListener("change", composeMessage);
+
+
+bib?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    bib.blur();
+    lookupRunner();
+  }
+});
+
+message?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    message.blur();
+  }
+});

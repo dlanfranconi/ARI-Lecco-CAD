@@ -141,3 +141,6 @@ th { color: var(--muted); font-size: 13px; }
 .setup-table input, .setup-table select { min-width: 130px; }
 .setup-table td { vertical-align: middle; }
 .setup-table button { min-width: 70px; }
+
+.runner-details { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 28px; font-size: 30px; color: #d6eeee; font-weight: 700; }
+.hidden { display: none !important; }

@@ -10,8 +10,16 @@
   <main>
     <div class="announcer-label">{{ t.current_notice }}</div>
     <div id="bulletin" class="teleprompter">{% if latest %}{{ latest.message }}{% else %}{{ t.no_notice }}{% endif %}</div>
+    <div id="runner-details" class="runner-details {% if not latest or not latest.runner_bib %}hidden{% endif %}">
+      {% if latest and latest.runner_bib %}
+      <span>{{ t.bib_number }}: {{ latest.runner_bib }}</span>
+      <span>{{ t.runner_name }}: {{ latest.runner_name }}</span>
+      <span>{{ t.hometown }}: {{ latest.runner_hometown }}</span>
+      {% endif %}
+    </div>
     <div id="timestamp" class="announcer-time">{% if latest %}{{ format_dt(latest.approved_at or latest.created_at) }}{% endif %}</div>
   </main>
+  <script>window.CAD_LABELS = {{ t|tojson }};</script>
   <script src="/static/announcer.js"></script>
 </body>
 </html>
