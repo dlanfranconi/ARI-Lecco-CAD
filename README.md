@@ -187,3 +187,25 @@ Runner Mario Rossi is arriving to CP1.
 ```
 
 Italian mode uses the Italian arrival template.
+
+
+## Archive Downloads
+
+When starting a new race or using Clear All, enter an archive filename such as:
+
+```text
+race-name-final.json
+```
+
+The app archives active logs, notices, APRS positions, and D-STAR positions, clears the active race data, then redirects the browser to download the archive file to the local PC you are using.
+
+Archived races also remain browsable from Setup.
+
+## Athlete Management
+
+Setup supports CSV import and manual add/edit/disable for athletes. CSV headers:
+
+```csv
+bib number,name,home town
+101,Mario Rossi,Lecco
+```

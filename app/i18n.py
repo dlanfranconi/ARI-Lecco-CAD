@@ -106,6 +106,12 @@ TRANSLATIONS = {
         "tactical_callsigns": "Tactical Callsigns",
         "select_user_to_edit": "Select user to edit",
         "all_users": "All Users",
+        "archive_filename": "Archive Filename",
+        "download_archive": "Download Archive",
+        "athletes": "Athletes",
+        "add_athlete": "Add Athlete",
+        "select_athlete_to_edit": "Select athlete to edit",
+        "all_athletes": "All Athletes",
     },
     "it": {
         "app_title": "ARI Lecco CAD",
@@ -214,6 +220,12 @@ TRANSLATIONS = {
         "tactical_callsigns": "Nominativi tattici",
         "select_user_to_edit": "Seleziona utente da modificare",
         "all_users": "Tutti gli utenti",
+        "archive_filename": "Nome file archivio",
+        "download_archive": "Scarica archivio",
+        "athletes": "Atleti",
+        "add_athlete": "Aggiungi atleta",
+        "select_athlete_to_edit": "Seleziona atleta da modificare",
+        "all_athletes": "Tutti gli atleti",
     },
 }
 

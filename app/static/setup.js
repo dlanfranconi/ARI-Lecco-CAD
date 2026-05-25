@@ -6,3 +6,12 @@ if (filter) {
     });
   });
 }
+
+const runnerFilter = document.getElementById("runner-filter");
+if (runnerFilter) {
+  runnerFilter.addEventListener("change", () => {
+    document.querySelectorAll(".runner-row").forEach((row) => {
+      row.style.display = !runnerFilter.value || row.id === runnerFilter.value ? "table-row" : "none";
+    });
+  });
+}

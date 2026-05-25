@@ -279,7 +279,8 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
     tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
     archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
-    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives)
+    runners = rows("SELECT * FROM runners ORDER BY active DESC, bib_number")
+    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
 
 
 @app.post("/setup/settings")
@@ -685,8 +686,15 @@ def archive_current_race(reason: str) -> int | None:
         return cur.lastrowid
 
 
+def download_redirect(archive_id: int | None, filename: str) -> RedirectResponse:
+    if not archive_id:
+        return RedirectResponse("/setup", status_code=303)
+    suffix = f"?filename={filename}" if filename else ""
+    return RedirectResponse(f"/archive/{archive_id}/download{suffix}", status_code=303)
+
+
 @app.post("/clear-race")
-async def clear_race(action: str = Form(""), confirm: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def clear_race(action: str = Form(""), confirm: str = Form(""), archive_filename: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
     expected = "CANCELLA" if current_language() == "it" else "CLEAR"
     if confirm != expected:
         raise HTTPException(status_code=400, detail=f"Type {expected} to clear race data")
@@ -696,26 +704,29 @@ async def clear_race(action: str = Form(""), confirm: str = Form(""), _: Any = D
         elif action == "notices":
             conn.execute("UPDATE bulletins SET hidden_at = CURRENT_TIMESTAMP WHERE hidden_at IS NULL")
         elif action == "all":
-            archive_current_race("clear_all")
+            archive_id = archive_current_race("clear_all")
             conn.execute("DELETE FROM log_entries")
             conn.execute("DELETE FROM bulletins")
             conn.execute("DELETE FROM aprs_positions")
             conn.execute("DELETE FROM dstar_positions")
+            return download_redirect(archive_id, archive_filename)
         else:
             raise HTTPException(status_code=400, detail="Invalid clear action")
     return RedirectResponse("/setup", status_code=303)
 
 
 @app.post("/setup/race")
-async def update_race_name(race_name: str = Form(...), confirm: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def update_race_name(race_name: str = Form(...), archive_filename: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
     old_name = setting("race_name", "")
     if old_name and race_name != old_name:
-        archive_current_race("new_race")
+        archive_id = archive_current_race("new_race")
         with connect() as conn:
             conn.execute("DELETE FROM log_entries")
             conn.execute("DELETE FROM bulletins")
             conn.execute("DELETE FROM aprs_positions")
             conn.execute("DELETE FROM dstar_positions")
+        save_setting("race_name", race_name)
+        return download_redirect(archive_id, archive_filename)
     save_setting("race_name", race_name)
     return RedirectResponse("/setup", status_code=303)
 
@@ -745,10 +756,60 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
     return RedirectResponse("/setup", status_code=303)
 
 
+@app.post("/setup/runners")
+async def add_runner(
+    bib_number: str = Form(...),
+    name: str = Form(...),
+    hometown: str = Form(""),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO runners (bib_number, name, hometown) VALUES (?, ?, ?) ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, hometown = excluded.hometown, active = 1",
+            (bib_number.strip(), name.strip(), hometown.strip()),
+        )
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/runners/{runner_id}")
+async def update_runner(
+    runner_id: int,
+    bib_number: str = Form(...),
+    name: str = Form(...),
+    hometown: str = Form(""),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE runners SET bib_number = ?, name = ?, hometown = ? WHERE id = ?", (bib_number.strip(), name.strip(), hometown.strip(), runner_id))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/runners/{runner_id}/toggle")
+async def toggle_runner(runner_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE runners SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (runner_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
 @app.get("/api/runners/{bib_number}")
 async def api_runner(bib_number: str, _: Any = Depends(require_user_or_admin)) -> dict[str, object]:
     runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib_number,))
     return dict(runner) if runner else {}
+
+
+@app.get("/archive/{archive_id}/download")
+async def download_archive(archive_id: int, filename: str = "", _: Any = Depends(require_admin)) -> StreamingResponse:
+    archive = row("SELECT * FROM race_archives WHERE id = ?", (archive_id,))
+    if not archive:
+        raise HTTPException(status_code=404, detail="Archive not found")
+    safe_filename = (filename or f"{archive['race_name']}-{archive['archived_at']}.json").replace("/", "-").replace("\\", "-").replace(" ", "_")
+    if not safe_filename.endswith(".json"):
+        safe_filename += ".json"
+    return StreamingResponse(
+        io.StringIO(archive["snapshot_json"]),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
+    )
 
 
 @app.get("/archive/{archive_id}", response_class=HTMLResponse)

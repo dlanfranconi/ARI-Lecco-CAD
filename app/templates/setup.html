@@ -15,6 +15,7 @@
   <form method="post" action="/setup/race" class="panel">
     <h1>{{ t.race_name }}</h1>
     <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
+    <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
     <button>{{ t.start_new_race }}</button>
   </form>
 
@@ -78,14 +79,52 @@
     <p class="warning">{{ t.clear_all_requires_archive }}</p>
     <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="logs"><label>{{ t.clear_logs_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_logs_only }}</button></form>
     <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="notices"><label>{{ t.clear_notices_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_notices_only }}</button></form>
-    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="all"><label>{{ t.clear_all }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_all }}</button></form>
+    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="all"><label>{{ t.clear_all }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label><button class="danger">{{ t.clear_all }}</button></form>
   </section>
   <section class="panel">
     <h2>{{ t.runner_import }}</h2>
     <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
     <h2>{{ t.archive }}</h2>
-    <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a></article>{% endfor %}</div>
+    <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a></article>{% endfor %}</div>
   </section>
 </section>
+
+
+<section class="panel">
+  <h2>{{ t.athletes }}</h2>
+  <label>{{ t.select_athlete_to_edit }}
+    <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.name }}</option>{% endfor %}</select>
+  </label>
+  <div class="table-wrap">
+    <table class="setup-table">
+      <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.runner_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <form method="post" action="/setup/runners">
+            <td><input name="bib_number" required></td>
+            <td><input name="name" required></td>
+            <td><input name="hometown"></td>
+            <td>{{ t.active }}</td>
+            <td><button>{{ t.add_athlete }}</button></td>
+            <td></td>
+          </form>
+        </tr>
+        {% for runner in runners %}
+        <tr class="runner-row" id="runner-{{ runner.id }}">
+          <form method="post" action="/setup/runners/{{ runner.id }}">
+            <td><input name="bib_number" value="{{ runner.bib_number }}" required></td>
+            <td><input name="name" value="{{ runner.name }}" required></td>
+            <td><input name="hometown" value="{{ runner.hometown }}"></td>
+            <td>{{ t.active if runner.active else t.disabled }}</td>
+            <td><button>{{ t.save }}</button></td>
+          </form>
+          <td><form method="post" action="/setup/runners/{{ runner.id }}/toggle"><button class="secondary">{{ t.disable if runner.active else t.enable }}</button></form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
 {% endblock %}
 {% block scripts %}<script src="/static/setup.js"></script>{% endblock %}
