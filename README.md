@@ -29,6 +29,41 @@ Open:
 - Announcer view: `http://SERVER-IP:8000/announcer`
 - Bulletin submission: `http://SERVER-IP:8000/bulletin-submit`
 
+
+## Prebuilt Docker Image
+
+After changes are pushed to `main`, GitHub Actions publishes:
+
+```text
+ghcr.io/dlanfranconi/ari-lecco-cad:latest
+```
+
+Portainer stack using the prebuilt image:
+
+```yaml
+services:
+  cad:
+    image: ghcr.io/dlanfranconi/ari-lecco-cad:latest
+    container_name: ari-lecco-cad
+    restart: unless-stopped
+    environment:
+      CAD_ADMIN_USERNAME: dispatch
+      CAD_ADMIN_PASSWORD: change-me
+      SESSION_SECRET: replace-with-a-long-random-string
+      APRSFI_API_KEY: ""
+      APRS_POLL_SECONDS: 60
+      DATABASE_PATH: /data/cad.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - ari-lecco-cad-data:/data
+
+volumes:
+  ari-lecco-cad-data:
+```
+
+Change `CAD_ADMIN_PASSWORD`, `SESSION_SECRET`, and `APRSFI_API_KEY` in Portainer before race use.
+
 ## Portainer
 
 Create a new stack using `docker-compose.yml`.
