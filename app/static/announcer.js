@@ -36,3 +36,12 @@ function connectWs() {
 
 connectWs();
 setInterval(pollLatest, 30000);
+
+
+const contrastToggle = document.getElementById("contrast-toggle");
+const savedContrast = localStorage.getItem("announcer-contrast");
+if (savedContrast === "light") document.body.classList.add("light-mode");
+contrastToggle?.addEventListener("click", () => {
+  document.body.classList.toggle("light-mode");
+  localStorage.setItem("announcer-contrast", document.body.classList.contains("light-mode") ? "light" : "dark");
+});

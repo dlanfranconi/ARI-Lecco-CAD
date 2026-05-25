@@ -21,33 +21,38 @@
 
   <section class="panel">
     <h1>{{ t.tactical_callsigns }}</h1>
-    <form method="post" action="/setup/tactical-callsigns">
-      <label>{{ t.tactical_callsign }}<input name="name" required></label>
-      <label>{{ t.preposition }}<input name="location_preposition" placeholder="to / a / al / alla"></label>
-      <button>{{ t.add }}</button>
-    </form>
     <label>{{ t.tactical_callsign }}
       <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
     </label>
-    <div class="cards">
-      {% for tac in tactical_callsigns %}
-      <article class="card tac-row" id="tac-{{ tac.id }}">
-        <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}" class="edit-grid compact">
-          <label>{{ t.tactical_callsign }}<input name="name" value="{{ tac.name }}" required></label>
-          <label>{{ t.preposition }}<input name="location_preposition" value="{{ tac.location_preposition }}"></label>
-          <button>{{ t.save }}</button>
-        </form>
-        <div class="actions">
-          <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle">
-            <button class="secondary">{{ t.disable if tac.active else t.enable }}</button>
-          </form>
-          <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete">
-            <button class="danger">{{ t.remove }}</button>
-          </form>
-        </div>
-        <p class="meta">{{ t.active if tac.active else t.disabled }}</p>
-      </article>
-      {% endfor %}
+    <div class="table-wrap compact-table">
+      <table class="setup-table tac-table">
+        <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <form method="post" action="/setup/tactical-callsigns">
+              <td><input name="name" required></td>
+              <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
+              <td>{{ t.active }}</td>
+              <td><button>{{ t.add }}</button></td>
+              <td></td>
+            </form>
+          </tr>
+          {% for tac in tactical_callsigns %}
+          <tr class="tac-row" id="tac-{{ tac.id }}">
+            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
+              <td><input name="name" value="{{ tac.name }}" required></td>
+              <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
+              <td>{{ t.active if tac.active else t.disabled }}</td>
+              <td><button>{{ t.save }}</button></td>
+            </form>
+            <td class="actions-cell">
+              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
+              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </section>
 </section>

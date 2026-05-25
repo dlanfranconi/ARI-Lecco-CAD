@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="announcer">
+  <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
   <main>
     <div class="announcer-label">{{ t.current_notice }}</div>
     <div id="bulletin" class="teleprompter">{% if latest %}{{ latest.message }}{% else %}{{ t.no_notice }}{% endif %}</div>

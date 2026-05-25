@@ -21,11 +21,12 @@
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
       <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
     </nav>
-    <form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
+    <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button><form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
   </header>
   {% endif %}
   <main class="content">{% block content %}{% endblock %}</main>
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
+  <script src="/static/theme.js"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

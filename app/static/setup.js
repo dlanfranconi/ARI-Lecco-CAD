@@ -20,7 +20,7 @@ const tacFilter = document.getElementById("tac-filter");
 if (tacFilter) {
   tacFilter.addEventListener("change", () => {
     document.querySelectorAll(".tac-row").forEach((row) => {
-      row.style.display = !tacFilter.value || row.id === tacFilter.value ? "block" : "none";
+      row.style.display = !tacFilter.value || row.id === tacFilter.value ? "table-row" : "none";
     });
   });
 }

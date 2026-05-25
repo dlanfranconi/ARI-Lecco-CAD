@@ -146,3 +146,16 @@ th { color: var(--muted); font-size: 13px; }
 .hidden { display: none !important; }
 
 .runner-reference-inline { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); margin: 0 0 12px; }
+
+.dark-ui { --bg: #071012; --panel: #102a2f; --text: #f8fbfb; --muted: #b7c7c9; --line: #28454b; }
+.dark-ui input, .dark-ui select, .dark-ui textarea { background: #071012; color: #f8fbfb; border-color: #46666d; }
+.dark-ui .card { background: #0c1d21; }
+.icon-button { width: 38px; padding: 0; font-size: 22px; }
+.compact-table table { min-width: 560px; }
+.actions-cell { display: flex; gap: 8px; align-items: center; }
+.tac-table input { min-width: 110px; }
+.contrast-toggle { position: fixed; top: 16px; right: 16px; z-index: 20; width: 42px; padding: 0; font-size: 24px; background: #dce6ea; color: #071012; }
+.announcer.light-mode { background: #f8fbfb; color: #071012; }
+.announcer.light-mode .announcer-label { color: #146c75; }
+.announcer.light-mode .announcer-time { color: #41525a; }
+.announcer.light-mode .runner-details { color: #173b40; }
