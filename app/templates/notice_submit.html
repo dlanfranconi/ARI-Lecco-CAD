@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login">
+  <form method="post" action="/submit-notification" class="panel narrow">
+    <h1>{{ t.submit_notice }}</h1>
+    {% if request.query_params.get("sent") %}<p class="success">{{ t.sent_to_dispatch }}</p>{% endif %}
+    <label>{{ t.notice_message }}<textarea name="message" rows="6" required></textarea></label>
+    <button>{{ t.send_notice }}</button>
+  </form>
+</section>
+{% endblock %}

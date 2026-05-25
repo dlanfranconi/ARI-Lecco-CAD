@@ -1,23 +1,17 @@
 {% extends "base.html" %}
-{% block head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
 {% block content %}
 <section class="panel">
   <div class="section-title">
-    <h1>APRS Map</h1>
-    <form method="post" action="/aprs/poll"><button class="secondary">Poll Now</button></form>
+    <h1>{{ t.aprs_map }}</h1>
+    {% if is_admin %}<form method="post" action="/aprs/poll"><button class="secondary">{{ t.poll_now }}</button></form>{% endif %}
   </div>
-  {% if not aprs_enabled %}<p class="warning">APRSFI_API_KEY is not set. Add it to the container environment to enable polling.</p>{% endif %}
+  {% if not aprs_enabled %}<p class="warning">{{ t.aprs_key_missing }}</p>{% endif %}
   <div id="map"></div>
 </section>
 <section class="panel">
-  <h2>Latest Positions</h2>
+  <h2>{{ t.latest_positions }}</h2>
   <div id="position-list" class="cards"></div>
 </section>
 {% endblock %}
-{% block scripts %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/map.js"></script>
-{% endblock %}
-
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/static/map.js"></script>{% endblock %}

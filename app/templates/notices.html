@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+{% if is_admin %}
+<section class="panel">
+  <h1>{{ t.pending_review }}</h1>
+  <div class="cards">
+    {% for item in pending %}
+    <article class="card">
+      <p class="meta">{{ format_dt(item.created_at) }} {{ t.from_label }} {{ item.submitter_name or t.unknown }}</p>
+      <p class="bulletin-text">{{ item.message }}</p>
+      <div class="actions">
+        <form method="post" action="/notices/{{ item.id }}/approve"><button>{{ t.approve }}</button></form>
+        <form method="post" action="/notices/{{ item.id }}/reject"><button class="danger">{{ t.reject }}</button></form>
+      </div>
+    </article>
+    {% else %}
+    <p>{{ t.no_pending_notices }}</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+<section class="panel">
+  <h2>{{ t.approved_notices }}</h2>
+  <div class="cards">
+    {% for item in approved %}
+    <article class="card">
+      <p class="meta">{{ format_dt(item.approved_at or item.created_at) }} {{ t.from_label }} {{ item.submitter_name or item.source }}</p>
+      <p>{{ item.message }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
+{% endblock %}

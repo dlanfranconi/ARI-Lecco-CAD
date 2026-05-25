@@ -4,13 +4,13 @@ Internal web-based computer aided dispatch app for race and event operations.
 
 ## What is included
 
-- Dispatch log with persistent SQLite storage
+- Race log with persistent SQLite storage
 - Editable race setup for users/operators and APRS stations
 - User dropdown with tactical callsign/location, operator callsign, status, and free-text location
 - Optional APRS station assignment per user
 - Latest APRS position attached to log entries when available
-- Bulletin request workflow for non-dispatch users
-- Dispatch approval queue with pop-up alert for new bulletin requests
+- Notice request workflow for non-dispatch users
+- Dispatch approval queue with pop-up alert for new notice requests
 - Announcer display that updates live over WebSocket with polling fallback
 - CSV log export, APRS waypoint CSV export, and GeoJSON waypoint export
 - Clear race data after export
@@ -27,7 +27,7 @@ Open:
 
 - Dispatch app: `http://SERVER-IP:8000`
 - Announcer view: `http://SERVER-IP:8000/announcer`
-- Bulletin submission: `http://SERVER-IP:8000/bulletin-submit`
+- Notice submission: `http://SERVER-IP:8000/submit-notification`
 
 
 ## Prebuilt Docker Image
@@ -103,7 +103,44 @@ Change the password before real use, even on an internal network.
 
 ## D-RATS / D-STAR Position Ingest
 
-The CAD app accepts D-STAR GPS positions from a D-RATS helper, D-PRS bridge, or other local script over HTTP:
+D-RATS runs on the radio PC. The CAD app runs on the server. To move D-STAR GPS positions into CAD, the radio PC must POST each received position to the CAD server.
+
+In Portainer, set a shared token:
+
+```yaml
+DRATS_INGEST_TOKEN: change-this-token
+```
+
+The CAD endpoint is:
+
+```text
+POST http://SERVER-IP:8000/api/dstar/positions
+```
+
+JSON payload:
+
+```json
+{
+  "callsign": "IU2ABC",
+  "lat": 45.85,
+  "lon": 9.39,
+  "source": "d-rats",
+  "comment": "optional"
+}
+```
+
+Manual test from the D-RATS PC:
+
+```bash
+python3 scripts/post_dstar_position.py \
+  --cad-url http://SERVER-IP:8000 \
+  --token change-this-token \
+  --callsign IU2ABC \
+  --lat 45.85 \
+  --lon 9.39
+```
+
+Or with curl:
 
 ```bash
 curl -X POST http://SERVER-IP:8000/api/dstar/positions \
@@ -112,4 +149,6 @@ curl -X POST http://SERVER-IP:8000/api/dstar/positions \
   -d '{"callsign":"IU2ABC","lat":45.85,"lon":9.39,"source":"d-rats"}'
 ```
 
-Set `DRATS_INGEST_TOKEN` in Portainer to require that token. Assign the same D-STAR callsign to a user in Setup, and new log entries from that user will attach the latest D-STAR or APRS position available.
+In CAD Setup, assign the same D-STAR callsign to the user/operator. New log entries from that user will attach the latest available APRS or D-STAR position.
+
+D-RATS itself does not currently expose a simple built-in HTTP push target for CAD. The bridge can be fed from whatever source is available on the D-RATS PC: a D-RATS export, a local script that reads D-RATS position data, or a D-PRS/D-STAR GPS utility that can call a command when a GPS frame arrives.

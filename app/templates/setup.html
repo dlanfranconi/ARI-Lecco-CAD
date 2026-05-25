@@ -13,56 +13,70 @@
   </form>
 
   <form method="post" action="/setup/users" class="panel">
-    <h1>Add User / Operator</h1>
-    <label>Display Name<input name="display_name" required></label>
-    <label>Operator Callsign<input name="operator_callsign"></label>
-    <label>Tactical Callsign<input name="tactical_callsign" placeholder="Aid 1, Net Control"></label>
-    <label>Default Location<input name="default_location"></label>
-    <label>Assigned APRS Station
+    <h1>{{ t.add_user }}</h1>
+    <label>{{ t.display_name }}<input name="display_name" required></label>
+    <label>{{ t.operator_callsign }}<input name="operator_callsign"></label>
+    <label>{{ t.tactical_callsign }}<input name="tactical_callsign" placeholder="Aid 1, Net Control"></label>
+    <label>{{ t.default_location }}<input name="default_location"></label>
+    <label>{{ t.assigned_aprs }}
       <select name="aprs_station_id">
         <option value="">None</option>
-        {% for station in stations if station.active %}
-        <option value="{{ station.id }}">{{ station.callsign }}{% if station.label %} - {{ station.label }}{% endif %}</option>
-        {% endfor %}
+        {% for station in stations if station.active %}<option value="{{ station.id }}">{{ station.callsign }}{% if station.label %} - {{ station.label }}{% endif %}</option>{% endfor %}
       </select>
     </label>
-    <label>D-STAR Callsign<input name="dstar_callsign" placeholder="IU2ABC"></label>
-    <button>Add User</button>
+    <label>{{ t.dstar_callsign }}<input name="dstar_callsign" placeholder="IU2ABC"></label>
+    <label>{{ t.username }}<input name="username"></label>
+    <label>{{ t.password }}<input name="password" type="password"></label>
+    <label>{{ t.role }}
+      <select name="role">
+        <option value="user">{{ t.standard_user }}</option>
+        <option value="admin">{{ t.admin }}</option>
+        <option value="announcer">{{ t.announcer_role }}</option>
+      </select>
+    </label>
+    <button>{{ t.add_user }}</button>
   </form>
 
   <form method="post" action="/setup/stations" class="panel">
-    <h1>Add APRS Station</h1>
-    <label>Station Callsign<input name="callsign" placeholder="IU2ABC-9" required></label>
-    <label>Label<input name="label" placeholder="Vehicle 1"></label>
-    <button>Add Station</button>
+    <h1>{{ t.add_station }}</h1>
+    <label>{{ t.station_callsign }}<input name="callsign" placeholder="IU2ABC-9" required></label>
+    <label>{{ t.label }}<input name="label" placeholder="Vehicle 1"></label>
+    <button>{{ t.add_station }}</button>
   </form>
 </section>
 
 <section class="grid two">
   <section class="panel">
-    <h2>Users</h2>
+    <h2>{{ t.user }}</h2>
     <div class="cards">
       {% for user in users %}
       <article class="card">
         <form method="post" action="/setup/users/{{ user.id }}" class="edit-grid">
-          <label>Name<input name="display_name" value="{{ user.display_name }}" required></label>
-          <label>Operator Callsign<input name="operator_callsign" value="{{ user.operator_callsign }}"></label>
-          <label>Tactical<input name="tactical_callsign" value="{{ user.tactical_callsign }}"></label>
-          <label>Location<input name="default_location" value="{{ user.default_location }}"></label>
+          <label>{{ t.display_name }}<input name="display_name" value="{{ user.display_name }}" required></label>
+          <label>{{ t.operator_callsign }}<input name="operator_callsign" value="{{ user.operator_callsign }}"></label>
+          <label>{{ t.tactical_callsign }}<input name="tactical_callsign" value="{{ user.tactical_callsign }}"></label>
+          <label>{{ t.default_location }}<input name="default_location" value="{{ user.default_location }}"></label>
           <label>APRS
             <select name="aprs_station_id">
               <option value="">None</option>
-              {% for station in stations %}
-              <option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>
-              {% endfor %}
+              {% for station in stations %}<option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>{% endfor %}
             </select>
           </label>
-          <label>D-STAR<input name="dstar_callsign" value="{{ user.dstar_callsign }}"></label>
-          <button>Save</button>
+          <label>{{ t.dstar_callsign }}<input name="dstar_callsign" value="{{ user.dstar_callsign }}"></label>
+          <label>{{ t.username }}<input name="username" value="{{ user.username or '' }}"></label>
+          <label>{{ t.password }}<input name="password" type="password" placeholder="{{ t.password_hint }}"></label>
+          <label>{{ t.role }}
+            <select name="role">
+              <option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option>
+              <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option>
+              <option value="announcer" {% if user.role == 'announcer' %}selected{% endif %}>{{ t.announcer_role }}</option>
+            </select>
+          </label>
+          <button>{{ t.save }}</button>
         </form>
         <form method="post" action="/setup/users/{{ user.id }}/toggle" class="inline-form">
-          <span>{{ "Active" if user.active else "Disabled" }}</span>
-          <button class="secondary">{{ "Disable" if user.active else "Enable" }}</button>
+          <span>{{ t.active if user.active else t.disabled }} · {{ user.role }}</span>
+          <button class="secondary">{{ t.disable if user.active else t.enable }}</button>
         </form>
       </article>
       {% endfor %}
@@ -70,18 +84,18 @@
   </section>
 
   <section class="panel">
-    <h2>APRS Stations</h2>
+    <h2>APRS</h2>
     <div class="cards">
       {% for station in stations %}
       <article class="card">
         <form method="post" action="/setup/stations/{{ station.id }}" class="edit-grid compact">
-          <label>Callsign<input name="callsign" value="{{ station.callsign }}" required></label>
-          <label>Label<input name="label" value="{{ station.label }}"></label>
-          <button>Save</button>
+          <label>{{ t.station_callsign }}<input name="callsign" value="{{ station.callsign }}" required></label>
+          <label>{{ t.label }}<input name="label" value="{{ station.label }}"></label>
+          <button>{{ t.save }}</button>
         </form>
         <form method="post" action="/setup/stations/{{ station.id }}/toggle" class="inline-form">
-          <span>{{ "Active" if station.active else "Disabled" }}</span>
-          <button class="secondary">{{ "Disable" if station.active else "Enable" }}</button>
+          <span>{{ t.active if station.active else t.disabled }}</span>
+          <button class="secondary">{{ t.disable if station.active else t.enable }}</button>
         </form>
       </article>
       {% endfor %}

@@ -2,6 +2,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from .auth import hash_password
 from .config import settings
 
 
@@ -25,6 +26,9 @@ def init_db() -> None:
                 default_location TEXT DEFAULT '',
                 aprs_station_id INTEGER,
                 dstar_callsign TEXT DEFAULT '',
+                username TEXT UNIQUE,
+                password_hash TEXT DEFAULT '',
+                role TEXT NOT NULL DEFAULT 'user',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -100,12 +104,33 @@ def init_db() -> None:
             """
         )
         _migrate(conn)
+        _seed_admin(conn)
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
     user_cols = {item[1] for item in conn.execute("PRAGMA table_info(users)")}
-    if "dstar_callsign" not in user_cols:
-        conn.execute("ALTER TABLE users ADD COLUMN dstar_callsign TEXT DEFAULT ''")
+    migrations = {
+        "dstar_callsign": "ALTER TABLE users ADD COLUMN dstar_callsign TEXT DEFAULT ''",
+        "username": "ALTER TABLE users ADD COLUMN username TEXT",
+        "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''",
+        "role": "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+    }
+    for column, sql in migrations.items():
+        if column not in user_cols:
+            conn.execute(sql)
+
+
+def _seed_admin(conn: sqlite3.Connection) -> None:
+    existing = conn.execute("SELECT id FROM users WHERE username = ?", (settings.admin_username,)).fetchone()
+    if existing:
+        return
+    conn.execute(
+        """
+        INSERT INTO users (display_name, username, password_hash, role, active)
+        VALUES (?, ?, ?, 'admin', 1)
+        """,
+        (settings.admin_username, settings.admin_username, hash_password(settings.admin_password)),
+    )
 
 
 def rows(sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
@@ -116,4 +141,3 @@ def rows(sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
 def row(sql: str, params: tuple[Any, ...] = ()) -> sqlite3.Row | None:
     with connect() as conn:
         return conn.execute(sql, params).fetchone()
-

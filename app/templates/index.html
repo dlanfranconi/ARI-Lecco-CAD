@@ -1,17 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
+{% if is_admin %}
 <section class="grid three">
   <form method="post" action="/logs" class="panel span-two">
     <div class="section-title">
-      <h1>{{ t.dispatch_log }}</h1>
-      <a class="pill" href="/bulletins">{{ pending_count }} {{ t.pending_bulletins }}</a>
+      <h1>{{ t.race_log }}</h1>
+      <a class="pill" href="/notices">{{ pending_count }} {{ t.pending_notices }}</a>
     </div>
     <label>{{ t.user_assignment }}
       <select name="user_id" required>
         {% for user in users %}
-        <option value="{{ user.id }}">
-          {{ user.tactical_callsign or user.display_name }}{% if user.default_location %}/{{ user.default_location }}{% endif %} - {{ user.display_name }}{% if user.operator_callsign %} ({{ user.operator_callsign }}){% endif %}{% if user.dstar_callsign %} D-STAR: {{ user.dstar_callsign }}{% endif %}
-        </option>
+        <option value="{{ user.id }}">{{ user.tactical_callsign or user.display_name }}{% if user.default_location %}/{{ user.default_location }}{% endif %} - {{ user.display_name }}{% if user.operator_callsign %} ({{ user.operator_callsign }}){% endif %}{% if user.dstar_callsign %} D-STAR: {{ user.dstar_callsign }}{% endif %}</option>
         {% endfor %}
       </select>
     </label>
@@ -24,14 +23,14 @@
     </label>
     <label>{{ t.location }}<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
     <label>{{ t.message }}<textarea name="message" rows="5" required></textarea></label>
-    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_bulletin }}</label>
+    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_notice }}</label>
     <button>{{ t.save_log }}</button>
   </form>
 
-  <form method="post" action="/bulletins/direct" class="panel">
-    <h2>{{ t.send_bulletin }}</h2>
-    <label>{{ t.bulletin_message }}<textarea name="message" rows="7" required></textarea></label>
-    <button>{{ t.post_bulletin }}</button>
+  <form method="post" action="/notices/direct" class="panel">
+    <h2>{{ t.send_notice }}</h2>
+    <label>{{ t.notice_message }}<textarea name="message" rows="7" required></textarea></label>
+    <button>{{ t.post_notice }}</button>
   </form>
 </section>
 
@@ -41,28 +40,36 @@
     <div class="actions">
       <a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a>
       <a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a>
-      <a class="button secondary" href="/export/dstar.csv">Export D-STAR CSV</a>
+      <a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a>
       <a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a>
       <a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a>
     </div>
   </div>
   <form method="post" action="/clear-race" class="clear-form">
-    <label>Clear logs, bulletins, and waypoint history
-      <input name="confirm" placeholder="Type CLEAR">
+    <label>{{ t.clear_history }}
+      <input name="confirm" placeholder="{{ t.type_clear }}">
     </label>
-    <button class="danger">Clear Race Data</button>
+    <button class="danger">{{ t.clear_race_data }}</button>
   </form>
 </section>
+{% else %}
+<section class="panel">
+  <div class="section-title">
+    <h1>{{ t.race_log }}</h1>
+    <a class="button" href="/submit-notification">{{ t.submit_notice_link }}</a>
+  </div>
+</section>
+{% endif %}
 
 <section class="panel">
   <h2>{{ t.recent_logs }}</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Time</th><th>User</th><th>{{ t.status }}</th><th>{{ t.location }}</th><th>{{ t.message }}</th><th>Position</th></tr></thead>
+      <thead><tr><th>{{ t.time }}</th><th>{{ t.user }}</th><th>{{ t.status }}</th><th>{{ t.location }}</th><th>{{ t.message }}</th><th>{{ t.position }}</th></tr></thead>
       <tbody>
         {% for log in logs %}
         <tr>
-          <td>{{ log.created_at }}</td>
+          <td>{{ format_dt(log.created_at) }}</td>
           <td>{{ log.user_label }}</td>
           <td>{{ log.status }}</td>
           <td>{{ log.location }}</td>
@@ -76,6 +83,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script>window.CAD_LABELS = {{ t|tojson }};</script>
-<script src="/static/review-alert.js"></script>
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
 {% endblock %}

@@ -8,11 +8,9 @@
 </head>
 <body class="announcer">
   <main>
-    <div class="announcer-label">{{ t.current_bulletin }}</div>
-    <div id="bulletin" class="teleprompter">
-      {% if latest %}{{ latest.message }}{% else %}{{ t.no_bulletin }}{% endif %}
-    </div>
-    <div id="timestamp" class="announcer-time">{% if latest %}{{ latest.approved_at or latest.created_at }}{% endif %}</div>
+    <div class="announcer-label">{{ t.current_notice }}</div>
+    <div id="bulletin" class="teleprompter">{% if latest %}{{ latest.message }}{% else %}{{ t.no_notice }}{% endif %}</div>
+    <div id="timestamp" class="announcer-time">{% if latest %}{{ format_dt(latest.approved_at or latest.created_at) }}{% endif %}</div>
   </main>
   <script src="/static/announcer.js"></script>
 </body>

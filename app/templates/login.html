@@ -1,14 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Login - ARI Lecco CAD{% endblock %}
+{% block title %}{{ t.login }} - {{ t.app_title }}{% endblock %}
 {% block content %}
 <section class="login">
   <form method="post" action="/login" class="panel narrow">
-    <h1>Dispatch Login</h1>
+    <h1>{{ t.login }}</h1>
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
-    <label>Username<input name="username" autofocus required></label>
-    <label>Password<input name="password" type="password" required></label>
-    <button>Login</button>
+    <label>{{ t.username }}<input name="username" autofocus required></label>
+    <label>{{ t.password }}<input name="password" type="password" required></label>
+    <button>{{ t.login }}</button>
   </form>
 </section>
 {% endblock %}
-
