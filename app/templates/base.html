@@ -15,18 +15,17 @@
       {% if current_user.role in ['admin', 'user'] %}
       <a href="/">{{ t.race_log }}</a>
       <a href="/map">{{ t.aprs_map }}</a>
-      <a href="/submit-notification">{{ t.submit_notice_link }}</a>
+      <a href="{{ submit_notice_url }}">{{ t.submit_notice_link }}</a>
       {% endif %}
       <a href="/notices">{{ t.notices }}</a>
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
-      <a href="/announcer" target="_blank">{{ t.announcer }}</a>
+      <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
     </nav>
     <form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
   </header>
   {% endif %}
-  <main class="content">
-    {% block content %}{% endblock %}
-  </main>
+  <main class="content">{% block content %}{% endblock %}</main>
+  {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

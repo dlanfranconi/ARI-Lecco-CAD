@@ -12,94 +12,80 @@
     <button>{{ t.save_settings }}</button>
   </form>
 
-  <form method="post" action="/setup/users" class="panel">
-    <h1>{{ t.add_user }}</h1>
-    <label>{{ t.display_name }}<input name="display_name" required></label>
-    <label>{{ t.operator_callsign }}<input name="operator_callsign"></label>
-    <label>{{ t.tactical_callsign }}<input name="tactical_callsign" placeholder="Aid 1, Net Control"></label>
-    <label>{{ t.default_location }}<input name="default_location"></label>
-    <label>{{ t.assigned_aprs }}
-      <select name="aprs_station_id">
-        <option value="">None</option>
-        {% for station in stations if station.active %}<option value="{{ station.id }}">{{ station.callsign }}{% if station.label %} - {{ station.label }}{% endif %}</option>{% endfor %}
-      </select>
-    </label>
-    <label>{{ t.dstar_callsign }}<input name="dstar_callsign" placeholder="IU2ABC"></label>
-    <label>{{ t.username }}<input name="username"></label>
-    <label>{{ t.password }}<input name="password" type="password"></label>
-    <label>{{ t.role }}
-      <select name="role">
-        <option value="user">{{ t.standard_user }}</option>
-        <option value="admin">{{ t.admin }}</option>
-        <option value="announcer">{{ t.announcer_role }}</option>
-      </select>
-    </label>
-    <button>{{ t.add_user }}</button>
+  <form method="post" action="/setup/race" class="panel">
+    <h1>{{ t.race_name }}</h1>
+    <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
+    <button>{{ t.start_new_race }}</button>
   </form>
 
-  <form method="post" action="/setup/stations" class="panel">
-    <h1>{{ t.add_station }}</h1>
-    <label>{{ t.station_callsign }}<input name="callsign" placeholder="IU2ABC-9" required></label>
-    <label>{{ t.label }}<input name="label" placeholder="Vehicle 1"></label>
-    <button>{{ t.add_station }}</button>
+  <form method="post" action="/setup/tactical-callsigns" class="panel">
+    <h1>{{ t.tactical_callsigns }}</h1>
+    <label>{{ t.tactical_callsign }}<input name="name" required></label>
+    <button>{{ t.add }}</button>
   </form>
+</section>
+
+<section class="panel">
+  <h2>{{ t.all_users }}</h2>
+  <label>{{ t.select_user_to_edit }}
+    <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
+  </label>
+  <div class="table-wrap">
+    <table class="setup-table">
+      <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.status }}</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <form method="post" action="/setup/users">
+            <td><input name="display_name" required></td>
+            <td><input name="operator_callsign"></td>
+            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns if tac.active %}<option value="{{ tac.name }}">{{ tac.name }}</option>{% endfor %}</select></td>
+            <td><input name="default_location"></td>
+            <td><select name="aprs_station_id"><option value=""></option>{% for station in stations if station.active %}<option value="{{ station.id }}">{{ station.callsign }}</option>{% endfor %}</select></td>
+            <td><input name="dstar_callsign"></td>
+            <td><input name="username"></td>
+            <td><input name="password" type="password"></td>
+            <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="announcer">{{ t.announcer_role }}</option></select></td>
+            <td>{{ t.active }}</td>
+            <td><button>{{ t.add }}</button></td>
+          </form>
+        </tr>
+        {% for user in users %}
+        <tr class="user-row" id="user-{{ user.id }}">
+          <form method="post" action="/setup/users/{{ user.id }}">
+            <td><input name="display_name" value="{{ user.display_name }}" required></td>
+            <td><input name="operator_callsign" value="{{ user.operator_callsign }}"></td>
+            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}</option>{% endfor %}</select></td>
+            <td><input name="default_location" value="{{ user.default_location }}"></td>
+            <td><select name="aprs_station_id"><option value=""></option>{% for station in stations %}<option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>{% endfor %}</select></td>
+            <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
+            <td><input name="username" value="{{ user.username or '' }}"></td>
+            <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
+            <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="announcer" {% if user.role == 'announcer' %}selected{% endif %}>{{ t.announcer_role }}</option></select></td>
+            <td>{{ t.active if user.active else t.disabled }}</td>
+            <td><button>{{ t.save }}</button></td>
+          </form>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="grid two">
   <section class="panel">
-    <h2>{{ t.user }}</h2>
-    <div class="cards">
-      {% for user in users %}
-      <article class="card">
-        <form method="post" action="/setup/users/{{ user.id }}" class="edit-grid">
-          <label>{{ t.display_name }}<input name="display_name" value="{{ user.display_name }}" required></label>
-          <label>{{ t.operator_callsign }}<input name="operator_callsign" value="{{ user.operator_callsign }}"></label>
-          <label>{{ t.tactical_callsign }}<input name="tactical_callsign" value="{{ user.tactical_callsign }}"></label>
-          <label>{{ t.default_location }}<input name="default_location" value="{{ user.default_location }}"></label>
-          <label>APRS
-            <select name="aprs_station_id">
-              <option value="">None</option>
-              {% for station in stations %}<option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>{% endfor %}
-            </select>
-          </label>
-          <label>{{ t.dstar_callsign }}<input name="dstar_callsign" value="{{ user.dstar_callsign }}"></label>
-          <label>{{ t.username }}<input name="username" value="{{ user.username or '' }}"></label>
-          <label>{{ t.password }}<input name="password" type="password" placeholder="{{ t.password_hint }}"></label>
-          <label>{{ t.role }}
-            <select name="role">
-              <option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option>
-              <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option>
-              <option value="announcer" {% if user.role == 'announcer' %}selected{% endif %}>{{ t.announcer_role }}</option>
-            </select>
-          </label>
-          <button>{{ t.save }}</button>
-        </form>
-        <form method="post" action="/setup/users/{{ user.id }}/toggle" class="inline-form">
-          <span>{{ t.active if user.active else t.disabled }} · {{ user.role }}</span>
-          <button class="secondary">{{ t.disable if user.active else t.enable }}</button>
-        </form>
-      </article>
-      {% endfor %}
-    </div>
+    <h2>{{ t.exports }}</h2>
+    <div class="actions"><a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a><a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a><a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a><a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a><a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a></div>
+    <p class="warning">{{ t.clear_all_requires_archive }}</p>
+    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="logs"><label>{{ t.clear_logs_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_logs_only }}</button></form>
+    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="notices"><label>{{ t.clear_notices_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_notices_only }}</button></form>
+    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="all"><label>{{ t.clear_all }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_all }}</button></form>
   </section>
-
   <section class="panel">
-    <h2>APRS</h2>
-    <div class="cards">
-      {% for station in stations %}
-      <article class="card">
-        <form method="post" action="/setup/stations/{{ station.id }}" class="edit-grid compact">
-          <label>{{ t.station_callsign }}<input name="callsign" value="{{ station.callsign }}" required></label>
-          <label>{{ t.label }}<input name="label" value="{{ station.label }}"></label>
-          <button>{{ t.save }}</button>
-        </form>
-        <form method="post" action="/setup/stations/{{ station.id }}/toggle" class="inline-form">
-          <span>{{ t.active if station.active else t.disabled }}</span>
-          <button class="secondary">{{ t.disable if station.active else t.enable }}</button>
-        </form>
-      </article>
-      {% endfor %}
-    </div>
+    <h2>{{ t.runner_import }}</h2>
+    <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
+    <h2>{{ t.archive }}</h2>
+    <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a></article>{% endfor %}</div>
   </section>
 </section>
 {% endblock %}
+{% block scripts %}<script src="/static/setup.js"></script>{% endblock %}

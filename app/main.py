@@ -6,7 +6,7 @@ from contextlib import suppress
 from datetime import datetime
 from typing import Any
 
-from fastapi import Body, Depends, FastAPI, Form, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -120,6 +120,9 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("lang", lang)
     context.setdefault("t", TRANSLATIONS[lang])
     context.setdefault("format_dt", format_dt)
+    context.setdefault("race_name", setting("race_name", ""))
+    context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
+    context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     return templates.TemplateResponse(request, name, context)
 
 
@@ -147,10 +150,8 @@ def latest_position_for_user(user: Any) -> dict[str, Any] | None:
 def user_label(user: Any, location: str) -> str:
     label_parts = [part for part in [user["tactical_callsign"], location or user["default_location"]] if part]
     tactical_label = "/".join(label_parts) if label_parts else user["display_name"]
-    label = f"{tactical_label} - {user['display_name']}"
-    if user["operator_callsign"]:
-        label += f" ({user['operator_callsign']})"
-    return label
+    callsign = user["operator_callsign"] or user["dstar_callsign"] or user["aprs_callsign"] or user["display_name"]
+    return f"{tactical_label} - {callsign} ({user['display_name']})"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -164,7 +165,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
         ORDER BY tactical_callsign, display_name
         """
     )
-    logs = rows("SELECT * FROM log_entries ORDER BY id DESC LIMIT 100")
+    logs = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id DESC LIMIT 100")
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
     return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user)
 
@@ -276,7 +277,9 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
         """
     )
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
-    return page(request, "setup.html", users=users, stations=stations)
+    tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
+    archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
+    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives)
 
 
 @app.post("/setup/settings")
@@ -303,6 +306,8 @@ async def add_user(
     password_hash = hash_password(password) if password else ""
     role = role if role in {"admin", "user", "announcer"} else "user"
     with connect() as conn:
+        if tactical_callsign:
+            conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
         conn.execute(
             """
             INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign, username, password_hash, role)
@@ -338,6 +343,8 @@ async def update_user(
     clean_username = username.strip() or None
     role = role if role in {"admin", "user", "announcer"} else "user"
     with connect() as conn:
+        if tactical_callsign:
+            conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
         conn.execute(
             """
             UPDATE users
@@ -444,8 +451,8 @@ def combined_latest_positions() -> list[dict[str, object]]:
 
 @app.get("/notices", response_class=HTMLResponse)
 async def notices(request: Request, user: Any = Depends(require_notice_view)) -> HTMLResponse:
-    pending = rows("SELECT * FROM bulletins WHERE status = 'pending' ORDER BY id DESC") if user["role"] == "admin" else []
-    approved = rows("SELECT * FROM bulletins WHERE status = 'approved' ORDER BY id DESC LIMIT 50")
+    pending = rows("SELECT * FROM bulletins WHERE status = 'pending' AND hidden_at IS NULL ORDER BY id DESC") if user["role"] == "admin" else []
+    approved = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 50")
     return page(request, "notices.html", pending=pending, approved=approved)
 
 
@@ -457,7 +464,7 @@ async def bulletins_alias() -> RedirectResponse:
 @app.get("/submit-notification", response_class=HTMLResponse)
 @app.get("/invia-notizia", response_class=HTMLResponse)
 async def notice_submit_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
-    return page(request, "notice_submit.html")
+    return page(request, "notice_submit.html", tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
 
 
 @app.get("/bulletin-submit", response_class=HTMLResponse)
@@ -467,12 +474,35 @@ async def old_bulletin_submit_alias() -> RedirectResponse:
 
 @app.post("/submit-notification")
 @app.post("/invia-notizia")
-async def notice_submit(message: str = Form(...), user: Any = Depends(require_user_or_admin)) -> RedirectResponse:
+async def notice_submit(
+    message: str = Form(""),
+    runner_bib: str = Form(""),
+    checkpoint: str = Form(""),
+    user: Any = Depends(require_user_or_admin),
+) -> RedirectResponse:
+    runner_name = ""
+    runner_hometown = ""
+    if runner_bib:
+        runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (runner_bib,))
+        if runner:
+            runner_name = runner["name"]
+            runner_hometown = runner["hometown"]
+            if not message and checkpoint:
+                template = TRANSLATIONS[current_language()]["arrival_template"]
+                message = template.format(name=runner_name, checkpoint=checkpoint)
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
     with connect() as conn:
-        cur = conn.execute("INSERT INTO bulletins (source, submitter_name, message, status) VALUES ('user', ?, ?, 'pending')", (user["display_name"], message))
+        cur = conn.execute(
+            """
+            INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, status)
+            VALUES ('user', ?, ?, ?, ?, ?, ?, 'pending')
+            """,
+            (user["display_name"], message, runner_bib, runner_name, runner_hometown, checkpoint),
+        )
         notice_id = cur.lastrowid
     await broadcast_review_notice(notice_id)
-    return RedirectResponse("/submit-notification?sent=1", status_code=303)
+    return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?sent=1", status_code=303)
 
 
 @app.post("/bulletin-submit")
@@ -531,15 +561,16 @@ def reject_notice_id(notice_id: int) -> None:
 
 
 @app.get("/announcer", response_class=HTMLResponse)
+@app.get("/annunciatore", response_class=HTMLResponse)
 async def announcer(request: Request, _: Any = Depends(require_notice_view)) -> HTMLResponse:
-    latest = row("SELECT * FROM bulletins WHERE status = 'approved' ORDER BY id DESC LIMIT 1")
+    latest = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
     return page(request, "announcer.html", latest=latest)
 
 
 @app.get("/api/notices/latest")
 @app.get("/api/bulletins/latest")
 async def latest_notice(_: Any = Depends(require_notice_view)) -> dict[str, object]:
-    latest = row("SELECT * FROM bulletins WHERE status = 'approved' ORDER BY id DESC LIMIT 1")
+    latest = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
     return dict(latest) if latest else {}
 
 
@@ -632,13 +663,98 @@ def csv_response(filename: str, data: list[Any]) -> StreamingResponse:
     return StreamingResponse(io.StringIO(output.getvalue()), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
-@app.post("/clear-race")
-async def clear_race(confirm: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
-    if confirm != "CLEAR":
-        raise HTTPException(status_code=400, detail="Type CLEAR to clear race data")
+def build_archive_snapshot() -> dict[str, Any]:
+    return {
+        "logs": [dict(item) for item in rows("SELECT * FROM log_entries ORDER BY id")],
+        "notices": [dict(item) for item in rows("SELECT * FROM bulletins ORDER BY id")],
+        "aprs_positions": [dict(item) for item in rows("SELECT * FROM aprs_positions ORDER BY id")],
+        "dstar_positions": [dict(item) for item in rows("SELECT * FROM dstar_positions ORDER BY id")],
+    }
+
+
+def archive_current_race(reason: str) -> int | None:
+    snapshot = build_archive_snapshot()
+    if not any(snapshot.values()):
+        return None
+    race_name = setting("race_name", "Unnamed Race") or "Unnamed Race"
     with connect() as conn:
-        conn.execute("DELETE FROM log_entries")
-        conn.execute("DELETE FROM bulletins")
-        conn.execute("DELETE FROM aprs_positions")
-        conn.execute("DELETE FROM dstar_positions")
-    return RedirectResponse("/", status_code=303)
+        cur = conn.execute(
+            "INSERT INTO race_archives (race_name, reason, snapshot_json) VALUES (?, ?, ?)",
+            (race_name, reason, json.dumps(snapshot)),
+        )
+        return cur.lastrowid
+
+
+@app.post("/clear-race")
+async def clear_race(action: str = Form(""), confirm: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
+    expected = "CANCELLA" if current_language() == "it" else "CLEAR"
+    if confirm != expected:
+        raise HTTPException(status_code=400, detail=f"Type {expected} to clear race data")
+    with connect() as conn:
+        if action == "logs":
+            conn.execute("UPDATE log_entries SET hidden_at = CURRENT_TIMESTAMP WHERE hidden_at IS NULL")
+        elif action == "notices":
+            conn.execute("UPDATE bulletins SET hidden_at = CURRENT_TIMESTAMP WHERE hidden_at IS NULL")
+        elif action == "all":
+            archive_current_race("clear_all")
+            conn.execute("DELETE FROM log_entries")
+            conn.execute("DELETE FROM bulletins")
+            conn.execute("DELETE FROM aprs_positions")
+            conn.execute("DELETE FROM dstar_positions")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid clear action")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/race")
+async def update_race_name(race_name: str = Form(...), confirm: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
+    old_name = setting("race_name", "")
+    if old_name and race_name != old_name:
+        archive_current_race("new_race")
+        with connect() as conn:
+            conn.execute("DELETE FROM log_entries")
+            conn.execute("DELETE FROM bulletins")
+            conn.execute("DELETE FROM aprs_positions")
+            conn.execute("DELETE FROM dstar_positions")
+    save_setting("race_name", race_name)
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/tactical-callsigns")
+async def add_tactical_callsign(name: str = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (name.strip(),))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/runners/import")
+async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    content = (await file.read()).decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(content))
+    with connect() as conn:
+        for item in reader:
+            bib = (item.get("bib number") or item.get("bib_number") or item.get("bib") or "").strip()
+            name = (item.get("name") or "").strip()
+            hometown = (item.get("home town") or item.get("hometown") or item.get("town") or "").strip()
+            if not bib or not name:
+                continue
+            conn.execute(
+                "INSERT INTO runners (bib_number, name, hometown) VALUES (?, ?, ?) ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, hometown = excluded.hometown, active = 1",
+                (bib, name, hometown),
+            )
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.get("/api/runners/{bib_number}")
+async def api_runner(bib_number: str, _: Any = Depends(require_user_or_admin)) -> dict[str, object]:
+    runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib_number,))
+    return dict(runner) if runner else {}
+
+
+@app.get("/archive/{archive_id}", response_class=HTMLResponse)
+async def view_archive(archive_id: int, request: Request, _: Any = Depends(require_admin)) -> HTMLResponse:
+    archive = row("SELECT * FROM race_archives WHERE id = ?", (archive_id,))
+    if not archive:
+        raise HTTPException(status_code=404, detail="Archive not found")
+    snapshot = json.loads(archive["snapshot_json"])
+    return page(request, "archive.html", archive=archive, logs=snapshot.get("logs", []), notices=snapshot.get("notices", []))

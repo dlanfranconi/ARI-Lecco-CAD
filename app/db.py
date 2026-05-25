@@ -33,6 +33,30 @@ def init_db() -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS tactical_callsigns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS runners (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bib_number TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                hometown TEXT DEFAULT '',
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS race_archives (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                race_name TEXT NOT NULL,
+                archived_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                reason TEXT DEFAULT '',
+                snapshot_json TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS aprs_stations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 callsign TEXT NOT NULL UNIQUE,
@@ -82,6 +106,7 @@ def init_db() -> None:
                 aprs_station TEXT DEFAULT '',
                 lat REAL,
                 lon REAL,
+                hidden_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
             );
@@ -96,7 +121,12 @@ def init_db() -> None:
                 source TEXT NOT NULL DEFAULT 'dispatch',
                 submitter_name TEXT DEFAULT '',
                 message TEXT NOT NULL,
+                runner_bib TEXT DEFAULT '',
+                runner_name TEXT DEFAULT '',
+                runner_hometown TEXT DEFAULT '',
+                checkpoint TEXT DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'pending',
+                hidden_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 approved_at TEXT,
                 approved_by TEXT DEFAULT ''
@@ -109,15 +139,32 @@ def init_db() -> None:
 
 def _migrate(conn: sqlite3.Connection) -> None:
     user_cols = {item[1] for item in conn.execute("PRAGMA table_info(users)")}
-    migrations = {
+    for column, sql in {
         "dstar_callsign": "ALTER TABLE users ADD COLUMN dstar_callsign TEXT DEFAULT ''",
         "username": "ALTER TABLE users ADD COLUMN username TEXT",
         "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''",
         "role": "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
-    }
-    for column, sql in migrations.items():
+    }.items():
         if column not in user_cols:
             conn.execute(sql)
+
+    log_cols = {item[1] for item in conn.execute("PRAGMA table_info(log_entries)")}
+    if "hidden_at" not in log_cols:
+        conn.execute("ALTER TABLE log_entries ADD COLUMN hidden_at TEXT")
+
+    bulletin_cols = {item[1] for item in conn.execute("PRAGMA table_info(bulletins)")}
+    for column, sql in {
+        "runner_bib": "ALTER TABLE bulletins ADD COLUMN runner_bib TEXT DEFAULT ''",
+        "runner_name": "ALTER TABLE bulletins ADD COLUMN runner_name TEXT DEFAULT ''",
+        "runner_hometown": "ALTER TABLE bulletins ADD COLUMN runner_hometown TEXT DEFAULT ''",
+        "checkpoint": "ALTER TABLE bulletins ADD COLUMN checkpoint TEXT DEFAULT ''",
+        "hidden_at": "ALTER TABLE bulletins ADD COLUMN hidden_at TEXT",
+    }.items():
+        if column not in bulletin_cols:
+            conn.execute(sql)
+
+    for tac in conn.execute("SELECT DISTINCT tactical_callsign FROM users WHERE tactical_callsign != ''"):
+        conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tac["tactical_callsign"],))
 
 
 def _seed_admin(conn: sqlite3.Connection) -> None:
@@ -125,10 +172,7 @@ def _seed_admin(conn: sqlite3.Connection) -> None:
     if existing:
         return
     conn.execute(
-        """
-        INSERT INTO users (display_name, username, password_hash, role, active)
-        VALUES (?, ?, ?, 'admin', 1)
-        """,
+        "INSERT INTO users (display_name, username, password_hash, role, active) VALUES (?, ?, ?, 'admin', 1)",
         (settings.admin_username, settings.admin_username, hash_password(settings.admin_password)),
     )
 

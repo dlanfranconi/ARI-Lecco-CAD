@@ -152,3 +152,38 @@ curl -X POST http://SERVER-IP:8000/api/dstar/positions \
 In CAD Setup, assign the same D-STAR callsign to the user/operator. New log entries from that user will attach the latest available APRS or D-STAR position.
 
 D-RATS itself does not currently expose a simple built-in HTTP push target for CAD. The bridge can be fed from whatever source is available on the D-RATS PC: a D-RATS export, a local script that reads D-RATS position data, or a D-PRS/D-STAR GPS utility that can call a command when a GPS frame arrives.
+
+
+Continuous D-RATS feed watcher:
+
+```bash
+python3 scripts/watch_dstar_positions.py \
+  --cad-url http://SERVER-IP:8000 \
+  --token change-this-token \
+  --file dstar_positions.csv
+```
+
+Append rows to `dstar_positions.csv` in this format:
+
+```csv
+IU2ABC,45.85,9.39,optional comment
+```
+
+Any D-RATS-side helper, D-PRS utility, or radio software that can write received GPS frames as CSV can feed that file.
+
+## Runner CSV Import
+
+Import runners from Setup using a CSV with these headers:
+
+```csv
+bib number,name,home town
+101,Mario Rossi,Lecco
+```
+
+When submitting a notice, enter the bib number and select a checkpoint. CAD will populate a notice like:
+
+```text
+Runner Mario Rossi is arriving to CP1.
+```
+
+Italian mode uses the Italian arrival template.

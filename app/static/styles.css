@@ -137,3 +137,7 @@ th { color: var(--muted); font-size: 13px; }
   .edit-grid, .edit-grid.compact { grid-template-columns: 1fr; }
 }
 
+
+.setup-table input, .setup-table select { min-width: 130px; }
+.setup-table td { vertical-align: middle; }
+.setup-table button { min-width: 70px; }

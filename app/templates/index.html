@@ -10,7 +10,7 @@
     <label>{{ t.user_assignment }}
       <select name="user_id" required>
         {% for user in users %}
-        <option value="{{ user.id }}">{{ user.tactical_callsign or user.display_name }}{% if user.default_location %}/{{ user.default_location }}{% endif %} - {{ user.display_name }}{% if user.operator_callsign %} ({{ user.operator_callsign }}){% endif %}{% if user.dstar_callsign %} D-STAR: {{ user.dstar_callsign }}{% endif %}</option>
+        <option value="{{ user.id }}">{{ user.tactical_callsign or user.display_name }} - {{ user.operator_callsign or user.dstar_callsign or user.aprs_callsign or user.display_name }} ({{ user.display_name }}){% if user.dstar_callsign %} D-STAR: {{ user.dstar_callsign }}{% endif %}</option>
         {% endfor %}
       </select>
     </label>
@@ -34,24 +34,6 @@
   </form>
 </section>
 
-<section class="panel">
-  <div class="section-title">
-    <h2>{{ t.race_data }}</h2>
-    <div class="actions">
-      <a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a>
-      <a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a>
-      <a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a>
-      <a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a>
-      <a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a>
-    </div>
-  </div>
-  <form method="post" action="/clear-race" class="clear-form">
-    <label>{{ t.clear_history }}
-      <input name="confirm" placeholder="{{ t.type_clear }}">
-    </label>
-    <button class="danger">{{ t.clear_race_data }}</button>
-  </form>
-</section>
 {% else %}
 <section class="panel">
   <div class="section-title">
@@ -83,5 +65,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
+{% if is_admin %}{% endif %}
 {% endblock %}
