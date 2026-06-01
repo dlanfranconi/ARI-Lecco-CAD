@@ -7,12 +7,13 @@
     {% for item in pending %}
     <article class="card">
       <p class="meta">{{ format_dt(item.created_at) }} {{ t.from_label }} {{ item.submitter_name or t.unknown }}</p>
-      <p class="bulletin-text">{{ item.message }}</p>
-      {% if item.runner_bib %}<p><strong>{{ t.bib_number }}:</strong> {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}</p>{% endif %}
-      <div class="actions">
-        <form method="post" action="/notices/{{ item.id }}/approve"><button>{{ t.approve }}</button></form>
-        <form method="post" action="/notices/{{ item.id }}/reject"><button class="danger">{{ t.reject }}</button></form>
-      </div>
+      <form method="post" action="/notices/{{ item.id }}/approve" class="notice-edit-form">
+        <label>{{ t.edit_notice }}<textarea name="message" rows="4">{{ item.message }}</textarea></label>
+        <label>{{ t.crono_time }}<input name="crono_time" value="{{ item.crono_time or '' }}"></label>
+        {% if item.runner_bib %}<p><strong>{{ t.bib_number }}:</strong> {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}{% if item.crono_time %} · {{ t.crono_time }} {{ item.crono_time }}{% endif %}</p>{% endif %}
+        <button>{{ t.save_and_approve }}</button>
+      </form>
+      <form method="post" action="/notices/{{ item.id }}/reject"><button class="danger">{{ t.reject }}</button></form>
     </article>
     {% else %}
     <p>{{ t.no_pending_notices }}</p>
@@ -27,12 +28,9 @@
     <article class="card">
       <p class="meta">{{ format_dt(item.approved_at or item.created_at) }} {{ t.from_label }} {{ item.submitter_name or item.source }}</p>
       <p>{{ item.message }}</p>
-      {% if item.runner_bib %}<p><strong>{{ t.bib_number }}:</strong> {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}</p>{% endif %}
+      {% if item.runner_bib %}<p><strong>{{ t.bib_number }}:</strong> {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}{% if item.crono_time %} · {{ t.crono_time }} {{ item.crono_time }}{% endif %}</p>{% endif %}
     </article>
     {% endfor %}
   </div>
 </section>
-{% endblock %}
-{% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
 {% endblock %}

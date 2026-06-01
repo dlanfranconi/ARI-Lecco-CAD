@@ -2,6 +2,7 @@ function initRunnerComposer(root) {
   const bib = root.querySelector(".runner-bib") || document.getElementById("runner-bib");
   const checkpoint = root.querySelector(".checkpoint") || document.getElementById("checkpoint");
   const message = root.querySelector(".notice-message") || document.getElementById("notice-message");
+  const crono = root.querySelector(".crono-input");
   const refBib = root.querySelector(".runner-ref-bib") || document.getElementById("runner-ref-bib");
   const refName = root.querySelector(".runner-ref-name") || document.getElementById("runner-ref-name");
   const refTown = root.querySelector(".runner-ref-town") || document.getElementById("runner-ref-town");
@@ -10,7 +11,7 @@ function initRunnerComposer(root) {
   if (!bib || !checkpoint || !message) return;
 
   async function lookupRunner() {
-    const value = bib.value.trim();
+    const value = bib.value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean)[0] || "";
     if (!value) return;
     const response = await fetch(`/api/runners/${encodeURIComponent(value)}`);
     if (!response.ok) return;
@@ -51,6 +52,12 @@ function initRunnerComposer(root) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       message.blur();
+    }
+  });
+  crono?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      crono.blur();
     }
   });
 }

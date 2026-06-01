@@ -102,6 +102,13 @@ def init_db() -> None:
                 status TEXT NOT NULL,
                 location TEXT DEFAULT '',
                 message TEXT NOT NULL,
+                runner_bib TEXT DEFAULT '',
+                runner_name TEXT DEFAULT '',
+                runner_hometown TEXT DEFAULT '',
+                checkpoint TEXT DEFAULT '',
+                crono_time TEXT DEFAULT '',
+                created_by_username TEXT DEFAULT '',
+                created_by_name TEXT DEFAULT '',
                 bulletin_requested INTEGER NOT NULL DEFAULT 0,
                 bulletin_id INTEGER,
                 aprs_station TEXT DEFAULT '',
@@ -126,6 +133,7 @@ def init_db() -> None:
                 runner_name TEXT DEFAULT '',
                 runner_hometown TEXT DEFAULT '',
                 checkpoint TEXT DEFAULT '',
+                crono_time TEXT DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'pending',
                 hidden_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -154,8 +162,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE tactical_callsigns ADD COLUMN location_preposition TEXT DEFAULT ''")
 
     log_cols = {item[1] for item in conn.execute("PRAGMA table_info(log_entries)")}
-    if "hidden_at" not in log_cols:
-        conn.execute("ALTER TABLE log_entries ADD COLUMN hidden_at TEXT")
+    for column, sql in {
+        "runner_bib": "ALTER TABLE log_entries ADD COLUMN runner_bib TEXT DEFAULT ''",
+        "runner_name": "ALTER TABLE log_entries ADD COLUMN runner_name TEXT DEFAULT ''",
+        "runner_hometown": "ALTER TABLE log_entries ADD COLUMN runner_hometown TEXT DEFAULT ''",
+        "checkpoint": "ALTER TABLE log_entries ADD COLUMN checkpoint TEXT DEFAULT ''",
+        "crono_time": "ALTER TABLE log_entries ADD COLUMN crono_time TEXT DEFAULT ''",
+        "created_by_username": "ALTER TABLE log_entries ADD COLUMN created_by_username TEXT DEFAULT ''",
+        "created_by_name": "ALTER TABLE log_entries ADD COLUMN created_by_name TEXT DEFAULT ''",
+        "hidden_at": "ALTER TABLE log_entries ADD COLUMN hidden_at TEXT",
+    }.items():
+        if column not in log_cols:
+            conn.execute(sql)
 
     bulletin_cols = {item[1] for item in conn.execute("PRAGMA table_info(bulletins)")}
     for column, sql in {
@@ -163,6 +181,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "runner_name": "ALTER TABLE bulletins ADD COLUMN runner_name TEXT DEFAULT ''",
         "runner_hometown": "ALTER TABLE bulletins ADD COLUMN runner_hometown TEXT DEFAULT ''",
         "checkpoint": "ALTER TABLE bulletins ADD COLUMN checkpoint TEXT DEFAULT ''",
+        "crono_time": "ALTER TABLE bulletins ADD COLUMN crono_time TEXT DEFAULT ''",
         "hidden_at": "ALTER TABLE bulletins ADD COLUMN hidden_at TEXT",
     }.items():
         if column not in bulletin_cols:

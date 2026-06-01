@@ -16,11 +16,27 @@
       <span>{{ t.bib_number }}: {{ latest.runner_bib }}</span>
       <span>{{ t.runner_name }}: {{ latest.runner_name }}</span>
       <span>{{ t.hometown }}: {{ latest.runner_hometown }}</span>
+      {% if latest.crono_time %}<span>{{ t.crono_time }}: {{ latest.crono_time }}</span>{% endif %}
       {% endif %}
     </div>
     <div id="timestamp" class="announcer-time">{% if latest %}{{ format_dt(latest.approved_at or latest.created_at) }}{% endif %}</div>
+    <div class="announcer-controls">
+      <button id="older-notice" type="button" aria-label="{{ t.previous_notice }}">‹</button>
+      <span id="notice-position">1</span>
+      <button id="newer-notice" type="button" aria-label="{{ t.next_notice }}">›</button>
+    </div>
+    <section class="notice-history" aria-label="{{ t.older_notices }}">
+      <h2>{{ t.older_notices }}</h2>
+      <div id="notice-history-list">
+        {% for item in notices[1:] %}
+        <article>{{ item.message }}{% if item.runner_bib %}<br><span>{{ t.bib_number }} {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}{% if item.crono_time %} · {{ t.crono_time }} {{ item.crono_time }}{% endif %}</span>{% endif %}</article>
+        {% else %}
+        <p>{{ t.no_prior_notices }}</p>
+        {% endfor %}
+      </div>
+    </section>
   </main>
-  <script>window.CAD_LABELS = {{ t|tojson }};</script>
+  <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>
   <script src="/static/announcer.js"></script>
 </body>
 </html>

@@ -166,6 +166,46 @@ def compose_runner_notice(runner_bib: str, runner_name: str, checkpoint: str) ->
     return template.format(bib=runner_bib, name=runner_name, checkpoint=checkpoint, prep=checkpoint_preposition(checkpoint))
 
 
+def split_bibs(value: str) -> list[str]:
+    seen: set[str] = set()
+    bibs: list[str] = []
+    for raw in value.replace(";", ",").replace("\n", ",").split(","):
+        bib = raw.strip()
+        if bib and bib not in seen:
+            seen.add(bib)
+            bibs.append(bib)
+    return bibs
+
+
+def runner_for_bib(bib: str) -> dict[str, str]:
+    runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib,))
+    if not runner:
+        return {"bib": bib, "name": "", "hometown": ""}
+    return {"bib": runner["bib_number"], "name": runner["name"], "hometown": runner["hometown"]}
+
+
+def crono_from_timer() -> str:
+    started = setting("race_started_at", "")
+    if not started:
+        return ""
+    try:
+        start = datetime.fromisoformat(started)
+    except ValueError:
+        return ""
+    elapsed = max(0, int((datetime.now() - start).total_seconds()))
+    hours, rem = divmod(elapsed, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def notice_message_for_runner(message: str, runner: dict[str, str], checkpoint: str) -> str:
+    if message:
+        return message
+    if runner["bib"] and runner["name"] and checkpoint:
+        return compose_runner_notice(runner["bib"], runner["name"], checkpoint)
+    return ""
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, user: Any = Depends(require_user_or_admin)) -> HTMLResponse:
     users = rows(
@@ -179,7 +219,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
     )
     logs = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id DESC LIMIT 100")
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
-    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
+    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"), race_started_at=setting("race_started_at", ""), current_crono=crono_from_timer())
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -210,7 +250,10 @@ async def create_log(
     user_id: int = Form(...),
     status: str = Form(...),
     location: str = Form(""),
-    message: str = Form(...),
+    message: str = Form(""),
+    runner_bib: str = Form(""),
+    checkpoint: str = Form(""),
+    crono_time: str = Form(""),
     forward_bulletin: str | None = Form(None),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
@@ -228,36 +271,70 @@ async def create_log(
 
     latest = latest_position_for_user(user)
     label = user_label(user, location)
-    notice_id = None
+    effective_crono = crono_time.strip() or crono_from_timer()
+    bibs = split_bibs(runner_bib)
+    runners = [runner_for_bib(bib) for bib in bibs] or [{"bib": "", "name": "", "hometown": ""}]
     with connect() as conn:
-        if forward_bulletin:
-            cur = conn.execute(
-                "INSERT INTO bulletins (source, submitter_name, message, status, approved_at, approved_by) VALUES (?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)",
-                ("dispatch", label, message, admin["username"]),
+        for runner in runners:
+            entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip())
+            if not entry_message:
+                raise HTTPException(status_code=400, detail="Message is required")
+            notice_id = None
+            if forward_bulletin:
+                cur = conn.execute(
+                    """
+                    INSERT INTO bulletins
+                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status, approved_at, approved_by)
+                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                    """,
+                    (label, entry_message, runner["bib"], runner["name"], runner["hometown"], checkpoint.strip(), effective_crono, admin["username"]),
+                )
+                notice_id = cur.lastrowid
+            conn.execute(
+                """
+                INSERT INTO log_entries
+                    (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time,
+                     created_by_username, created_by_name, bulletin_requested, bulletin_id, aprs_station, lat, lon)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    label,
+                    status,
+                    location,
+                    entry_message,
+                    runner["bib"],
+                    runner["name"],
+                    runner["hometown"],
+                    checkpoint.strip(),
+                    effective_crono,
+                    admin["username"] or "",
+                    admin["display_name"] or "",
+                    1 if forward_bulletin else 0,
+                    notice_id,
+                    latest["callsign"] if latest else (user["aprs_callsign"] or user["dstar_callsign"] or ""),
+                    latest["lat"] if latest else None,
+                    latest["lon"] if latest else None,
+                ),
             )
-            notice_id = cur.lastrowid
+            if notice_id:
+                await broadcast_approved_bulletin(notice_id)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/race-timer/start")
+async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
+    started_at = datetime.now().replace(microsecond=0).isoformat()
+    save_setting("race_started_at", started_at)
+    message = TRANSLATIONS[current_language()]["race_started_log"]
+    with connect() as conn:
         conn.execute(
             """
-            INSERT INTO log_entries
-                (user_id, user_label, status, location, message, bulletin_requested, bulletin_id, aprs_station, lat, lon)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO log_entries (user_label, status, location, message, created_by_username, created_by_name)
+            VALUES (?, ?, '', ?, ?, ?)
             """,
-            (
-                user_id,
-                label,
-                status,
-                location,
-                message,
-                1 if forward_bulletin else 0,
-                notice_id,
-                latest["callsign"] if latest else (user["aprs_callsign"] or user["dstar_callsign"] or ""),
-                latest["lat"] if latest else None,
-                latest["lon"] if latest else None,
-            ),
+            (admin["display_name"], TRANSLATIONS[current_language()]["race_started_status"], message, admin["username"] or "", admin["display_name"] or ""),
         )
-
-    if notice_id:
-        await broadcast_approved_bulletin(notice_id)
     return RedirectResponse("/", status_code=303)
 
 
@@ -266,36 +343,34 @@ async def direct_notice(
     message: str = Form(""),
     runner_bib: str = Form(""),
     checkpoint: str = Form(""),
+    crono_time: str = Form(""),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    runner_name = ""
-    runner_hometown = ""
-    if runner_bib:
-        runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (runner_bib,))
-        if runner:
-            runner_name = runner["name"]
-            runner_hometown = runner["hometown"]
-            if not message and checkpoint:
-                message = compose_runner_notice(runner_bib, runner_name, checkpoint)
-    if not message:
-        raise HTTPException(status_code=400, detail="Message is required")
+    effective_crono = crono_time.strip() or crono_from_timer()
+    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
+    notice_ids: list[int] = []
     with connect() as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO bulletins
-                (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, status, approved_at, approved_by)
-            VALUES ('dispatch', ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
-            """,
-            (admin["display_name"], message, runner_bib, runner_name, runner_hometown, checkpoint, admin["username"]),
-        )
-        notice_id = cur.lastrowid
-    await broadcast_approved_bulletin(notice_id)
+        for runner in runners:
+            entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip())
+            if not entry_message:
+                raise HTTPException(status_code=400, detail="Message is required")
+            cur = conn.execute(
+                """
+                INSERT INTO bulletins
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status, approved_at, approved_by)
+                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                """,
+                (admin["display_name"], entry_message, runner["bib"], runner["name"], runner["hometown"], checkpoint.strip(), effective_crono, admin["username"]),
+            )
+            notice_ids.append(cur.lastrowid)
+    for notice_id in notice_ids:
+        await broadcast_approved_bulletin(notice_id)
     return RedirectResponse("/", status_code=303)
 
 
 @app.post("/bulletins/direct")
 async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    return await direct_notice(message=message, admin=admin)
+    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", admin=admin)
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -511,36 +586,38 @@ async def notice_submit(
     message: str = Form(""),
     runner_bib: str = Form(""),
     checkpoint: str = Form(""),
+    crono_time: str = Form(""),
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
-    runner_name = ""
-    runner_hometown = ""
-    if runner_bib:
-        runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (runner_bib,))
-        if runner:
-            runner_name = runner["name"]
-            runner_hometown = runner["hometown"]
-            if not message and checkpoint:
-                message = compose_runner_notice(runner_bib, runner_name, checkpoint)
-    if not message:
-        raise HTTPException(status_code=400, detail="Message is required")
+    effective_crono = crono_time.strip() or crono_from_timer()
+    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
+    notice_ids: list[int] = []
     with connect() as conn:
-        cur = conn.execute(
-            """
-            INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, status)
-            VALUES ('user', ?, ?, ?, ?, ?, ?, 'pending')
-            """,
-            (user["display_name"], message, runner_bib, runner_name, runner_hometown, checkpoint),
-        )
-        notice_id = cur.lastrowid
-    await broadcast_review_notice(notice_id)
+        for runner in runners:
+            entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip())
+            if not entry_message:
+                raise HTTPException(status_code=400, detail="Message is required")
+            cur = conn.execute(
+                """
+                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status)
+                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, 'pending')
+                """,
+                (user["display_name"], entry_message, runner["bib"], runner["name"], runner["hometown"], checkpoint.strip(), effective_crono),
+            )
+            notice_ids.append(cur.lastrowid)
+    for notice_id in notice_ids:
+        await broadcast_review_notice(notice_id)
     return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?sent=1", status_code=303)
 
 
 @app.post("/bulletin-submit")
 async def old_bulletin_submit_post(message: str = Form(...), user: Any = Depends(require_user_or_admin)) -> RedirectResponse:
-    return await notice_submit(message, user)
+    return await notice_submit(message=message, runner_bib="", checkpoint="", crono_time="", user=user)
 
+
+@app.get("/api/notices/recent")
+async def recent_notices() -> list[dict[str, object]]:
+    return [dict(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")]
 
 @app.get("/api/notices/{notice_id}")
 @app.get("/api/bulletins/{notice_id}")
@@ -553,21 +630,25 @@ async def api_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[st
 
 @app.post("/notices/{notice_id}/approve")
 @app.post("/bulletins/{notice_id}/approve")
-async def approve_notice(notice_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
-    await approve_notice_id(notice_id)
+async def approve_notice(notice_id: int, message: str = Form(""), crono_time: str = Form(""), admin: Any = Depends(require_admin)) -> RedirectResponse:
+    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None)
     return RedirectResponse("/notices", status_code=303)
 
 
 @app.post("/api/notices/{notice_id}/approve")
 @app.post("/api/bulletins/{notice_id}/approve")
-async def api_approve_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
-    notice = await approve_notice_id(notice_id)
+async def api_approve_notice(notice_id: int, request: Request, admin: Any = Depends(require_admin)) -> dict[str, object]:
+    data = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    notice = await approve_notice_id(notice_id, admin["username"], str(data.get("message", "")).strip() or None, str(data.get("crono_time", "")).strip() or None)
     return {"ok": True, "notice": notice}
 
 
-async def approve_notice_id(notice_id: int) -> dict[str, object]:
+async def approve_notice_id(notice_id: int, approved_by: str | None = None, message: str | None = None, crono_time: str | None = None) -> dict[str, object]:
     with connect() as conn:
-        conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (settings.admin_username, notice_id))
+        if message is not None or crono_time is not None:
+            current = row("SELECT message, crono_time FROM bulletins WHERE id = ?", (notice_id,))
+            conn.execute("UPDATE bulletins SET message = ?, crono_time = ? WHERE id = ?", (message if message is not None else current["message"], crono_time if crono_time is not None else current["crono_time"], notice_id))
+        conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (approved_by or settings.admin_username, notice_id))
     await broadcast_approved_bulletin(notice_id)
     notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     return dict(notice) if notice else {}
@@ -594,14 +675,17 @@ def reject_notice_id(notice_id: int) -> None:
 
 @app.get("/announcer", response_class=HTMLResponse)
 @app.get("/annunciatore", response_class=HTMLResponse)
-async def announcer(request: Request, _: Any = Depends(require_notice_view)) -> HTMLResponse:
-    latest = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
-    return page(request, "announcer.html", latest=latest)
+async def announcer(request: Request) -> HTMLResponse:
+    latest_row = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
+    notice_rows = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")
+    latest = dict(latest_row) if latest_row else None
+    notices = [dict(item) for item in notice_rows]
+    return page(request, "announcer.html", latest=latest, notices=notices)
 
 
 @app.get("/api/notices/latest")
 @app.get("/api/bulletins/latest")
-async def latest_notice(_: Any = Depends(require_notice_view)) -> dict[str, object]:
+async def latest_notice() -> dict[str, object]:
     latest = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
     return dict(latest) if latest else {}
 

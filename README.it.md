@@ -39,9 +39,9 @@ Apri `http://IP-SERVER:8000` dalla rete interna.
 
 ## Ruoli
 
-- Admin: log gara, configurazione, import atleti, notifiche, esportazioni e archivi.
-- Utente: visualizza log/mappa e invia notizie.
-- Annunciatore: visualizza solo notizie e pagina annunciatore.
+- Admin: log gara, cronometro gara, configurazione, import atleti, notizie, approvazioni, esportazioni e archivi.
+- Utente: visualizza log/mappa e invia notizie da approvare.
+- Pagina annunciatore: accesso diretto senza credenziali da `/annunciatore` o `/announcer`.
 
 ## URL utili
 
@@ -49,6 +49,38 @@ Apri `http://IP-SERVER:8000` dalla rete interna.
 - Invio notizia: `http://IP-SERVER:8000/invia-notizia`
 - Annunciatore: `http://IP-SERVER:8000/annunciatore`
 - Configurazione: `http://IP-SERVER:8000/setup`
+
+## Cronometro gara e tempo crono
+
+Dal Log gara un admin puo premere `Avvia cronometro`. CAD salva automaticamente una voce log "Gara iniziata" con i metadati dell'admin che l'ha generata. La voce resta nei dati esportati anche se non serve mostrarla diversamente nella tabella.
+
+Nei log e nelle notizie puoi inserire un `Tempo crono` manuale. Se il campo viene lasciato vuoto, CAD usa il cronometro gara avviato dal Log gara.
+
+## Notizie e log per piu atleti
+
+Nei campi `Pettorale` di Log gara, Invio notizia e notizia diretta da dispatch puoi inserire piu numeri separati da virgole o da righe separate, per esempio:
+
+```text
+101, 102, 118
+```
+
+CAD crea una voce ordinata per ogni atleta, recupera nome e citta dall'elenco atleti e genera il testo automatico usando la postazione selezionata. Puoi comunque scrivere un testo libero; in quel caso viene usato per tutte le voci create.
+
+## Approvazione notizie
+
+Quando un utente invia una notizia, dispatch riceve un popup in qualunque schermata del CAD. Dal popup o dalla pagina Notizie l'admin puo modificare testo e tempo crono prima di approvare, oppure rifiutare la notizia.
+
+## Schermata annunciatore
+
+La pagina annunciatore non richiede login. Mostra la notizia piu recente in grande e mantiene le notizie precedenti in carattere piu piccolo.
+
+Comandi disponibili:
+
+- Freccia sinistra: mostra una notizia precedente.
+- Freccia destra: torna verso le notizie piu recenti.
+- Click sulla meta sinistra dello schermo: mostra una notizia precedente.
+- Click sulla meta destra dello schermo: torna verso le notizie piu recenti.
+- Pulsante con luna: alterna contrasto chiaro/scuro.
 
 ## Import atleti
 

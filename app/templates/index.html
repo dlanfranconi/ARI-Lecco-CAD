@@ -2,7 +2,7 @@
 {% block content %}
 {% if is_admin %}
 <section class="grid three">
-  <form method="post" action="/logs" class="panel span-two">
+  <form method="post" action="/logs" class="panel span-two" data-runner-compose>
     <div class="section-title">
       <h1>{{ t.race_log }}</h1>
       <a class="pill" href="/notices">{{ pending_count }} {{ t.pending_notices }}</a>
@@ -22,15 +22,8 @@
       </select>
     </label>
     <label>{{ t.location }}<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
-    <label>{{ t.message }}<textarea name="message" rows="5" required></textarea></label>
-    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_notice }}</label>
-    <button>{{ t.save_log }}</button>
-  </form>
-
-  <form method="post" action="/notices/direct" class="panel" data-runner-compose>
-    <h2>{{ t.send_notice }}</h2>
     <div class="grid two">
-      <label>{{ t.bib_number }}<input class="runner-bib" name="runner_bib"></label>
+      <label>{{ t.bib_number }}<input class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>
       <label>{{ t.checkpoint }}
         <select class="checkpoint" name="checkpoint">
           <option value=""></option>
@@ -43,6 +36,35 @@
       <span>{{ t.runner_name }}: <strong class="runner-ref-name"></strong></span>
       <span>{{ t.hometown }}: <strong class="runner-ref-town"></strong></span>
     </div>
+    <label>{{ t.crono_time }}<input class="crono-input" name="crono_time" placeholder="{{ t.manual_crono_hint }}"></label>
+    <label>{{ t.message }}<textarea class="notice-message" name="message" rows="5"></textarea></label>
+    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_notice }}</label>
+    <button>{{ t.save_log }}</button>
+  </form>
+
+  <div class="panel timer-panel">
+    <h2>{{ t.master_timer }}</h2>
+    <div id="race-timer" class="timer-display" data-started-at="{{ race_started_at }}">{% if race_started_at %}{{ current_crono }}{% else %}{{ t.timer_not_started }}{% endif %}</div>
+    <form method="post" action="/race-timer/start"><button>{{ t.start_timer }}</button></form>
+  </div>
+
+  <form method="post" action="/notices/direct" class="panel" data-runner-compose>
+    <h2>{{ t.send_notice }}</h2>
+    <div class="grid two">
+      <label>{{ t.bib_number }}<input class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>
+      <label>{{ t.checkpoint }}
+        <select class="checkpoint" name="checkpoint">
+          <option value=""></option>
+          {% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="runner-reference-inline" data-runner-reference>
+      <span>{{ t.bib_number }}: <strong class="runner-ref-bib"></strong></span>
+      <span>{{ t.runner_name }}: <strong class="runner-ref-name"></strong></span>
+      <span>{{ t.hometown }}: <strong class="runner-ref-town"></strong></span>
+    </div>
+    <label>{{ t.crono_time }}<input class="crono-input" name="crono_time" placeholder="{{ t.manual_crono_hint }}"></label>
     <label>{{ t.notice_message }}<textarea class="notice-message" name="message" rows="7"></textarea></label>
     <button>{{ t.post_notice }}</button>
   </form>
@@ -69,7 +91,7 @@
           <td>{{ log.user_label }}</td>
           <td>{{ log.status }}</td>
           <td>{{ log.location }}</td>
-          <td>{{ log.message }}</td>
+          <td>{{ log.message }}{% if log.runner_bib %}<br><span class="meta">{{ t.bib_number }} {{ log.runner_bib }} · {{ log.runner_name }} · {{ log.runner_hometown }}{% if log.crono_time %} · {{ t.crono_time }} {{ log.crono_time }}{% endif %}</span>{% endif %}</td>
           <td>{% if log.lat %}{{ log.aprs_station }} {{ "%.5f"|format(log.lat) }}, {{ "%.5f"|format(log.lon) }}{% endif %}</td>
         </tr>
         {% endfor %}
@@ -79,5 +101,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script>{% endif %}
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script><script src="/static/race-timer.js"></script>{% endif %}
 {% endblock %}

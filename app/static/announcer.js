@@ -1,27 +1,66 @@
 const bulletinEl = document.getElementById("bulletin");
 const timestampEl = document.getElementById("timestamp");
 const runnerDetailsEl = document.getElementById("runner-details");
+const historyListEl = document.getElementById("notice-history-list");
+const noticePositionEl = document.getElementById("notice-position");
 const labels = window.CAD_LABELS || {};
+let notices = Array.isArray(window.INITIAL_NOTICES) ? window.INITIAL_NOTICES : [];
+let currentIndex = 0;
 
-function renderNotice(item) {
-  if (!item || !item.message) return;
-  bulletinEl.textContent = item.message;
+function detailHtml(item) {
+  if (!item?.runner_bib) return "";
+  const crono = item.crono_time ? `<span>${labels.crono_time || "Crono Time"}: ${item.crono_time}</span>` : "";
+  return `
+    <span>${labels.bib_number || "Bib Number"}: ${item.runner_bib}</span>
+    <span>${labels.runner_name || "Runner Name"}: ${item.runner_name || ""}</span>
+    <span>${labels.hometown || "Home Town"}: ${item.runner_hometown || ""}</span>
+    ${crono}`;
+}
+
+function renderHistory() {
+  if (!historyListEl) return;
+  const older = notices.filter((_, index) => index !== currentIndex).slice(0, 8);
+  if (!older.length) {
+    historyListEl.innerHTML = `<p>${labels.no_prior_notices || "No older notices"}</p>`;
+    return;
+  }
+  historyListEl.innerHTML = older.map((item) => `
+    <article>${item.message || ""}${item.runner_bib ? `<br><span>${labels.bib_number || "Bib Number"} ${item.runner_bib} · ${item.runner_name || ""} · ${item.runner_hometown || ""}${item.crono_time ? ` · ${labels.crono_time || "Crono Time"} ${item.crono_time}` : ""}</span>` : ""}</article>
+  `).join("");
+}
+
+function renderNoticeAt(index) {
+  if (!notices.length) return;
+  currentIndex = Math.max(0, Math.min(index, notices.length - 1));
+  const item = notices[currentIndex];
+  bulletinEl.textContent = item.message || labels.no_notice || "No approved notice";
   timestampEl.textContent = item.approved_at || item.created_at || "";
-  if (item.runner_bib) {
+  const details = detailHtml(item);
+  if (details) {
     runnerDetailsEl.classList.remove("hidden");
-    runnerDetailsEl.innerHTML = `
-      <span>${labels.bib_number || "Bib Number"}: ${item.runner_bib}</span>
-      <span>${labels.runner_name || "Runner Name"}: ${item.runner_name || ""}</span>
-      <span>${labels.hometown || "Home Town"}: ${item.runner_hometown || ""}</span>`;
+    runnerDetailsEl.innerHTML = details;
   } else {
     runnerDetailsEl.classList.add("hidden");
     runnerDetailsEl.innerHTML = "";
   }
+  if (noticePositionEl) noticePositionEl.textContent = `${currentIndex + 1}/${notices.length}`;
+  renderHistory();
+}
+
+function upsertNotice(item) {
+  if (!item || !item.id) return;
+  notices = notices.filter((notice) => notice.id !== item.id);
+  notices.unshift(item);
+  currentIndex = 0;
+  renderNoticeAt(0);
 }
 
 async function pollLatest() {
-  const response = await fetch("/api/notices/latest");
-  if (response.ok) renderNotice(await response.json());
+  const response = await fetch("/api/notices/recent");
+  if (response.ok) {
+    notices = await response.json();
+    renderNoticeAt(Math.min(currentIndex, notices.length - 1));
+  }
 }
 
 function connectWs() {
@@ -29,14 +68,29 @@ function connectWs() {
   const socket = new WebSocket(`${proto}://${location.host}/ws/announcer`);
   socket.onmessage = (event) => {
     const payload = JSON.parse(event.data);
-    if (payload.type === "notice" || payload.type === "bulletin") renderNotice(payload.notice || payload.bulletin);
+    if (payload.type === "notice" || payload.type === "bulletin") upsertNotice(payload.notice || payload.bulletin);
   };
   socket.onclose = () => setTimeout(connectWs, 3000);
 }
 
+function showOlder() { renderNoticeAt(currentIndex + 1); }
+function showNewer() { renderNoticeAt(currentIndex - 1); }
+
+document.getElementById("older-notice")?.addEventListener("click", showOlder);
+document.getElementById("newer-notice")?.addEventListener("click", showNewer);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowLeft") showOlder();
+  if (event.key === "ArrowRight") showNewer();
+});
+document.addEventListener("click", (event) => {
+  if (event.target.closest("button")) return;
+  if (event.clientX < window.innerWidth / 2) showOlder();
+  else showNewer();
+});
+
+if (notices.length) renderNoticeAt(0);
 connectWs();
 setInterval(pollLatest, 30000);
-
 
 const contrastToggle = document.getElementById("contrast-toggle");
 const savedContrast = localStorage.getItem("announcer-contrast");
