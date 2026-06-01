@@ -57,8 +57,12 @@ function initRunnerComposer(root) {
     return (window.CAD_LABELS?.language === "Lingua") ? "a" : "to";
   }
 
+  function fallbackCrono() {
+    return crono?.value || document.getElementById("race-timer")?.textContent?.trim() || "";
+  }
+
   function runnerLine(runner, index) {
-    const currentCrono = runnerList.querySelectorAll(".runner-crono")[index]?.value || crono?.value || "";
+    const currentCrono = runnerList.querySelectorAll(".runner-crono")[index]?.value || fallbackCrono();
     if (window.CAD_LABELS?.language === "Lingua") {
       return `Atleta numero ${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}${currentCrono ? ` alle ${currentCrono}` : ""}`;
     }
@@ -88,7 +92,7 @@ function initRunnerComposer(root) {
       <div class="runner-list-row">
         <span>${runner.bib_number || ""}${runner.name ? ` - ${runner.name}` : ""}${runner.hometown ? ` (${runner.hometown})` : ""}</span>
         <label>${positionLabel}<input class="runner-position" name="runner_position" placeholder="#"></label>
-        <label>${cronoLabel}<input class="runner-crono" name="runner_crono" value="${crono?.value || ""}" placeholder="HH:MM:SS"></label>
+        <label>${cronoLabel}<input class="runner-crono" name="runner_crono" value="${fallbackCrono()}" placeholder="HH:MM:SS"></label>
       </div>`).join("");
     runnerList.querySelectorAll(".runner-crono, .runner-position").forEach((input) => input.addEventListener("input", composeMessage));
   }
@@ -127,9 +131,3 @@ document.querySelectorAll("[data-runner-compose]").forEach(initRunnerComposer);
 if (!document.querySelector("[data-runner-compose]") && document.getElementById("runner-bib")) {
   initRunnerComposer(document);
 }
-
-document.querySelectorAll("form[data-confirm]").forEach((form) => {
-  form.addEventListener("submit", (event) => {
-    if (!window.confirm(form.dataset.confirm || "Confirm")) event.preventDefault();
-  });
-});

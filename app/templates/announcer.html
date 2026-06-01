@@ -14,7 +14,7 @@
     <div id="runner-details" class="runner-details {% if not latest or not latest.runner_bib %}hidden{% endif %}">
       {% if latest and latest.runner_bib %}
       {% for athlete in athlete_rows(latest) %}
-      <div class="athlete-row"><span>{{ t.bib_number }} {{ athlete.bib }}</span><span>{{ athlete.name }}</span>{% if athlete.position %}<span>{{ t.athlete_position }} {{ athlete.position }}</span>{% endif %}{% if athlete.crono %}<span>{{ t.crono_time }} {{ athlete.crono }}</span>{% endif %}</div>
+      <div class="athlete-row"><span>{{ t.bib_number }}: {{ athlete.bib }}</span><span>{{ t.display_name }}: {{ athlete.name }}</span><span>{{ t.city }}: {{ athlete.hometown }}</span>{% if athlete.crono %}<span>{{ t.crono_time }}: {{ athlete.crono }}</span>{% endif %}{% if athlete.position %}<span>{{ t.athlete_position }}: {{ athlete.position }}</span>{% endif %}</div>
       {% endfor %}
       {% endif %}
     </div>
@@ -28,7 +28,7 @@
       <h2>{{ t.older_notices }}</h2>
       <div id="notice-history-list">
         {% for item in notices[1:] %}
-        <article>{{ item.message }}{% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span>{{ t.bib_number }} {{ athlete.bib }}</span><span>{{ athlete.name }}</span>{% if athlete.position %}<span>{{ t.athlete_position }} {{ athlete.position }}</span>{% endif %}{% if athlete.crono %}<span>{{ t.crono_time }} {{ athlete.crono }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
+        <article>{{ item.message }}{% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span>{{ t.bib_number }}: {{ athlete.bib }}</span><span>{{ t.display_name }}: {{ athlete.name }}</span><span>{{ t.city }}: {{ athlete.hometown }}</span>{% if athlete.crono %}<span>{{ t.crono_time }}: {{ athlete.crono }}</span>{% endif %}{% if athlete.position %}<span>{{ t.athlete_position }}: {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
         {% else %}
         <p>{{ t.no_prior_notices }}</p>
         {% endfor %}

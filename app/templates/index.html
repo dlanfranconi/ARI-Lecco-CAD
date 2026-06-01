@@ -87,7 +87,7 @@
           <td>{{ log.user_label }}</td>
           <td>{{ log.status }}</td>
           <td>{{ log.location }}</td>
-          <td>{{ log.message }}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row"><span>{{ t.bib_number }} {{ athlete.bib }}</span><span>{{ athlete.name }}</span>{% if athlete.position %}<span>{{ t.athlete_position }} {{ athlete.position }}</span>{% endif %}{% if athlete.crono %}<span>{{ t.crono_time }} {{ athlete.crono }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
+          <td>{{ log.message }}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row"><span>{{ t.bib_number }}: {{ athlete.bib }}</span><span>{{ t.display_name }}: {{ athlete.name }}</span><span>{{ t.city }}: {{ athlete.hometown }}</span>{% if athlete.crono %}<span>{{ t.crono_time }}: {{ athlete.crono }}</span>{% endif %}{% if athlete.position %}<span>{{ t.athlete_position }}: {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
           <td>{% if log.lat %}{{ log.aprs_station }} {{ "%.5f"|format(log.lat) }}, {{ "%.5f"|format(log.lon) }}{% endif %}</td>
         </tr>
         {% endfor %}

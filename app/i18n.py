@@ -142,7 +142,8 @@ TRANSLATIONS = {
         "clear_confirm_error": "The confirmation text did not match. Nothing was cleared.",
         "runner_list": "Athlete List",
         "runner_crono": "Runner Crono",
-        "athlete_position": "Athlete Position",
+        "athlete_position": "Position Number",
+        "city": "City",
     },
     "it": {
         "app_title": "ARI Lecco CAD",
@@ -287,7 +288,8 @@ TRANSLATIONS = {
         "clear_confirm_error": "Il testo di conferma non corrisponde. Nessun dato e stato cancellato.",
         "runner_list": "Elenco atleti",
         "runner_crono": "Crono atleta",
-        "athlete_position": "Posizione atleta",
+        "athlete_position": "Numero posizione",
+        "city": "Citta",
     },
 }
 

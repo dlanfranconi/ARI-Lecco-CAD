@@ -38,10 +38,10 @@ a { color: inherit; }
 .compact-log-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr); gap: 10px; align-items: end; }
 .compact-log-row label { margin-bottom: 0; }
 .athlete-rows { display: grid; gap: 4px; margin-top: 6px; }
-.athlete-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; color: var(--muted); font-size: 13px; }
+.athlete-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; color: var(--muted); font-size: 13px; }
 .athlete-row span:first-child { font-weight: 700; color: var(--text); }
 .announcer .athlete-rows { justify-items: center; margin-top: 18px; }
-.announcer .athlete-row { color: #d6eeee; font-size: 30px; font-weight: 700; justify-content: center; }
+.announcer .athlete-row { color: #d6eeee; font-size: clamp(22px, 2.4vw, 38px); font-weight: 700; justify-content: center; width: 100%; }
 .announcer .athlete-row span:first-child { color: #f8fbfb; }
 .announcer.light-mode .athlete-row { color: #173b40; }
 .announcer.light-mode .athlete-row span:first-child { color: #071012; }
