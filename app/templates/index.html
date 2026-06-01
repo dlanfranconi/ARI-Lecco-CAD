@@ -42,12 +42,6 @@
     <button>{{ t.save_log }}</button>
   </form>
 
-  <div class="panel timer-panel">
-    <h2>{{ t.master_timer }}</h2>
-    <div id="race-timer" class="timer-display" data-started-at="{{ race_started_at }}">{% if race_started_at %}{{ current_crono }}{% else %}{{ t.timer_not_started }}{% endif %}</div>
-    <form method="post" action="/race-timer/start"><button>{{ t.start_timer }}</button></form>
-  </div>
-
   <form method="post" action="/notices/direct" class="panel" data-runner-compose>
     <h2>{{ t.send_notice }}</h2>
     <div class="grid two">
@@ -101,5 +95,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script><script src="/static/race-timer.js"></script>{% endif %}
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script>{% endif %}
 {% endblock %}

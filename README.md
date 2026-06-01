@@ -53,6 +53,9 @@ services:
       APRSFI_API_KEY: ""
       APRS_POLL_SECONDS: 60
       DRATS_INGEST_TOKEN: change-this-token
+      TZ: Europe/Rome
+      LANG: it_IT.UTF-8
+      NTP_SERVER: pool.ntp.org
       DATABASE_PATH: /data/cad.sqlite3
     ports:
       - "8000:8000"
@@ -64,6 +67,10 @@ volumes:
 ```
 
 Change `CAD_ADMIN_PASSWORD`, `SESSION_SECRET`, and `APRSFI_API_KEY` in Portainer before race use.
+
+## Time Zone and NTP
+
+Set `TZ` to the race location timezone, for example `Europe/Rome`. The app also exposes Time Zone, Locale, and NTP Server fields in Configuration. `NTP_SERVER` defaults to `pool.ntp.org`; on an isolated race network, set it to your local NTP server. The host or VM should still be configured to sync system time to that NTP source.
 
 ## Portainer
 

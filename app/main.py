@@ -4,6 +4,7 @@ import io
 import json
 from contextlib import suppress
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
@@ -58,6 +59,21 @@ def save_setting(key: str, value: str) -> None:
             "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (key, value),
         )
+
+
+def current_timezone_name() -> str:
+    return setting("app_timezone", settings.app_timezone) or "Europe/Rome"
+
+
+def current_timezone() -> ZoneInfo:
+    try:
+        return ZoneInfo(current_timezone_name())
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("UTC")
+
+
+def local_now() -> datetime:
+    return datetime.now(current_timezone())
 
 
 def current_language() -> str:
@@ -121,6 +137,11 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("t", TRANSLATIONS[lang])
     context.setdefault("format_dt", format_dt)
     context.setdefault("race_name", setting("race_name", ""))
+    context.setdefault("race_started_at", setting("race_started_at", ""))
+    context.setdefault("current_crono", crono_from_timer())
+    context.setdefault("app_timezone", current_timezone_name())
+    context.setdefault("app_locale", setting("app_locale", settings.app_locale))
+    context.setdefault("ntp_server", setting("ntp_server", settings.ntp_server))
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     return templates.TemplateResponse(request, name, context)
@@ -192,10 +213,49 @@ def crono_from_timer() -> str:
         start = datetime.fromisoformat(started)
     except ValueError:
         return ""
-    elapsed = max(0, int((datetime.now() - start).total_seconds()))
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=current_timezone())
+    elapsed = max(0, int((local_now() - start).total_seconds()))
     hours, rem = divmod(elapsed, 3600)
     minutes, seconds = divmod(rem, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def chunks(items: list[dict[str, str]], size: int = 4) -> list[list[dict[str, str]]]:
+    return [items[index:index + size] for index in range(0, len(items), size)] or [[]]
+
+
+def crono_for_runner(index: int, crono_values: list[str], fallback: str) -> str:
+    if index < len(crono_values) and crono_values[index].strip():
+        return crono_values[index].strip()
+    return fallback
+
+
+def runner_notice_line(runner: dict[str, str], crono: str) -> str:
+    if current_language() == "it":
+        base = f"atleta numero {runner['bib']}"
+        if runner.get("name"):
+            base += f", {runner['name']}"
+        if crono:
+            base += f" alle {crono}"
+        return base
+    base = f"runner {runner['bib']}"
+    if runner.get("name"):
+        base += f" {runner['name']}"
+    if crono:
+        base += f" at {crono}"
+    return base
+
+
+def grouped_runner_message(message: str, runners: list[dict[str, str]], checkpoint: str, crono_values: list[str], fallback_crono: str) -> str:
+    if message.strip():
+        return message.strip()
+    active = [runner for runner in runners if runner.get("bib")]
+    if not active:
+        return ""
+    prep = checkpoint_preposition(checkpoint)
+    lines = [runner_notice_line(runner, crono_for_runner(index, crono_values, fallback_crono)) for index, runner in enumerate(active)]
+    return TRANSLATIONS[current_language()]["group_arrival_template"].format(checkpoint=checkpoint, prep=prep, runners="; ".join(lines))
 
 
 def notice_message_for_runner(message: str, runner: dict[str, str], checkpoint: str) -> str:
@@ -219,7 +279,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
     )
     logs = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id DESC LIMIT 100")
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
-    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"), race_started_at=setting("race_started_at", ""), current_crono=crono_from_timer())
+    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -254,6 +314,7 @@ async def create_log(
     runner_bib: str = Form(""),
     checkpoint: str = Form(""),
     crono_time: str = Form(""),
+    runner_crono: list[str] = Form([]),
     forward_bulletin: str | None = Form(None),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
@@ -272,12 +333,12 @@ async def create_log(
     latest = latest_position_for_user(user)
     label = user_label(user, location)
     effective_crono = crono_time.strip() or crono_from_timer()
-    bibs = split_bibs(runner_bib)
-    runners = [runner_for_bib(bib) for bib in bibs] or [{"bib": "", "name": "", "hometown": ""}]
+    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
+    notice_ids: list[int] = []
     with connect() as conn:
-        for runner in runners:
-            entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip())
-            if not entry_message:
+        for group in chunks(runners, 4):
+            group_message = grouped_runner_message(message, group, checkpoint.strip(), runner_crono, effective_crono)
+            if not group_message:
                 raise HTTPException(status_code=400, detail="Message is required")
             notice_id = None
             if forward_bulletin:
@@ -287,44 +348,59 @@ async def create_log(
                         (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status, approved_at, approved_by)
                     VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
                     """,
-                    (label, entry_message, runner["bib"], runner["name"], runner["hometown"], checkpoint.strip(), effective_crono, admin["username"]),
+                    (
+                        label,
+                        group_message,
+                        ", ".join(runner["bib"] for runner in group if runner.get("bib")),
+                        ", ".join(runner["name"] for runner in group if runner.get("name")),
+                        ", ".join(runner["hometown"] for runner in group if runner.get("hometown")),
+                        checkpoint.strip(),
+                        ", ".join(crono_for_runner(index, runner_crono, effective_crono) for index, runner in enumerate(group) if runner.get("bib")),
+                        admin["username"],
+                    ),
                 )
                 notice_id = cur.lastrowid
-            conn.execute(
-                """
-                INSERT INTO log_entries
-                    (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time,
-                     created_by_username, created_by_name, bulletin_requested, bulletin_id, aprs_station, lat, lon)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    user_id,
-                    label,
-                    status,
-                    location,
-                    entry_message,
-                    runner["bib"],
-                    runner["name"],
-                    runner["hometown"],
-                    checkpoint.strip(),
-                    effective_crono,
-                    admin["username"] or "",
-                    admin["display_name"] or "",
-                    1 if forward_bulletin else 0,
-                    notice_id,
-                    latest["callsign"] if latest else (user["aprs_callsign"] or user["dstar_callsign"] or ""),
-                    latest["lat"] if latest else None,
-                    latest["lon"] if latest else None,
-                ),
-            )
-            if notice_id:
-                await broadcast_approved_bulletin(notice_id)
+                notice_ids.append(notice_id)
+            for index, runner in enumerate(group):
+                runner_crono_value = crono_for_runner(index, runner_crono, effective_crono)
+                entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip()) if runner.get("bib") else group_message
+                if not entry_message:
+                    entry_message = group_message
+                conn.execute(
+                    """
+                    INSERT INTO log_entries
+                        (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time,
+                         created_by_username, created_by_name, bulletin_requested, bulletin_id, aprs_station, lat, lon)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        user_id,
+                        label,
+                        status,
+                        location,
+                        entry_message,
+                        runner["bib"],
+                        runner["name"],
+                        runner["hometown"],
+                        checkpoint.strip(),
+                        runner_crono_value,
+                        admin["username"] or "",
+                        admin["display_name"] or "",
+                        1 if forward_bulletin else 0,
+                        notice_id,
+                        latest["callsign"] if latest else (user["aprs_callsign"] or user["dstar_callsign"] or ""),
+                        latest["lat"] if latest else None,
+                        latest["lon"] if latest else None,
+                    ),
+                )
+    for notice_id in notice_ids:
+        await broadcast_approved_bulletin(notice_id)
     return RedirectResponse("/", status_code=303)
 
 
 @app.post("/race-timer/start")
 async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
-    started_at = datetime.now().replace(microsecond=0).isoformat()
+    started_at = local_now().replace(microsecond=0).isoformat()
     save_setting("race_started_at", started_at)
     message = TRANSLATIONS[current_language()]["race_started_log"]
     with connect() as conn:
@@ -337,6 +413,29 @@ async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespo
         )
     return RedirectResponse("/", status_code=303)
 
+@app.post("/race-timer/stop")
+async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
+    total_crono = crono_from_timer() or "00:00:00"
+    stopped_at = local_now().replace(microsecond=0)
+    message = TRANSLATIONS[current_language()]["race_stopped_log"].format(crono=total_crono, time=stopped_at.isoformat())
+    save_setting("race_started_at", "")
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO log_entries (user_label, status, location, message, crono_time, created_by_username, created_by_name)
+            VALUES (?, ?, '', ?, ?, ?, ?)
+            """,
+            (
+                admin["display_name"],
+                TRANSLATIONS[current_language()]["race_stopped_status"],
+                message,
+                total_crono,
+                admin["username"] or "",
+                admin["display_name"] or "",
+            ),
+        )
+    return RedirectResponse("/", status_code=303)
+
 
 @app.post("/notices/direct")
 async def direct_notice(
@@ -344,14 +443,15 @@ async def direct_notice(
     runner_bib: str = Form(""),
     checkpoint: str = Form(""),
     crono_time: str = Form(""),
+    runner_crono: list[str] = Form([]),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
     runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
     notice_ids: list[int] = []
     with connect() as conn:
-        for runner in runners:
-            entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip())
+        for group in chunks(runners, 4):
+            entry_message = grouped_runner_message(message, group, checkpoint.strip(), runner_crono, effective_crono)
             if not entry_message:
                 raise HTTPException(status_code=400, detail="Message is required")
             cur = conn.execute(
@@ -360,7 +460,16 @@ async def direct_notice(
                     (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status, approved_at, approved_by)
                 VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
                 """,
-                (admin["display_name"], entry_message, runner["bib"], runner["name"], runner["hometown"], checkpoint.strip(), effective_crono, admin["username"]),
+                (
+                    admin["display_name"],
+                    entry_message,
+                    ", ".join(runner["bib"] for runner in group if runner.get("bib")),
+                    ", ".join(runner["name"] for runner in group if runner.get("name")),
+                    ", ".join(runner["hometown"] for runner in group if runner.get("hometown")),
+                    checkpoint.strip(),
+                    ", ".join(crono_for_runner(index, runner_crono, effective_crono) for index, runner in enumerate(group) if runner.get("bib")),
+                    admin["username"],
+                ),
             )
             notice_ids.append(cur.lastrowid)
     for notice_id in notice_ids:
@@ -370,7 +479,7 @@ async def direct_notice(
 
 @app.post("/bulletins/direct")
 async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", admin=admin)
+    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], admin=admin)
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -391,8 +500,17 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
 
 
 @app.post("/setup/settings")
-async def update_settings(language: str = Form("en"), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def update_settings(
+    language: str = Form("en"),
+    app_timezone: str = Form("Europe/Rome"),
+    app_locale: str = Form("it_IT.UTF-8"),
+    ntp_server: str = Form("pool.ntp.org"),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
     save_setting("language", normalize_language(language))
+    save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
+    save_setting("app_locale", app_locale.strip() or settings.app_locale)
+    save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
     return RedirectResponse("/setup", status_code=303)
 
 
@@ -587,14 +705,15 @@ async def notice_submit(
     runner_bib: str = Form(""),
     checkpoint: str = Form(""),
     crono_time: str = Form(""),
+    runner_crono: list[str] = Form([]),
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
     runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
     notice_ids: list[int] = []
     with connect() as conn:
-        for runner in runners:
-            entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip())
+        for group in chunks(runners, 4):
+            entry_message = grouped_runner_message(message, group, checkpoint.strip(), runner_crono, effective_crono)
             if not entry_message:
                 raise HTTPException(status_code=400, detail="Message is required")
             cur = conn.execute(
@@ -602,7 +721,15 @@ async def notice_submit(
                 INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status)
                 VALUES ('user', ?, ?, ?, ?, ?, ?, ?, 'pending')
                 """,
-                (user["display_name"], entry_message, runner["bib"], runner["name"], runner["hometown"], checkpoint.strip(), effective_crono),
+                (
+                    user["display_name"],
+                    entry_message,
+                    ", ".join(runner["bib"] for runner in group if runner.get("bib")),
+                    ", ".join(runner["name"] for runner in group if runner.get("name")),
+                    ", ".join(runner["hometown"] for runner in group if runner.get("hometown")),
+                    checkpoint.strip(),
+                    ", ".join(crono_for_runner(index, runner_crono, effective_crono) for index, runner in enumerate(group) if runner.get("bib")),
+                ),
             )
             notice_ids.append(cur.lastrowid)
     for notice_id in notice_ids:
@@ -612,7 +739,7 @@ async def notice_submit(
 
 @app.post("/bulletin-submit")
 async def old_bulletin_submit_post(message: str = Form(...), user: Any = Depends(require_user_or_admin)) -> RedirectResponse:
-    return await notice_submit(message=message, runner_bib="", checkpoint="", crono_time="", user=user)
+    return await notice_submit(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], user=user)
 
 
 @app.get("/api/notices/recent")
@@ -810,9 +937,9 @@ def download_redirect(archive_id: int | None, filename: str) -> RedirectResponse
 
 @app.post("/clear-race")
 async def clear_race(action: str = Form(""), confirm: str = Form(""), archive_filename: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
-    expected = "CANCELLA" if current_language() == "it" else "CLEAR"
+    expected = "CANCELLA" if current_language() == "it" else "CANCEL"
     if confirm != expected:
-        raise HTTPException(status_code=400, detail=f"Type {expected} to clear race data")
+        return RedirectResponse(f"/setup?clear_error=1&expected={expected}", status_code=303)
     with connect() as conn:
         if action == "logs":
             conn.execute("UPDATE log_entries SET hidden_at = CURRENT_TIMESTAMP WHERE hidden_at IS NULL")

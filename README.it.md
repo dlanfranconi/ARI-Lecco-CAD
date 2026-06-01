@@ -25,6 +25,9 @@ services:
       APRSFI_API_KEY: ""
       APRS_POLL_SECONDS: 60
       DRATS_INGEST_TOKEN: change-this-token
+      TZ: Europe/Rome
+      LANG: it_IT.UTF-8
+      NTP_SERVER: pool.ntp.org
       DATABASE_PATH: /data/cad.sqlite3
     ports:
       - "8000:8000"
@@ -36,6 +39,10 @@ volumes:
 ```
 
 Apri `http://IP-SERVER:8000` dalla rete interna.
+
+## Fuso orario e NTP
+
+Imposta `TZ` al fuso orario della gara, per esempio `Europe/Rome`. In Configurazione sono disponibili anche i campi Fuso orario, Locale e Server NTP. `NTP_SERVER` usa `pool.ntp.org` come valore predefinito; su una rete senza internet puoi indicare un server NTP locale. Il server/VM che ospita Docker deve comunque sincronizzare l'ora di sistema con quella sorgente NTP.
 
 ## Ruoli
 

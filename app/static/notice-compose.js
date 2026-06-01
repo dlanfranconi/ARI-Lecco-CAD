@@ -6,19 +6,48 @@ function initRunnerComposer(root) {
   const refBib = root.querySelector(".runner-ref-bib") || document.getElementById("runner-ref-bib");
   const refName = root.querySelector(".runner-ref-name") || document.getElementById("runner-ref-name");
   const refTown = root.querySelector(".runner-ref-town") || document.getElementById("runner-ref-town");
-  let currentRunner = null;
+  let runnerList = root.querySelector(".runner-list");
+  let currentRunners = [];
 
   if (!bib || !checkpoint || !message) return;
 
-  async function lookupRunner() {
-    const value = bib.value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean)[0] || "";
-    if (!value) return;
+  if (!runnerList) {
+    runnerList = document.createElement("div");
+    runnerList.className = "runner-list hidden";
+    const reference = root.querySelector("[data-runner-reference]");
+    if (reference) reference.insertAdjacentElement("afterend", runnerList);
+    else bib.closest("label")?.insertAdjacentElement("afterend", runnerList);
+  }
+
+  function splitBibs() {
+    const seen = new Set();
+    return bib.value.split(/[\n,;]/).map((item) => item.trim()).filter(Boolean).filter((item) => {
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+  }
+
+  async function fetchRunner(value) {
     const response = await fetch(`/api/runners/${encodeURIComponent(value)}`);
-    if (!response.ok) return;
-    currentRunner = await response.json();
-    if (refBib) refBib.textContent = currentRunner.bib_number || "";
-    if (refName) refName.textContent = currentRunner.name || "";
-    if (refTown) refTown.textContent = currentRunner.hometown || "";
+    if (!response.ok) return { bib_number: value, name: "", hometown: "" };
+    const data = await response.json();
+    return data.bib_number ? data : { bib_number: value, name: "", hometown: "" };
+  }
+
+  async function lookupRunner() {
+    const bibs = splitBibs();
+    if (!bibs.length) {
+      currentRunners = [];
+      renderRunnerList();
+      return;
+    }
+    currentRunners = await Promise.all(bibs.map(fetchRunner));
+    const first = currentRunners[0] || {};
+    if (refBib) refBib.textContent = first.bib_number || "";
+    if (refName) refName.textContent = first.name || "";
+    if (refTown) refTown.textContent = first.hometown || "";
+    renderRunnerList();
     composeMessage();
   }
 
@@ -28,14 +57,38 @@ function initRunnerComposer(root) {
     return (window.CAD_LABELS?.language === "Lingua") ? "a" : "to";
   }
 
+  function runnerLine(runner, index) {
+    const currentCrono = runnerList.querySelectorAll(".runner-crono")[index]?.value || crono?.value || "";
+    if (window.CAD_LABELS?.language === "Lingua") {
+      return `atleta numero ${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}${currentCrono ? ` alle ${currentCrono}` : ""}`;
+    }
+    return `runner ${runner.bib_number || ""}${runner.name ? ` ${runner.name}` : ""}${currentCrono ? ` at ${currentCrono}` : ""}`;
+  }
+
   function composeMessage() {
-    if (!currentRunner?.name || !checkpoint.value) return;
-    const template = window.CAD_LABELS?.arrival_template || "Runner {name} is arriving {prep} {checkpoint}.";
+    if (!currentRunners.length || !checkpoint.value) return;
+    const template = window.CAD_LABELS?.group_arrival_template || "At {checkpoint}, the following athletes are passing: {runners}.";
     message.value = template
-      .replaceAll("{bib}", currentRunner.bib_number || bib.value.trim())
-      .replaceAll("{name}", currentRunner.name)
       .replaceAll("{checkpoint}", checkpoint.value)
-      .replaceAll("{prep}", selectedPreposition());
+      .replaceAll("{prep}", selectedPreposition())
+      .replaceAll("{runners}", currentRunners.slice(0, 4).map(runnerLine).join("; "));
+  }
+
+  function renderRunnerList() {
+    if (!currentRunners.length) {
+      runnerList.classList.add("hidden");
+      runnerList.innerHTML = "";
+      return;
+    }
+    runnerList.classList.remove("hidden");
+    const title = window.CAD_LABELS?.runner_list || "Athlete List";
+    const cronoLabel = window.CAD_LABELS?.runner_crono || "Runner Crono";
+    runnerList.innerHTML = `<strong>${title}</strong>` + currentRunners.map((runner) => `
+      <div class="runner-list-row">
+        <span>${runner.bib_number || ""}${runner.name ? ` - ${runner.name}` : ""}${runner.hometown ? ` (${runner.hometown})` : ""}</span>
+        <label>${cronoLabel}<input class="runner-crono" name="runner_crono" value="${crono?.value || ""}" placeholder="HH:MM:SS"></label>
+      </div>`).join("");
+    runnerList.querySelectorAll(".runner-crono").forEach((input) => input.addEventListener("input", composeMessage));
   }
 
   bib.addEventListener("change", lookupRunner);
@@ -60,9 +113,21 @@ function initRunnerComposer(root) {
       crono.blur();
     }
   });
+  crono?.addEventListener("input", () => {
+    runnerList.querySelectorAll(".runner-crono").forEach((input) => {
+      if (!input.value) input.value = crono.value;
+    });
+    composeMessage();
+  });
 }
 
 document.querySelectorAll("[data-runner-compose]").forEach(initRunnerComposer);
 if (!document.querySelector("[data-runner-compose]") && document.getElementById("runner-bib")) {
   initRunnerComposer(document);
 }
+
+document.querySelectorAll("form[data-confirm]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (!window.confirm(form.dataset.confirm || "Confirm")) event.preventDefault();
+  });
+});

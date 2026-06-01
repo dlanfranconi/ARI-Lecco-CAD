@@ -12,3 +12,10 @@ function renderRaceTimer() {
 }
 renderRaceTimer();
 setInterval(renderRaceTimer, 1000);
+
+
+document.querySelectorAll("form[data-confirm]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (!window.confirm(form.dataset.confirm || "Confirm")) event.preventDefault();
+  });
+});

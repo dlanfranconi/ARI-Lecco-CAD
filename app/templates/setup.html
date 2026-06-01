@@ -9,6 +9,10 @@
         <option value="it" {% if lang == 'it' %}selected{% endif %}>{{ t.italian }}</option>
       </select>
     </label>
+    <h2>{{ t.time_settings }}</h2>
+    <label>{{ t.timezone }}<input name="app_timezone" value="{{ app_timezone }}" placeholder="Europe/Rome"></label>
+    <label>{{ t.locale }}<input name="app_locale" value="{{ app_locale }}" placeholder="it_IT.UTF-8"></label>
+    <label>{{ t.ntp_server }}<input name="ntp_server" value="{{ ntp_server }}" placeholder="pool.ntp.org"></label>
     <button>{{ t.save_settings }}</button>
   </form>
 
@@ -106,6 +110,7 @@
 <section class="grid two">
   <section class="panel">
     <h2>{{ t.exports }}</h2>
+    {% if request.query_params.get("clear_error") %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
     <div class="actions"><a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a><a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a><a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a><a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a><a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a></div>
     <p class="warning">{{ t.clear_all_requires_archive }}</p>
     <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="logs"><label>{{ t.clear_logs_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_logs_only }}</button></form>
