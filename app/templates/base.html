@@ -10,16 +10,6 @@
 <body>
   {% if dispatch_user %}
   <header class="topbar">
-    {% if is_admin %}
-    <div class="header-timer">
-      {% if race_started_at %}
-      <form method="post" action="/race-timer/stop" data-confirm="{{ t.stop_timer_confirm }}"><button class="danger compact-button">{{ t.stop_timer }}</button></form>
-      {% else %}
-      <form method="post" action="/race-timer/start"><button class="ghost compact-button">{{ t.start_timer }}</button></form>
-      {% endif %}
-      <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}">{% if race_started_at %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
-    </div>
-    {% endif %}
     <a class="brand" href="/notices">{{ t.app_title }}</a>
     <nav>
       {% if current_user.role in ['admin', 'user'] %}
@@ -31,6 +21,16 @@
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
       <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
     </nav>
+    {% if is_admin %}
+    <div class="header-timer">
+      {% if race_started_at %}
+      <form method="post" action="/race-timer/stop" data-confirm="{{ t.stop_timer_confirm }}"><button class="danger compact-button">{{ t.stop_timer }}</button></form>
+      {% else %}
+      <form method="post" action="/race-timer/start"><button class="start-button compact-button">{{ t.start_timer }}</button></form>
+      {% endif %}
+      <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}">{% if race_started_at %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
+    </div>
+    {% endif %}
     <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button><form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
   </header>
   {% endif %}
