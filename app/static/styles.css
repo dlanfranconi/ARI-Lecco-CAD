@@ -32,9 +32,19 @@ a { color: inherit; }
 .header-clock { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 74px; color: #8bd3ce; }
 .compact-button { min-height: 32px; padding: 5px 9px; white-space: nowrap; }
 .runner-list { display: grid; gap: 8px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(20,108,117,.07); }
-.runner-list-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px; align-items: center; }
+.runner-list-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 130px; gap: 8px; align-items: center; }
 .runner-list-row label { margin: 0; font-size: 12px; }
 .runner-list-row input { padding: 7px 8px; }
+.compact-log-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr); gap: 10px; align-items: end; }
+.compact-log-row label { margin-bottom: 0; }
+.athlete-rows { display: grid; gap: 4px; margin-top: 6px; }
+.athlete-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; color: var(--muted); font-size: 13px; }
+.athlete-row span:first-child { font-weight: 700; color: var(--text); }
+.announcer .athlete-rows { justify-items: center; margin-top: 18px; }
+.announcer .athlete-row { color: #d6eeee; font-size: 30px; font-weight: 700; justify-content: center; }
+.announcer .athlete-row span:first-child { color: #f8fbfb; }
+.announcer.light-mode .athlete-row { color: #173b40; }
+.announcer.light-mode .athlete-row span:first-child { color: #071012; }
 .brand { font-weight: 700; text-decoration: none; }
 .topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; }
 .topbar nav a { color: #fff; text-decoration: none; }
@@ -138,7 +148,7 @@ th { color: var(--muted); font-size: 13px; }
 .announcer-time { margin-top: 28px; color: #b7c7c9; font-size: 24px; }
 
 @media (max-width: 860px) {
-  .runner-list-row { grid-template-columns: 1fr; }
+  .runner-list-row, .compact-log-row { grid-template-columns: 1fr; }
   .grid.two, .grid.three { grid-template-columns: 1fr; }
   .span-two { grid-column: auto; }
   .topbar { align-items: flex-start; flex-direction: column; }

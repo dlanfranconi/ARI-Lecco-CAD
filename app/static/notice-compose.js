@@ -60,9 +60,9 @@ function initRunnerComposer(root) {
   function runnerLine(runner, index) {
     const currentCrono = runnerList.querySelectorAll(".runner-crono")[index]?.value || crono?.value || "";
     if (window.CAD_LABELS?.language === "Lingua") {
-      return `atleta numero ${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}${currentCrono ? ` alle ${currentCrono}` : ""}`;
+      return `Atleta numero ${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}${currentCrono ? ` alle ${currentCrono}` : ""}`;
     }
-    return `runner ${runner.bib_number || ""}${runner.name ? ` ${runner.name}` : ""}${currentCrono ? ` at ${currentCrono}` : ""}`;
+    return `Runner ${runner.bib_number || ""}${runner.name ? ` ${runner.name}` : ""}${currentCrono ? ` at ${currentCrono}` : ""}`;
   }
 
   function composeMessage() {
@@ -83,12 +83,14 @@ function initRunnerComposer(root) {
     runnerList.classList.remove("hidden");
     const title = window.CAD_LABELS?.runner_list || "Athlete List";
     const cronoLabel = window.CAD_LABELS?.runner_crono || "Runner Crono";
+    const positionLabel = window.CAD_LABELS?.athlete_position || "Athlete Position";
     runnerList.innerHTML = `<strong>${title}</strong>` + currentRunners.map((runner) => `
       <div class="runner-list-row">
         <span>${runner.bib_number || ""}${runner.name ? ` - ${runner.name}` : ""}${runner.hometown ? ` (${runner.hometown})` : ""}</span>
+        <label>${positionLabel}<input class="runner-position" name="runner_position" placeholder="#"></label>
         <label>${cronoLabel}<input class="runner-crono" name="runner_crono" value="${crono?.value || ""}" placeholder="HH:MM:SS"></label>
       </div>`).join("");
-    runnerList.querySelectorAll(".runner-crono").forEach((input) => input.addEventListener("input", composeMessage));
+    runnerList.querySelectorAll(".runner-crono, .runner-position").forEach((input) => input.addEventListener("input", composeMessage));
   }
 
   bib.addEventListener("change", lookupRunner);

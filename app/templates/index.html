@@ -8,20 +8,22 @@
       <a class="pill" href="/notices">{{ pending_count }} {{ t.pending_notices }}</a>
     </div>
     <label>{{ t.user_assignment }}
-      <select name="user_id" required>
-        {% for user in users %}
-        <option value="{{ user.id }}">{{ user.tactical_callsign or user.display_name }} - {{ user.operator_callsign or user.dstar_callsign or user.aprs_callsign or user.display_name }} ({{ user.display_name }}){% if user.dstar_callsign %} D-STAR: {{ user.dstar_callsign }}{% endif %}</option>
-        {% endfor %}
-      </select>
+      <input class="operator-combobox" name="user_lookup" list="operator-options" autocomplete="off" required>
+      <input type="hidden" name="user_id" class="operator-id">
+      <datalist id="operator-options">
+        {% for user in users %}<option data-id="{{ user.id }}" value="{{ operator_option_label(user) }}"></option>{% endfor %}
+      </datalist>
     </label>
-    <label>{{ t.status }}
-      <select name="status">
-        <option>{{ t.in_service }}</option>
-        <option>{{ t.out_of_service }}</option>
-        <option>{{ t.in_transit }}</option>
-      </select>
-    </label>
-    <label>{{ t.location }}<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
+    <div class="compact-log-row">
+      <label>{{ t.status }}
+        <select name="status" class="status-select">
+          <option>{{ t.in_service }}</option>
+          <option>{{ t.out_of_service }}</option>
+          <option>{{ t.in_transit }}</option>
+        </select>
+      </label>
+      <label class="location-field hidden">{{ t.location }}<input name="location" placeholder="Aid station, checkpoint, route marker"></label>
+    </div>
     <div class="grid two">
       <label>{{ t.bib_number }}<input class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>
       <label>{{ t.checkpoint }}
@@ -85,7 +87,7 @@
           <td>{{ log.user_label }}</td>
           <td>{{ log.status }}</td>
           <td>{{ log.location }}</td>
-          <td>{{ log.message }}{% if log.runner_bib %}<br><span class="meta">{{ t.bib_number }} {{ log.runner_bib }} · {{ log.runner_name }} · {{ log.runner_hometown }}{% if log.crono_time %} · {{ t.crono_time }} {{ log.crono_time }}{% endif %}</span>{% endif %}</td>
+          <td>{{ log.message }}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row"><span>{{ t.bib_number }} {{ athlete.bib }}</span><span>{{ athlete.name }}</span>{% if athlete.position %}<span>{{ t.athlete_position }} {{ athlete.position }}</span>{% endif %}{% if athlete.crono %}<span>{{ t.crono_time }} {{ athlete.crono }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
           <td>{% if log.lat %}{{ log.aprs_station }} {{ "%.5f"|format(log.lat) }}, {{ "%.5f"|format(log.lon) }}{% endif %}</td>
         </tr>
         {% endfor %}
@@ -95,5 +97,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script>{% endif %}
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script><script src="/static/race-log.js"></script>{% endif %}
 {% endblock %}

@@ -7,14 +7,39 @@ const labels = window.CAD_LABELS || {};
 let notices = Array.isArray(window.INITIAL_NOTICES) ? window.INITIAL_NOTICES : [];
 let currentIndex = 0;
 
+function parts(value) {
+  return String(value || "").replaceAll("|", ",").split(",").map((item) => item.trim());
+}
+
+function athleteRows(item) {
+  const bibs = parts(item?.runner_bib);
+  const names = parts(item?.runner_name);
+  const towns = parts(item?.runner_hometown);
+  const cronos = parts(item?.crono_time);
+  const positions = parts(item?.runner_position);
+  return bibs.filter(Boolean).map((bib, index) => ({
+    bib,
+    name: names[index] || "",
+    hometown: towns[index] || "",
+    crono: cronos[index] || "",
+    position: positions[index] || ""
+  }));
+}
+
+function athleteRowsHtml(item) {
+  const rows = athleteRows(item);
+  if (!rows.length) return "";
+  return `<div class="athlete-rows">${rows.map((athlete) => `
+    <div class="athlete-row">
+      <span>${labels.bib_number || "Bib Number"} ${athlete.bib}</span>
+      <span>${athlete.name}</span>
+      ${athlete.position ? `<span>${labels.athlete_position || "Athlete Position"} ${athlete.position}</span>` : ""}
+      ${athlete.crono ? `<span>${labels.crono_time || "Crono Time"} ${athlete.crono}</span>` : ""}
+    </div>`).join("")}</div>`;
+}
+
 function detailHtml(item) {
-  if (!item?.runner_bib) return "";
-  const crono = item.crono_time ? `<span>${labels.crono_time || "Crono Time"}: ${item.crono_time}</span>` : "";
-  return `
-    <span>${labels.bib_number || "Bib Number"}: ${item.runner_bib}</span>
-    <span>${labels.runner_name || "Runner Name"}: ${item.runner_name || ""}</span>
-    <span>${labels.hometown || "Home Town"}: ${item.runner_hometown || ""}</span>
-    ${crono}`;
+  return athleteRowsHtml(item);
 }
 
 function renderHistory() {
@@ -25,7 +50,7 @@ function renderHistory() {
     return;
   }
   historyListEl.innerHTML = older.map((item) => `
-    <article>${item.message || ""}${item.runner_bib ? `<br><span>${labels.bib_number || "Bib Number"} ${item.runner_bib} · ${item.runner_name || ""} · ${item.runner_hometown || ""}${item.crono_time ? ` · ${labels.crono_time || "Crono Time"} ${item.crono_time}` : ""}</span>` : ""}</article>
+    <article>${item.message || ""}${athleteRowsHtml(item)}</article>
   `).join("");
 }
 

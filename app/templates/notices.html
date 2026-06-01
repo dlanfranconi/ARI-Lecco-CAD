@@ -10,7 +10,7 @@
       <form method="post" action="/notices/{{ item.id }}/approve" class="notice-edit-form">
         <label>{{ t.edit_notice }}<textarea name="message" rows="4">{{ item.message }}</textarea></label>
         <label>{{ t.crono_time }}<input name="crono_time" value="{{ item.crono_time or '' }}"></label>
-        {% if item.runner_bib %}<p><strong>{{ t.bib_number }}:</strong> {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}{% if item.crono_time %} · {{ t.crono_time }} {{ item.crono_time }}{% endif %}</p>{% endif %}
+        {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span>{{ t.bib_number }} {{ athlete.bib }}</span><span>{{ athlete.name }}</span>{% if athlete.position %}<span>{{ t.athlete_position }} {{ athlete.position }}</span>{% endif %}{% if athlete.crono %}<span>{{ t.crono_time }} {{ athlete.crono }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
         <button>{{ t.save_and_approve }}</button>
       </form>
       <form method="post" action="/notices/{{ item.id }}/reject"><button class="danger">{{ t.reject }}</button></form>
@@ -28,7 +28,7 @@
     <article class="card">
       <p class="meta">{{ format_dt(item.approved_at or item.created_at) }} {{ t.from_label }} {{ item.submitter_name or item.source }}</p>
       <p>{{ item.message }}</p>
-      {% if item.runner_bib %}<p><strong>{{ t.bib_number }}:</strong> {{ item.runner_bib }} · {{ item.runner_name }} · {{ item.runner_hometown }}{% if item.crono_time %} · {{ t.crono_time }} {{ item.crono_time }}{% endif %}</p>{% endif %}
+      {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span>{{ t.bib_number }} {{ athlete.bib }}</span><span>{{ athlete.name }}</span>{% if athlete.position %}<span>{{ t.athlete_position }} {{ athlete.position }}</span>{% endif %}{% if athlete.crono %}<span>{{ t.crono_time }} {{ athlete.crono }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
     </article>
     {% endfor %}
   </div>

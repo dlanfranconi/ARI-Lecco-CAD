@@ -142,6 +142,7 @@ TRANSLATIONS = {
         "clear_confirm_error": "The confirmation text did not match. Nothing was cleared.",
         "runner_list": "Athlete List",
         "runner_crono": "Runner Crono",
+        "athlete_position": "Athlete Position",
     },
     "it": {
         "app_title": "ARI Lecco CAD",
@@ -246,7 +247,7 @@ TRANSLATIONS = {
         "checkpoint": "Postazione",
         "compose_runner_notice": "Componi notizia atleta",
         "arrival_template": "E' in arrivo l'atleta numero {bib}, {name} {prep} {checkpoint}.",
-        "group_arrival_template": "{prep} {checkpoint} sono in transito i seguenti atleti: {runners}.",
+        "group_arrival_template": "Presso {checkpoint} sono in transito i seguenti atleti: {runners}.",
         "runner_reference": "Riferimento atleta",
         "tactical_callsigns": "Nominativi tattici",
         "select_user_to_edit": "Seleziona utente da modificare",
@@ -286,6 +287,7 @@ TRANSLATIONS = {
         "clear_confirm_error": "Il testo di conferma non corrisponde. Nessun dato e stato cancellato.",
         "runner_list": "Elenco atleti",
         "runner_crono": "Crono atleta",
+        "athlete_position": "Posizione atleta",
     },
 }
 

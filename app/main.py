@@ -136,6 +136,8 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("lang", lang)
     context.setdefault("t", TRANSLATIONS[lang])
     context.setdefault("format_dt", format_dt)
+    context.setdefault("athlete_rows", athlete_rows)
+    context.setdefault("operator_option_label", operator_option_label)
     context.setdefault("race_name", setting("race_name", ""))
     context.setdefault("race_started_at", setting("race_started_at", ""))
     context.setdefault("current_crono", crono_from_timer())
@@ -175,6 +177,35 @@ def user_label(user: Any, location: str) -> str:
     return f"{tactical_label} - {callsign} ({user['display_name']})"
 
 
+def operator_option_label(user: Any) -> str:
+    callsign = user["operator_callsign"] or user["dstar_callsign"] or user["aprs_callsign"] or user["display_name"]
+    tactical = user["tactical_callsign"] or user["display_name"]
+    extra = f" D-STAR: {user['dstar_callsign']}" if user["dstar_callsign"] else ""
+    return f"{tactical} - {callsign} ({user['display_name']}){extra}"
+
+
+def resolve_operator(user_id: str, user_lookup: str) -> Any | None:
+    if user_id:
+        return row("""
+            SELECT users.*, aprs_stations.callsign AS aprs_callsign
+            FROM users
+            LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
+            WHERE users.id = ?
+        """, (user_id,))
+    candidates = rows("""
+        SELECT users.*, aprs_stations.callsign AS aprs_callsign
+        FROM users
+        LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
+        WHERE users.active = 1 AND users.role != 'announcer'
+    """)
+    lookup = user_lookup.strip().lower()
+    for candidate in candidates:
+        if operator_option_label(candidate).lower() == lookup:
+            return candidate
+    matches = [candidate for candidate in candidates if lookup and lookup in operator_option_label(candidate).lower()]
+    return matches[0] if len(matches) == 1 else None
+
+
 def checkpoint_preposition(checkpoint: str) -> str:
     tac = row("SELECT location_preposition FROM tactical_callsigns WHERE name = ?", (checkpoint,))
     if tac and tac["location_preposition"]:
@@ -196,6 +227,42 @@ def split_bibs(value: str) -> list[str]:
             seen.add(bib)
             bibs.append(bib)
     return bibs
+
+
+def split_multi_value(value: str) -> list[str]:
+    return [item.strip() for item in (value or "").split(",")]
+
+
+def joined_group_value(group: list[dict[str, str]], key: str) -> str:
+    return "|".join(runner[key] for runner in group if runner.get(key))
+
+
+def joined_group_crono(group: list[dict[str, str]], crono_values: list[str], fallback: str) -> str:
+    return "|".join(crono_for_runner(index, crono_values, fallback) for index, runner in enumerate(group) if runner.get("bib"))
+
+
+def joined_group_positions(group: list[dict[str, str]], positions: list[str]) -> str:
+    return "|".join((positions[index].strip() if index < len(positions) else "") for index, runner in enumerate(group) if runner.get("bib"))
+
+
+def athlete_rows(item: Any) -> list[dict[str, str]]:
+    bibs = split_multi_value(str(item["runner_bib"] or "").replace("|", ","))
+    names = split_multi_value(str(item["runner_name"] or "").replace("|", ","))
+    towns = split_multi_value(str(item["runner_hometown"] or "").replace("|", ","))
+    cronos = split_multi_value(str(item["crono_time"] or "").replace("|", ","))
+    positions = split_multi_value(str(item["runner_position"] or "").replace("|", ",")) if "runner_position" in item.keys() else []
+    count = max(len(bibs), len(names), len(towns), len(cronos), len(positions))
+    rows_out = []
+    for index in range(count):
+        if index < len(bibs) and bibs[index]:
+            rows_out.append({
+                "bib": bibs[index],
+                "name": names[index] if index < len(names) else "",
+                "hometown": towns[index] if index < len(towns) else "",
+                "crono": cronos[index] if index < len(cronos) else "",
+                "position": positions[index] if index < len(positions) else "",
+            })
+    return rows_out
 
 
 def runner_for_bib(bib: str) -> dict[str, str]:
@@ -233,13 +300,13 @@ def crono_for_runner(index: int, crono_values: list[str], fallback: str) -> str:
 
 def runner_notice_line(runner: dict[str, str], crono: str) -> str:
     if current_language() == "it":
-        base = f"atleta numero {runner['bib']}"
+        base = f"Atleta numero {runner['bib']}"
         if runner.get("name"):
             base += f", {runner['name']}"
         if crono:
             base += f" alle {crono}"
         return base
-    base = f"runner {runner['bib']}"
+    base = f"Runner {runner['bib']}"
     if runner.get("name"):
         base += f" {runner['name']}"
     if crono:
@@ -307,7 +374,8 @@ async def logout() -> RedirectResponse:
 
 @app.post("/logs")
 async def create_log(
-    user_id: int = Form(...),
+    user_id: str = Form(""),
+    user_lookup: str = Form(""),
     status: str = Form(...),
     location: str = Form(""),
     message: str = Form(""),
@@ -315,18 +383,11 @@ async def create_log(
     checkpoint: str = Form(""),
     crono_time: str = Form(""),
     runner_crono: list[str] = Form([]),
+    runner_position: list[str] = Form([]),
     forward_bulletin: str | None = Form(None),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    user = row(
-        """
-        SELECT users.*, aprs_stations.callsign AS aprs_callsign
-        FROM users
-        LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-        WHERE users.id = ?
-        """,
-        (user_id,),
-    )
+    user = resolve_operator(user_id, user_lookup)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -345,17 +406,18 @@ async def create_log(
                 cur = conn.execute(
                     """
                     INSERT INTO bulletins
-                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status, approved_at, approved_by)
-                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by)
+                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
                     """,
                     (
                         label,
                         group_message,
-                        ", ".join(runner["bib"] for runner in group if runner.get("bib")),
-                        ", ".join(runner["name"] for runner in group if runner.get("name")),
-                        ", ".join(runner["hometown"] for runner in group if runner.get("hometown")),
+                        joined_group_value(group, "bib"),
+                        joined_group_value(group, "name"),
+                        joined_group_value(group, "hometown"),
+                        joined_group_positions(group, runner_position),
                         checkpoint.strip(),
-                        ", ".join(crono_for_runner(index, runner_crono, effective_crono) for index, runner in enumerate(group) if runner.get("bib")),
+                        joined_group_crono(group, runner_crono, effective_crono),
                         admin["username"],
                     ),
                 )
@@ -369,12 +431,12 @@ async def create_log(
                 conn.execute(
                     """
                     INSERT INTO log_entries
-                        (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time,
+                        (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time,
                          created_by_username, created_by_name, bulletin_requested, bulletin_id, aprs_station, lat, lon)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        user_id,
+                        user["id"],
                         label,
                         status,
                         location,
@@ -382,6 +444,7 @@ async def create_log(
                         runner["bib"],
                         runner["name"],
                         runner["hometown"],
+                        runner_position[index].strip() if index < len(runner_position) else "",
                         checkpoint.strip(),
                         runner_crono_value,
                         admin["username"] or "",
@@ -444,6 +507,7 @@ async def direct_notice(
     checkpoint: str = Form(""),
     crono_time: str = Form(""),
     runner_crono: list[str] = Form([]),
+    runner_position: list[str] = Form([]),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -457,17 +521,18 @@ async def direct_notice(
             cur = conn.execute(
                 """
                 INSERT INTO bulletins
-                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status, approved_at, approved_by)
-                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by)
+                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
                 """,
                 (
                     admin["display_name"],
                     entry_message,
-                    ", ".join(runner["bib"] for runner in group if runner.get("bib")),
-                    ", ".join(runner["name"] for runner in group if runner.get("name")),
-                    ", ".join(runner["hometown"] for runner in group if runner.get("hometown")),
+                    joined_group_value(group, "bib"),
+                    joined_group_value(group, "name"),
+                    joined_group_value(group, "hometown"),
+                    joined_group_positions(group, runner_position),
                     checkpoint.strip(),
-                    ", ".join(crono_for_runner(index, runner_crono, effective_crono) for index, runner in enumerate(group) if runner.get("bib")),
+                    joined_group_crono(group, runner_crono, effective_crono),
                     admin["username"],
                 ),
             )
@@ -479,7 +544,7 @@ async def direct_notice(
 
 @app.post("/bulletins/direct")
 async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], admin=admin)
+    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], runner_position=[], admin=admin)
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -706,6 +771,7 @@ async def notice_submit(
     checkpoint: str = Form(""),
     crono_time: str = Form(""),
     runner_crono: list[str] = Form([]),
+    runner_position: list[str] = Form([]),
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -718,17 +784,18 @@ async def notice_submit(
                 raise HTTPException(status_code=400, detail="Message is required")
             cur = conn.execute(
                 """
-                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, checkpoint, crono_time, status)
-                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status)
+                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
                 """,
                 (
                     user["display_name"],
                     entry_message,
-                    ", ".join(runner["bib"] for runner in group if runner.get("bib")),
-                    ", ".join(runner["name"] for runner in group if runner.get("name")),
-                    ", ".join(runner["hometown"] for runner in group if runner.get("hometown")),
+                    joined_group_value(group, "bib"),
+                    joined_group_value(group, "name"),
+                    joined_group_value(group, "hometown"),
+                    joined_group_positions(group, runner_position),
                     checkpoint.strip(),
-                    ", ".join(crono_for_runner(index, runner_crono, effective_crono) for index, runner in enumerate(group) if runner.get("bib")),
+                    joined_group_crono(group, runner_crono, effective_crono),
                 ),
             )
             notice_ids.append(cur.lastrowid)
@@ -739,7 +806,7 @@ async def notice_submit(
 
 @app.post("/bulletin-submit")
 async def old_bulletin_submit_post(message: str = Form(...), user: Any = Depends(require_user_or_admin)) -> RedirectResponse:
-    return await notice_submit(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], user=user)
+    return await notice_submit(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], runner_position=[], user=user)
 
 
 @app.get("/api/notices/recent")
