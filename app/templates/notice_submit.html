@@ -4,6 +4,7 @@
   <form method="post" action="{{ submit_notice_url }}" class="panel" data-runner-compose>
     <h1>{{ t.submit_notice }}</h1>
     {% if request.query_params.get("sent") %}<p class="success">{{ t.sent_to_dispatch }}</p>{% endif %}
+    {% if request.query_params.get("error") == "message" %}<p class="error">{{ t.message_required_error }}</p>{% endif %}
     <label>{{ t.bib_number }}<input id="runner-bib" class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>
     <label>{{ t.checkpoint }}
       <select id="checkpoint" class="checkpoint" name="checkpoint"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}</select>

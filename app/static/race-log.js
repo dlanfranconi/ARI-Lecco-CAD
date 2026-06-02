@@ -7,10 +7,24 @@ function initOperatorCombobox() {
     const value = input.value.trim().toLowerCase();
     const exact = options.find((option) => option.value.trim().toLowerCase() === value);
     hidden.value = exact?.dataset.id || "";
+    input.setCustomValidity(hidden.value || !input.value.trim() ? "" : (window.CAD_LABELS?.select_operator_error || "Select a valid user/tactical callsign."));
+    return Boolean(hidden.value);
   }
   input.addEventListener("input", syncId);
   input.addEventListener("change", syncId);
   input.addEventListener("blur", syncId);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !syncId()) {
+      event.preventDefault();
+      input.reportValidity();
+    }
+  });
+  input.closest("form")?.addEventListener("submit", (event) => {
+    if (!syncId()) {
+      event.preventDefault();
+      input.reportValidity();
+    }
+  });
 }
 
 function initStatusLocation() {

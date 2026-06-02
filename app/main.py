@@ -265,6 +265,21 @@ def athlete_rows(item: Any) -> list[dict[str, str]]:
     return rows_out
 
 
+def recent_log_rows() -> list[dict[str, Any]]:
+    raw = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id ASC LIMIT 500")
+    last_status: dict[str, str] = {}
+    enriched: list[dict[str, Any]] = []
+    for item in raw:
+        entry = dict(item)
+        key = str(entry.get("user_id") or entry.get("user_label") or "")
+        status = str(entry.get("status") or "")
+        entry["show_status"] = bool(status and last_status.get(key) != status)
+        if status:
+            last_status[key] = status
+        enriched.append(entry)
+    return list(reversed(enriched[-100:]))
+
+
 def runner_for_bib(bib: str) -> dict[str, str]:
     runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib,))
     if not runner:
@@ -344,7 +359,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
         ORDER BY tactical_callsign, display_name
         """
     )
-    logs = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id DESC LIMIT 100")
+    logs = recent_log_rows()
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
     return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
 
@@ -389,7 +404,7 @@ async def create_log(
 ) -> RedirectResponse:
     user = resolve_operator(user_id, user_lookup)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return RedirectResponse("/?log_error=operator", status_code=303)
 
     latest = latest_position_for_user(user)
     label = user_label(user, location)
@@ -400,7 +415,7 @@ async def create_log(
         for group in chunks(runners, 4):
             group_message = grouped_runner_message(message, group, checkpoint.strip(), runner_crono, effective_crono)
             if not group_message:
-                raise HTTPException(status_code=400, detail="Message is required")
+                return RedirectResponse("/?log_error=message", status_code=303)
             notice_id = None
             if forward_bulletin:
                 cur = conn.execute(
@@ -517,7 +532,7 @@ async def direct_notice(
         for group in chunks(runners, 4):
             entry_message = grouped_runner_message(message, group, checkpoint.strip(), runner_crono, effective_crono)
             if not entry_message:
-                raise HTTPException(status_code=400, detail="Message is required")
+                return RedirectResponse("/?log_error=message", status_code=303)
             cur = conn.execute(
                 """
                 INSERT INTO bulletins
@@ -781,7 +796,7 @@ async def notice_submit(
         for group in chunks(runners, 4):
             entry_message = grouped_runner_message(message, group, checkpoint.strip(), runner_crono, effective_crono)
             if not entry_message:
-                raise HTTPException(status_code=400, detail="Message is required")
+                return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?error=message", status_code=303)
             cur = conn.execute(
                 """
                 INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status)
@@ -1020,7 +1035,7 @@ async def clear_race(action: str = Form(""), confirm: str = Form(""), archive_fi
             conn.execute("DELETE FROM dstar_positions")
             return download_redirect(archive_id, archive_filename)
         else:
-            raise HTTPException(status_code=400, detail="Invalid clear action")
+            return RedirectResponse("/setup?clear_error=1", status_code=303)
     return RedirectResponse("/setup", status_code=303)
 
 

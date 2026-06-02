@@ -144,6 +144,8 @@ TRANSLATIONS = {
         "runner_crono": "Runner Crono",
         "athlete_position": "Position Number",
         "city": "City",
+        "select_operator_error": "Select a valid user/tactical callsign before saving.",
+        "message_required_error": "Enter a message or select athletes and checkpoint so CAD can generate one.",
     },
     "it": {
         "app_title": "ARI Lecco CAD",
@@ -290,6 +292,8 @@ TRANSLATIONS = {
         "runner_crono": "Crono atleta",
         "athlete_position": "Numero posizione",
         "city": "Citta",
+        "select_operator_error": "Seleziona un utente/nominativo tattico valido prima di salvare.",
+        "message_required_error": "Inserisci un messaggio oppure seleziona atleti e postazione per generarlo.",
     },
 }
 
