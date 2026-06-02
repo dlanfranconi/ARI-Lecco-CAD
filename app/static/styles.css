@@ -41,9 +41,9 @@ a { color: inherit; }
 .athlete-row { display: grid; grid-template-columns: repeat(5, max-content); gap: 12px; align-items: baseline; color: var(--muted); font-size: 13px; }
 .athlete-row span { white-space: nowrap; font-weight: 400; }
 .athlete-row strong { font-weight: 800; color: var(--text); }
-.announcer .athlete-rows { justify-items: stretch; margin: 18px auto 0; width: min(1420px, 100%); }
-.announcer .athlete-row { color: #d6eeee; font-size: clamp(16px, 1.55vw, 26px); justify-content: stretch; width: 100%; grid-template-columns: minmax(92px, .75fr) minmax(160px, 1.35fr) minmax(125px, 1fr) minmax(155px, .9fr) minmax(165px, .95fr); gap: 10px; text-align: left; }
-.announcer .athlete-row span { overflow: hidden; text-overflow: ellipsis; }
+.announcer .athlete-rows { justify-items: stretch; margin: 18px auto 0; width: min(1240px, 100%); }
+.announcer .athlete-row { color: #d6eeee; font-size: clamp(15px, 1.28vw, 22px); justify-content: stretch; width: 100%; grid-template-columns: 112px minmax(170px, 1fr) minmax(130px, .75fr) 175px 185px; gap: 8px; text-align: left; }
+.announcer .athlete-row span { overflow: visible; text-overflow: clip; min-width: 0; }
 .announcer .athlete-row strong { color: #f8fbfb; }
 .announcer.light-mode .athlete-row { color: #173b40; }
 .announcer.light-mode .athlete-row strong { color: #071012; }
@@ -175,8 +175,10 @@ th { color: var(--muted); font-size: 13px; }
 .compact-table table { min-width: 560px; }
 .actions-cell { display: flex; gap: 8px; align-items: center; }
 .tac-table input { min-width: 110px; }
+.announcer-clock { position: fixed; top: 16px; right: 68px; z-index: 20; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: #8bd3ce; background: rgba(7,16,18,.72); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; }
 .contrast-toggle { position: fixed; top: 16px; right: 16px; z-index: 20; width: 42px; padding: 0; font-size: 24px; background: #dce6ea; color: #071012; }
 .announcer.light-mode { background: #f8fbfb; color: #071012; }
+.announcer.light-mode .announcer-clock { background: rgba(248,251,251,.88); color: #146c75; border-color: rgba(0,0,0,.18); }
 .announcer.light-mode .announcer-label { color: #146c75; }
 .announcer.light-mode .announcer-time { color: #41525a; }
 .announcer.light-mode .runner-details { color: #173b40; }

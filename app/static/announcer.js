@@ -109,7 +109,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "ArrowRight") showNewer();
 });
 document.addEventListener("click", (event) => {
-  if (event.target.closest("button")) return;
+  if (event.target.closest("button, .announcer-clock")) return;
   if (event.clientX < window.innerWidth / 2) showOlder();
   else showNewer();
 });

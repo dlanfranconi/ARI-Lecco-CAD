@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="announcer">
+  <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}">{% if race_started_at %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
   <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
   <main>
     <div class="announcer-label">{{ t.current_notice }}</div>
@@ -36,6 +37,7 @@
     </section>
   </main>
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>
+  <script src="/static/race-timer.js"></script>
   <script src="/static/announcer.js"></script>
 </body>
 </html>
