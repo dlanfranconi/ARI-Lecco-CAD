@@ -489,6 +489,7 @@ async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespo
             """,
             (admin["display_name"], TRANSLATIONS[current_language()]["race_started_status"], message, admin["username"] or "", admin["display_name"] or ""),
         )
+    await broadcast_race_timer_changed("started", started_at)
     return RedirectResponse("/", status_code=303)
 
 @app.post("/race-timer/stop")
@@ -512,6 +513,7 @@ async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespon
                 admin["display_name"] or "",
             ),
         )
+    await broadcast_race_timer_changed("stopped", "")
     return RedirectResponse("/", status_code=303)
 
 
@@ -935,6 +937,11 @@ async def broadcast_review_notice(notice_id: int) -> None:
         return
     payload = json.dumps({"type": "pending_notice", "notice": dict(notice), "labels": TRANSLATIONS[current_language()]})
     await _broadcast(review_clients, payload)
+
+
+async def broadcast_race_timer_changed(state: str, started_at: str) -> None:
+    payload = json.dumps({"type": "race_timer_changed", "state": state, "started_at": started_at})
+    await _broadcast(bulletin_clients, payload)
 
 
 async def _broadcast(clients: set[WebSocket], payload: str) -> None:

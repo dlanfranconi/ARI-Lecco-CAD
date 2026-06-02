@@ -95,6 +95,7 @@ function connectWs() {
   socket.onmessage = (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === "notice" || payload.type === "bulletin") upsertNotice(payload.notice || payload.bulletin);
+    if (payload.type === "race_timer_changed") window.location.reload();
   };
   socket.onclose = () => setTimeout(connectWs, 3000);
 }
