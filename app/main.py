@@ -290,7 +290,7 @@ def runner_for_bib(bib: str) -> dict[str, str]:
 def crono_from_timer() -> str:
     started = setting("race_started_at", "")
     if not started:
-        return ""
+        return setting("race_stopped_crono", "")
     try:
         start = datetime.fromisoformat(started)
     except ValueError:
@@ -480,6 +480,7 @@ async def create_log(
 async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
     started_at = local_now().replace(microsecond=0).isoformat()
     save_setting("race_started_at", started_at)
+    save_setting("race_stopped_crono", "")
     message = TRANSLATIONS[current_language()]["race_started_log"]
     with connect() as conn:
         conn.execute(
@@ -498,6 +499,7 @@ async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespon
     stopped_at = local_now().replace(microsecond=0)
     message = TRANSLATIONS[current_language()]["race_stopped_log"].format(crono=total_crono, time=stopped_at.isoformat())
     save_setting("race_started_at", "")
+    save_setting("race_stopped_crono", total_crono)
     with connect() as conn:
         conn.execute(
             """
@@ -514,6 +516,14 @@ async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespon
             ),
         )
     await broadcast_race_timer_changed("stopped", "")
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/race-timer/reset")
+async def reset_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
+    save_setting("race_started_at", "")
+    save_setting("race_stopped_crono", "")
+    await broadcast_race_timer_changed("reset", "")
     return RedirectResponse("/", status_code=303)
 
 

@@ -21,16 +21,18 @@
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
       <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
     </nav>
-    {% if is_admin or race_started_at %}
+    {% if is_admin or race_started_at or current_crono %}
     <div class="header-timer">
       {% if is_admin %}
         {% if race_started_at %}
         <form method="post" action="/race-timer/stop" data-confirm="{{ t.stop_timer_confirm }}"><button class="danger compact-button">{{ t.stop_timer }}</button></form>
+        {% elif current_crono %}
+        <form method="post" action="/race-timer/reset" data-confirm="{{ t.reset_timer_confirm }}"><button class="danger compact-button">{{ t.reset_timer }}</button></form>
         {% else %}
         <form method="post" action="/race-timer/start"><button class="start-button compact-button">{{ t.start_timer }}</button></form>
         {% endif %}
       {% endif %}
-      <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}">{% if race_started_at %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
+      <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
     </div>
     {% endif %}
     <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button><form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
@@ -39,7 +41,7 @@
   <main class="content">{% block content %}{% endblock %}</main>
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
   <script src="/static/theme.js"></script>
-  {% if is_admin or race_started_at %}<script src="/static/race-timer.js"></script>{% endif %}
+  {% if is_admin or race_started_at or current_crono %}<script src="/static/race-timer.js"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>
