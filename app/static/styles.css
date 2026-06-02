@@ -38,14 +38,15 @@ a { color: inherit; }
 .compact-log-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr); gap: 10px; align-items: end; }
 .compact-log-row label { margin-bottom: 0; }
 .athlete-rows { display: grid; gap: 4px; margin-top: 6px; }
-.athlete-row { display: grid; grid-template-columns: repeat(5, max-content); gap: 14px; align-items: baseline; color: var(--muted); font-size: 13px; }
-.athlete-row span { white-space: nowrap; }
-.athlete-row span:first-child { font-weight: 700; color: var(--text); }
-.announcer .athlete-rows { justify-items: center; margin: 18px auto 0; width: min(1500px, 100%); }
-.announcer .athlete-row { color: #d6eeee; font-size: clamp(18px, 2vw, 32px); font-weight: 700; justify-content: stretch; width: 100%; grid-template-columns: minmax(120px, .7fr) minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(190px, .9fr) minmax(190px, .9fr); text-align: left; }
-.announcer .athlete-row span:first-child { color: #f8fbfb; }
+.athlete-row { display: grid; grid-template-columns: repeat(5, max-content); gap: 12px; align-items: baseline; color: var(--muted); font-size: 13px; }
+.athlete-row span { white-space: nowrap; font-weight: 400; }
+.athlete-row strong { font-weight: 800; color: var(--text); }
+.announcer .athlete-rows { justify-items: stretch; margin: 18px auto 0; width: min(1420px, 100%); }
+.announcer .athlete-row { color: #d6eeee; font-size: clamp(16px, 1.55vw, 26px); justify-content: stretch; width: 100%; grid-template-columns: minmax(92px, .75fr) minmax(160px, 1.35fr) minmax(125px, 1fr) minmax(155px, .9fr) minmax(165px, .95fr); gap: 10px; text-align: left; }
+.announcer .athlete-row span { overflow: hidden; text-overflow: ellipsis; }
+.announcer .athlete-row strong { color: #f8fbfb; }
 .announcer.light-mode .athlete-row { color: #173b40; }
-.announcer.light-mode .athlete-row span:first-child { color: #071012; }
+.announcer.light-mode .athlete-row strong { color: #071012; }
 .brand { font-weight: 700; text-decoration: none; }
 .topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; }
 .topbar nav a { color: #fff; text-decoration: none; }
