@@ -24,3 +24,13 @@ if (tacFilter) {
     });
   });
 }
+
+
+document.querySelectorAll(".row-action-form").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    const action = form.querySelector('select[name="action"]')?.value;
+    if (action === "delete" && !window.confirm(form.dataset.deleteConfirm || "Delete this item?")) {
+      event.preventDefault();
+    }
+  });
+});

@@ -606,26 +606,36 @@ async def update_settings(
     return RedirectResponse("/setup", status_code=303)
 
 
+def aprs_station_id_for_callsign(conn: Any, callsign: str) -> int | None:
+    clean = callsign.strip().upper()
+    if not clean:
+        return None
+    conn.execute("INSERT OR IGNORE INTO aprs_stations (callsign, active) VALUES (?, 1)", (clean,))
+    conn.execute("UPDATE aprs_stations SET active = 1 WHERE callsign = ?", (clean,))
+    station = conn.execute("SELECT id FROM aprs_stations WHERE callsign = ?", (clean,)).fetchone()
+    return int(station["id"]) if station else None
+
+
 @app.post("/setup/users")
 async def add_user(
     display_name: str = Form(...),
     operator_callsign: str = Form(""),
     tactical_callsign: str = Form(""),
     default_location: str = Form(""),
-    aprs_station_id: str = Form(""),
+    aprs_callsign: str = Form(""),
     dstar_callsign: str = Form(""),
     username: str = Form(""),
     password: str = Form(""),
     role: str = Form("user"),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    station_id = int(aprs_station_id) if aprs_station_id else None
     clean_username = username.strip() or None
     password_hash = hash_password(password) if password else ""
     role = role if role in {"admin", "user", "announcer"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
+        station_id = aprs_station_id_for_callsign(conn, aprs_callsign)
         conn.execute(
             """
             INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign, username, password_hash, role)
@@ -643,6 +653,26 @@ async def toggle_user(user_id: int, _: Any = Depends(require_admin)) -> Redirect
     return RedirectResponse("/setup", status_code=303)
 
 
+@app.post("/setup/users/{user_id}/action")
+async def user_action(user_id: int, action: str = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        if action == "delete":
+            target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+            admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").fetchone()["count"]
+            if target and target["role"] == "admin" and admin_count <= 1:
+                return RedirectResponse("/setup", status_code=303)
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        elif action == "disable":
+            target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+            admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").fetchone()["count"]
+            if target and target["role"] == "admin" and admin_count <= 1:
+                return RedirectResponse("/setup", status_code=303)
+            conn.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
+        elif action == "enable":
+            conn.execute("UPDATE users SET active = 1 WHERE id = ?", (user_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
 @app.post("/setup/users/{user_id}")
 async def update_user(
     user_id: int,
@@ -650,19 +680,19 @@ async def update_user(
     operator_callsign: str = Form(""),
     tactical_callsign: str = Form(""),
     default_location: str = Form(""),
-    aprs_station_id: str = Form(""),
+    aprs_callsign: str = Form(""),
     dstar_callsign: str = Form(""),
     username: str = Form(""),
     password: str = Form(""),
     role: str = Form("user"),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    station_id = int(aprs_station_id) if aprs_station_id else None
     clean_username = username.strip() or None
     role = role if role in {"admin", "user", "announcer"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
+        station_id = aprs_station_id_for_callsign(conn, aprs_callsign)
         conn.execute(
             """
             UPDATE users
@@ -1171,6 +1201,18 @@ async def update_runner(
 async def toggle_runner(runner_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
     with connect() as conn:
         conn.execute("UPDATE runners SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (runner_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/runners/{runner_id}/action")
+async def runner_action(runner_id: int, action: str = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        if action == "delete":
+            conn.execute("DELETE FROM runners WHERE id = ?", (runner_id,))
+        elif action == "disable":
+            conn.execute("UPDATE runners SET active = 0 WHERE id = ?", (runner_id,))
+        elif action == "enable":
+            conn.execute("UPDATE runners SET active = 1 WHERE id = ?", (runner_id,))
     return RedirectResponse("/setup", status_code=303)
 
 

@@ -68,7 +68,7 @@
   </label>
   <div class="table-wrap">
     <table class="setup-table">
-      <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.status }}</th><th></th></tr></thead>
+      <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
       <tbody>
         <tr>
           <form method="post" action="/setup/users">
@@ -76,13 +76,14 @@
             <td><input name="operator_callsign"></td>
             <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns if tac.active %}<option value="{{ tac.name }}">{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
             <td><input name="default_location"></td>
-            <td><select name="aprs_station_id"><option value=""></option>{% for station in stations if station.active %}<option value="{{ station.id }}">{{ station.callsign }}</option>{% endfor %}</select></td>
+            <td><input name="aprs_callsign" placeholder="I1ABC-9"></td>
             <td><input name="dstar_callsign"></td>
             <td><input name="username"></td>
             <td><input name="password" type="password"></td>
             <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="announcer">{{ t.announcer_role }}</option></select></td>
             <td>{{ t.active }}</td>
             <td><button>{{ t.add }}</button></td>
+            <td></td>
           </form>
         </tr>
         {% for user in users %}
@@ -92,7 +93,7 @@
             <td><input name="operator_callsign" value="{{ user.operator_callsign }}"></td>
             <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
             <td><input name="default_location" value="{{ user.default_location }}"></td>
-            <td><select name="aprs_station_id"><option value=""></option>{% for station in stations %}<option value="{{ station.id }}" {% if user.aprs_station_id == station.id %}selected{% endif %}>{{ station.callsign }}</option>{% endfor %}</select></td>
+            <td><input name="aprs_callsign" value="{{ user.aprs_callsign or '' }}" placeholder="I1ABC-9"></td>
             <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
             <td><input name="username" value="{{ user.username or '' }}"></td>
             <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
@@ -100,6 +101,15 @@
             <td>{{ t.active if user.active else t.disabled }}</td>
             <td><button>{{ t.save }}</button></td>
           </form>
+          <td>
+            <form method="post" action="/setup/users/{{ user.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_user_confirm }}">
+              <select name="action">
+                {% if user.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
+                <option value="delete">{{ t.delete }}</option>
+              </select>
+              <button class="secondary">{{ t.apply }}</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -134,7 +144,7 @@
   </label>
   <div class="table-wrap">
     <table class="setup-table">
-      <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.runner_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+      <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.runner_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
       <tbody>
         <tr>
           <form method="post" action="/setup/runners">
@@ -155,7 +165,15 @@
             <td>{{ t.active if runner.active else t.disabled }}</td>
             <td><button>{{ t.save }}</button></td>
           </form>
-          <td><form method="post" action="/setup/runners/{{ runner.id }}/toggle"><button class="secondary">{{ t.disable if runner.active else t.enable }}</button></form></td>
+          <td>
+            <form method="post" action="/setup/runners/{{ runner.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_athlete_confirm }}">
+              <select name="action">
+                {% if runner.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
+                <option value="delete">{{ t.delete }}</option>
+              </select>
+              <button class="secondary">{{ t.apply }}</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
