@@ -9,7 +9,6 @@
     <label>{{ t.checkpoint }}
       <select id="checkpoint" class="checkpoint" name="checkpoint"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}</select>
     </label>
-    <label>{{ t.crono_time }}<input class="crono-input" name="crono_time" placeholder="{{ t.manual_crono_hint }}"></label>
     <label>{{ t.notice_message }}<textarea id="notice-message" class="notice-message" name="message" rows="6"></textarea></label>
     <button>{{ t.send_notice }}</button>
   </form>

@@ -32,7 +32,7 @@ a { color: inherit; }
 .header-clock { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 74px; color: #8bd3ce; }
 .compact-button { min-height: 32px; padding: 5px 9px; white-space: nowrap; }
 .runner-list { display: grid; gap: 8px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(20,108,117,.07); }
-.runner-list-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 130px; gap: 8px; align-items: center; }
+.runner-list-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 8px; align-items: center; }
 .runner-list-row label { margin: 0; font-size: 12px; }
 .runner-list-row input { padding: 7px 8px; }
 .compact-log-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr); gap: 10px; align-items: end; }
@@ -198,17 +198,22 @@ th { color: var(--muted); font-size: 13px; }
 .announcer.light-mode .notice-history span { color: #546970; }
 
 .page-logo { max-width: 1500px; margin: 14px auto 0; padding: 0 20px; }
-.page-logo img { display: block; max-height: 86px; max-width: min(300px, 60vw); object-fit: contain; }
-.logo-preview img { display: block; max-height: 110px; max-width: 260px; object-fit: contain; margin-bottom: 12px; }
+.page-logo img { display: block; max-height: 112px; max-width: min(390px, 70vw); object-fit: contain; }
+.logo-preview img { display: block; max-height: 132px; max-width: 340px; object-fit: contain; margin-bottom: 12px; }
 .site-footer { padding: 18px 20px 24px; text-align: center; color: var(--muted); font-size: 12px; }
 .announcer-logo { position: fixed; top: 16px; left: 16px; z-index: 20; }
-.announcer-logo img { display: block; max-width: 230px; max-height: 92px; object-fit: contain; }
+.announcer-logo img { display: block; max-width: 320px; max-height: 126px; object-fit: contain; }
 .announcer-footer { position: fixed; left: 0; right: 0; bottom: 8px; color: #789195; }
 .announcer .athlete-row { grid-template-columns: 112px minmax(180px, 1fr) minmax(150px, .8fr) 185px; }
 .announcer.light-mode .announcer-footer { color: #546970; }
 
 @media (max-width: 860px) {
   .announcer-logo { position: static; margin: 0 auto 18px; }
-  .announcer-logo img { margin: 0 auto; max-width: 200px; max-height: 72px; }
+  .announcer-logo img { margin: 0 auto; max-width: 260px; max-height: 96px; }
   .announcer .athlete-row { grid-template-columns: 1fr; }
 }
+
+/* Fixed announcer athlete columns so browser zoom cannot collapse labels together. */
+.announcer .athlete-rows { width: min(1280px, calc(100vw - 48px)); overflow-x: auto; justify-items: start; }
+.announcer .athlete-row { grid-template-columns: 170px 440px 280px 240px; min-width: 1240px; column-gap: 36px; row-gap: 8px; }
+.announcer .athlete-row span { min-width: 0; padding-right: 12px; }

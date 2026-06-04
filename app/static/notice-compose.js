@@ -2,7 +2,6 @@ function initRunnerComposer(root) {
   const bib = root.querySelector(".runner-bib") || document.getElementById("runner-bib");
   const checkpoint = root.querySelector(".checkpoint") || document.getElementById("checkpoint");
   const message = root.querySelector(".notice-message") || document.getElementById("notice-message");
-  const crono = root.querySelector(".crono-input");
   const refBib = root.querySelector(".runner-ref-bib") || document.getElementById("runner-ref-bib");
   const refName = root.querySelector(".runner-ref-name") || document.getElementById("runner-ref-name");
   const refTown = root.querySelector(".runner-ref-town") || document.getElementById("runner-ref-town");
@@ -57,12 +56,7 @@ function initRunnerComposer(root) {
     return (window.CAD_LABELS?.language === "Lingua") ? "a" : "to";
   }
 
-  function fallbackCrono() {
-    return crono?.value || document.getElementById("race-timer")?.textContent?.trim() || "";
-  }
-
-  function runnerLine(runner, index) {
-    const currentCrono = runnerList.querySelectorAll(".runner-crono")[index]?.value || fallbackCrono();
+  function runnerLine(runner) {
     if (window.CAD_LABELS?.language === "Lingua") {
       return `${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}`;
     }
@@ -86,15 +80,13 @@ function initRunnerComposer(root) {
     }
     runnerList.classList.remove("hidden");
     const title = window.CAD_LABELS?.runner_list || "Athlete List";
-    const cronoLabel = window.CAD_LABELS?.runner_crono || "Runner Crono";
     const positionLabel = window.CAD_LABELS?.athlete_position || "Athlete Position";
     runnerList.innerHTML = `<strong>${title}</strong>` + currentRunners.map((runner) => `
       <div class="runner-list-row">
         <span>${runner.bib_number || ""}${runner.name ? ` - ${runner.name}` : ""}${runner.hometown ? ` (${runner.hometown})` : ""}</span>
         <label>${positionLabel}<input class="runner-position" name="runner_position" placeholder="#"></label>
-        <label>${cronoLabel}<input class="runner-crono" name="runner_crono" value="${fallbackCrono()}" placeholder="HH:MM:SS"></label>
       </div>`).join("");
-    runnerList.querySelectorAll(".runner-crono, .runner-position").forEach((input) => input.addEventListener("input", composeMessage));
+    runnerList.querySelectorAll(".runner-position").forEach((input) => input.addEventListener("input", composeMessage));
   }
 
   bib.addEventListener("change", lookupRunner);
@@ -112,18 +104,6 @@ function initRunnerComposer(root) {
       event.preventDefault();
       message.blur();
     }
-  });
-  crono?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      crono.blur();
-    }
-  });
-  crono?.addEventListener("input", () => {
-    runnerList.querySelectorAll(".runner-crono").forEach((input) => {
-      if (!input.value) input.value = crono.value;
-    });
-    composeMessage();
   });
 }
 
