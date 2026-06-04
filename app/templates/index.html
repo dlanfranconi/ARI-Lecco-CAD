@@ -5,7 +5,7 @@
   <form method="post" action="/logs" class="panel span-two" data-runner-compose>
     <div class="section-title">
       <h1>{{ t.race_log }}</h1>
-      <a class="pill" href="/notices">{{ pending_count }} {{ t.pending_notices }}</a>
+      <a id="pending-count-pill" class="pill" href="/notices" data-label="{{ t.pending_notices }}"><span id="pending-count">{{ pending_count }}</span> {{ t.pending_notices }}</a>
     </div>
     {% if request.query_params.get("log_error") == "operator" %}<p class="error">{{ t.select_operator_error }}</p>{% endif %}
     {% if request.query_params.get("log_error") == "message" %}<p class="error">{{ t.message_required_error }}</p>{% endif %}
@@ -87,7 +87,7 @@
         <tr>
           <td>{{ format_dt(log.created_at) }}</td>
           <td>{{ log.user_label }}</td>
-          <td>{{ log.message }}{% if log.location %}<div class="meta">{{ t.location }}: {{ log.location }}</div>{% endif %}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.display_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.crono %}<span><strong>{{ t.crono_time }}:</strong> {{ athlete.crono }}</span>{% endif %}{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
+          <td>{{ log.message }}{% if log.location %}<div class="meta">{{ t.location }}: {{ log.location }}</div>{% endif %}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
           <td>{% if log.show_status %}{{ log.status }}{% endif %}</td>
         </tr>
         {% endfor %}

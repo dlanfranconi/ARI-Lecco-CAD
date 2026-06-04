@@ -13,8 +13,21 @@
     <label>{{ t.timezone }}<input name="app_timezone" value="{{ app_timezone }}" placeholder="Europe/Rome"></label>
     <label>{{ t.locale }}<input name="app_locale" value="{{ app_locale }}" placeholder="it_IT.UTF-8"></label>
     <label>{{ t.ntp_server }}<input name="ntp_server" value="{{ ntp_server }}" placeholder="pool.ntp.org"></label>
+    <label>{{ t.athlete_name_display }}
+      <select name="athlete_name_display">
+        <option value="full" {% if athlete_name_display == 'full' %}selected{% endif %}>{{ t.first_and_last_name }}</option>
+        <option value="first" {% if athlete_name_display == 'first' %}selected{% endif %}>{{ t.first_name_only }}</option>
+      </select>
+    </label>
     <button>{{ t.save_settings }}</button>
   </form>
+
+  <section class="panel">
+    <h1>{{ t.logo }}</h1>
+    {% if logo_url %}<div class="logo-preview"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+    <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
+    {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
+  </section>
 
   <form method="post" action="/setup/race" class="panel">
     <h1>{{ t.race_name }}</h1>
@@ -140,16 +153,17 @@
 <section class="panel">
   <h2>{{ t.athletes }}</h2>
   <label>{{ t.select_athlete_to_edit }}
-    <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.name }}</option>{% endfor %}</select>
+    <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.full_name or runner.name }}</option>{% endfor %}</select>
   </label>
   <div class="table-wrap">
     <table class="setup-table">
-      <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.runner_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
+      <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.first_name }}</th><th>{{ t.last_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
       <tbody>
         <tr>
           <form method="post" action="/setup/runners">
             <td><input name="bib_number" required></td>
-            <td><input name="name" required></td>
+            <td><input name="first_name" required></td>
+            <td><input name="last_name"></td>
             <td><input name="hometown"></td>
             <td>{{ t.active }}</td>
             <td><button>{{ t.add_athlete }}</button></td>
@@ -160,7 +174,8 @@
         <tr class="runner-row" id="runner-{{ runner.id }}">
           <form method="post" action="/setup/runners/{{ runner.id }}">
             <td><input name="bib_number" value="{{ runner.bib_number }}" required></td>
-            <td><input name="name" value="{{ runner.name }}" required></td>
+            <td><input name="first_name" value="{{ runner.first_name or '' }}" required></td>
+            <td><input name="last_name" value="{{ runner.last_name or '' }}"></td>
             <td><input name="hometown" value="{{ runner.hometown }}"></td>
             <td>{{ t.active if runner.active else t.disabled }}</td>
             <td><button>{{ t.save }}</button></td>

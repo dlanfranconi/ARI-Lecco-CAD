@@ -45,6 +45,8 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 bib_number TEXT NOT NULL UNIQUE,
                 name TEXT NOT NULL,
+                first_name TEXT DEFAULT '',
+                last_name TEXT DEFAULT '',
                 hometown TEXT DEFAULT '',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -162,6 +164,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
     tac_cols = {item[1] for item in conn.execute("PRAGMA table_info(tactical_callsigns)")}
     if "location_preposition" not in tac_cols:
         conn.execute("ALTER TABLE tactical_callsigns ADD COLUMN location_preposition TEXT DEFAULT ''")
+
+    runner_cols = {item[1] for item in conn.execute("PRAGMA table_info(runners)")}
+    if "first_name" not in runner_cols:
+        conn.execute("ALTER TABLE runners ADD COLUMN first_name TEXT DEFAULT ''")
+        conn.execute("UPDATE runners SET first_name = CASE WHEN instr(name, ' ') > 0 THEN substr(name, 1, instr(name, ' ') - 1) ELSE name END WHERE first_name = ''")
+    if "last_name" not in runner_cols:
+        conn.execute("ALTER TABLE runners ADD COLUMN last_name TEXT DEFAULT ''")
+        conn.execute("UPDATE runners SET last_name = CASE WHEN instr(name, ' ') > 0 THEN substr(name, instr(name, ' ') + 1) ELSE '' END WHERE last_name = ''")
 
     log_cols = {item[1] for item in conn.execute("PRAGMA table_info(log_entries)")}
     for column, sql in {

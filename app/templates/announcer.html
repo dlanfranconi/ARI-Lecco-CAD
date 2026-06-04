@@ -9,13 +9,14 @@
 <body class="announcer">
   <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
   <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
+  {% if logo_url %}<div class="announcer-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main>
     <div class="announcer-label">{{ t.current_notice }}</div>
     <div id="bulletin" class="teleprompter">{% if latest %}{{ latest.message }}{% else %}{{ t.no_notice }}{% endif %}</div>
     <div id="runner-details" class="runner-details {% if not latest or not latest.runner_bib %}hidden{% endif %}">
       {% if latest and latest.runner_bib %}
       {% for athlete in athlete_rows(latest) %}
-      <div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.display_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.crono %}<span><strong>{{ t.crono_time }}:</strong> {{ athlete.crono }}</span>{% endif %}{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
+      <div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
       {% endfor %}
       {% endif %}
     </div>
@@ -29,13 +30,14 @@
       <h2>{{ t.older_notices }}</h2>
       <div id="notice-history-list">
         {% for item in notices[1:] %}
-        <article>{{ item.message }}{% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.display_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.crono %}<span><strong>{{ t.crono_time }}:</strong> {{ athlete.crono }}</span>{% endif %}{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
+        <article>{{ item.message }}{% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
         {% else %}
         <p>{{ t.no_prior_notices }}</p>
         {% endfor %}
       </div>
     </section>
   </main>
+  <footer class="site-footer announcer-footer">{{ t.designed_by }}</footer>
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>
   <script src="/static/race-timer.js"></script>
   <script src="/static/announcer.js"></script>

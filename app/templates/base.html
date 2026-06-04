@@ -38,7 +38,9 @@
     <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button><form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
   </header>
   {% endif %}
+  {% if logo_url %}<div class="page-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main class="content">{% block content %}{% endblock %}</main>
+  <footer class="site-footer">{{ t.designed_by }}</footer>
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
   <script src="/static/theme.js"></script>
   {% if is_admin or race_started_at or current_crono %}<script src="/static/race-timer.js"></script>{% endif %}

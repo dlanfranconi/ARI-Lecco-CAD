@@ -64,9 +64,9 @@ function initRunnerComposer(root) {
   function runnerLine(runner, index) {
     const currentCrono = runnerList.querySelectorAll(".runner-crono")[index]?.value || fallbackCrono();
     if (window.CAD_LABELS?.language === "Lingua") {
-      return `Atleta numero ${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}${currentCrono ? ` alle ${currentCrono}` : ""}`;
+      return `${runner.bib_number || ""}${runner.name ? `, ${runner.name}` : ""}`;
     }
-    return `Runner ${runner.bib_number || ""}${runner.name ? ` ${runner.name}` : ""}${currentCrono ? ` at ${currentCrono}` : ""}`;
+    return `${runner.bib_number || ""}${runner.name ? ` ${runner.name}` : ""}`;
   }
 
   function composeMessage() {

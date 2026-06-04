@@ -2,8 +2,9 @@ import asyncio
 import csv
 import io
 import json
+from pathlib import Path
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Any
 
@@ -83,10 +84,18 @@ def current_language() -> str:
 def format_dt(value: str | None) -> str:
     if not value:
         return ""
+    raw = value.strip()
+    parsed: datetime
     try:
-        parsed = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        return value
+        try:
+            parsed = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return value
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    parsed = parsed.astimezone(current_timezone())
     if current_language() == "it":
         return parsed.strftime("%d/%m/%Y %H:%M")
     return parsed.strftime("%B %d, %Y %H:%M")
@@ -144,9 +153,18 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("app_timezone", current_timezone_name())
     context.setdefault("app_locale", setting("app_locale", settings.app_locale))
     context.setdefault("ntp_server", setting("ntp_server", settings.ntp_server))
+    context.setdefault("logo_url", setting("logo_url", ""))
+    context.setdefault("athlete_name_display", setting("athlete_name_display", "full"))
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     return templates.TemplateResponse(request, name, context)
+
+
+def notice_payload(item: Any) -> dict[str, object]:
+    data = dict(item)
+    data["created_at_display"] = format_dt(str(data.get("created_at") or ""))
+    data["approved_at_display"] = format_dt(str(data.get("approved_at") or ""))
+    return data
 
 
 def latest_position_for_user(user: Any) -> dict[str, Any] | None:
@@ -280,11 +298,21 @@ def recent_log_rows() -> list[dict[str, Any]]:
     return list(reversed(enriched[-100:]))
 
 
+def display_runner_name(first_name: str, last_name: str) -> str:
+    first = (first_name or "").strip()
+    last = (last_name or "").strip()
+    if setting("athlete_name_display", "full") == "first":
+        return first or last
+    return " ".join(part for part in [first, last] if part)
+
+
 def runner_for_bib(bib: str) -> dict[str, str]:
     runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib,))
     if not runner:
-        return {"bib": bib, "name": "", "hometown": ""}
-    return {"bib": runner["bib_number"], "name": runner["name"], "hometown": runner["hometown"]}
+        return {"bib": bib, "name": "", "first_name": "", "last_name": "", "hometown": ""}
+    first_name = runner["first_name"] if "first_name" in runner.keys() else str(runner["name"] or "").split(" ", 1)[0]
+    last_name = runner["last_name"] if "last_name" in runner.keys() else (str(runner["name"] or "").split(" ", 1)[1] if " " in str(runner["name"] or "") else "")
+    return {"bib": runner["bib_number"], "name": display_runner_name(first_name, last_name), "first_name": first_name, "last_name": last_name, "hometown": runner["hometown"]}
 
 
 def crono_from_timer() -> str:
@@ -315,17 +343,13 @@ def crono_for_runner(index: int, crono_values: list[str], fallback: str) -> str:
 
 def runner_notice_line(runner: dict[str, str], crono: str) -> str:
     if current_language() == "it":
-        base = f"Atleta numero {runner['bib']}"
+        base = runner["bib"]
         if runner.get("name"):
             base += f", {runner['name']}"
-        if crono:
-            base += f" alle {crono}"
         return base
-    base = f"Runner {runner['bib']}"
+    base = runner["bib"]
     if runner.get("name"):
         base += f" {runner['name']}"
-    if crono:
-        base += f" at {crono}"
     return base
 
 
@@ -336,7 +360,7 @@ def grouped_runner_message(message: str, runners: list[dict[str, str]], checkpoi
     if not active:
         return ""
     prep = checkpoint_preposition(checkpoint)
-    lines = [runner_notice_line(runner, crono_for_runner(index, crono_values, fallback_crono)) for index, runner in enumerate(active)]
+    lines = [runner_notice_line(runner, "") for runner in active]
     return TRANSLATIONS[current_language()]["group_arrival_template"].format(checkpoint=checkpoint, prep=prep, runners="; ".join(lines))
 
 
@@ -587,7 +611,7 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
     tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
     archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
-    runners = rows("SELECT * FROM runners ORDER BY active DESC, bib_number")
+    runners = rows("SELECT *, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), name) AS full_name FROM runners ORDER BY active DESC, bib_number")
     return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
 
 
@@ -597,12 +621,42 @@ async def update_settings(
     app_timezone: str = Form("Europe/Rome"),
     app_locale: str = Form("it_IT.UTF-8"),
     ntp_server: str = Form("pool.ntp.org"),
+    athlete_name_display: str = Form("full"),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     save_setting("language", normalize_language(language))
     save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
     save_setting("app_locale", app_locale.strip() or settings.app_locale)
     save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
+    save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/logo")
+async def upload_logo(logo: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    content_type = (logo.content_type or "").lower()
+    suffix = ".png" if content_type == "image/png" else ".jpg" if content_type in {"image/jpeg", "image/jpg"} else ""
+    if not suffix:
+        return RedirectResponse("/setup", status_code=303)
+    data = await logo.read()
+    if not data:
+        return RedirectResponse("/setup", status_code=303)
+    upload_dir = Path("app/static/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    for old in upload_dir.glob("logo.*"):
+        old.unlink(missing_ok=True)
+    target = upload_dir / f"logo{suffix}"
+    target.write_bytes(data)
+    save_setting("logo_url", f"/static/uploads/{target.name}")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/logo/delete")
+async def delete_logo(_: Any = Depends(require_admin)) -> RedirectResponse:
+    upload_dir = Path("app/static/uploads")
+    for old in upload_dir.glob("logo.*"):
+        old.unlink(missing_ok=True)
+    save_setting("logo_url", "")
     return RedirectResponse("/setup", status_code=303)
 
 
@@ -858,6 +912,7 @@ async def notice_submit(
             notice_ids.append(cur.lastrowid)
     for notice_id in notice_ids:
         await broadcast_review_notice(notice_id)
+    await broadcast_pending_count()
     return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?sent=1", status_code=303)
 
 
@@ -868,7 +923,12 @@ async def old_bulletin_submit_post(message: str = Form(...), user: Any = Depends
 
 @app.get("/api/notices/recent")
 async def recent_notices() -> list[dict[str, object]]:
-    return [dict(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")]
+    return [notice_payload(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")]
+
+
+@app.get("/api/notices/pending-count")
+async def api_pending_count(_: Any = Depends(require_admin)) -> dict[str, int]:
+    return {"pending_count": pending_notice_count()}
 
 @app.get("/api/notices/{notice_id}")
 @app.get("/api/bulletins/{notice_id}")
@@ -901,6 +961,7 @@ async def approve_notice_id(notice_id: int, approved_by: str | None = None, mess
             conn.execute("UPDATE bulletins SET message = ?, crono_time = ? WHERE id = ?", (message if message is not None else current["message"], crono_time if crono_time is not None else current["crono_time"], notice_id))
         conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (approved_by or settings.admin_username, notice_id))
     await broadcast_approved_bulletin(notice_id)
+    await broadcast_pending_count()
     notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     return dict(notice) if notice else {}
 
@@ -908,20 +969,40 @@ async def approve_notice_id(notice_id: int, approved_by: str | None = None, mess
 @app.post("/notices/{notice_id}/reject")
 @app.post("/bulletins/{notice_id}/reject")
 async def reject_notice(notice_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
-    reject_notice_id(notice_id)
+    await reject_notice_id(notice_id)
     return RedirectResponse("/notices", status_code=303)
 
 
 @app.post("/api/notices/{notice_id}/reject")
 @app.post("/api/bulletins/{notice_id}/reject")
 async def api_reject_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
-    reject_notice_id(notice_id)
+    await reject_notice_id(notice_id)
     return {"ok": True}
 
 
-def reject_notice_id(notice_id: int) -> None:
+async def reject_notice_id(notice_id: int) -> None:
     with connect() as conn:
         conn.execute("UPDATE bulletins SET status = 'rejected' WHERE id = ?", (notice_id,))
+    await broadcast_pending_count()
+
+
+@app.post("/notices/{notice_id}/delete")
+async def delete_notice(notice_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    await delete_notice_id(notice_id)
+    return RedirectResponse("/notices", status_code=303)
+
+
+@app.post("/api/notices/{notice_id}/delete")
+async def api_delete_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
+    await delete_notice_id(notice_id)
+    return {"ok": True}
+
+
+async def delete_notice_id(notice_id: int) -> None:
+    with connect() as conn:
+        conn.execute("UPDATE bulletins SET hidden_at = CURRENT_TIMESTAMP WHERE id = ?", (notice_id,))
+    await broadcast_notice_deleted(notice_id)
+    await broadcast_pending_count()
 
 
 @app.get("/announcer", response_class=HTMLResponse)
@@ -930,7 +1011,7 @@ async def announcer(request: Request) -> HTMLResponse:
     latest_row = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
     notice_rows = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")
     latest = dict(latest_row) if latest_row else None
-    notices = [dict(item) for item in notice_rows]
+    notices = [notice_payload(item) for item in notice_rows]
     return page(request, "announcer.html", latest=latest, notices=notices)
 
 
@@ -938,7 +1019,7 @@ async def announcer(request: Request) -> HTMLResponse:
 @app.get("/api/bulletins/latest")
 async def latest_notice() -> dict[str, object]:
     latest = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
-    return dict(latest) if latest else {}
+    return notice_payload(latest) if latest else {}
 
 
 @app.websocket("/ws/announcer")
@@ -967,7 +1048,8 @@ async def broadcast_approved_bulletin(notice_id: int) -> None:
     notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     if not notice:
         return
-    payload = json.dumps({"type": "notice", "notice": dict(notice), "bulletin": dict(notice)})
+    notice_data = notice_payload(notice)
+    payload = json.dumps({"type": "notice", "notice": notice_data, "bulletin": notice_data})
     await _broadcast(bulletin_clients, payload)
 
 
@@ -975,8 +1057,22 @@ async def broadcast_review_notice(notice_id: int) -> None:
     notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     if not notice:
         return
-    payload = json.dumps({"type": "pending_notice", "notice": dict(notice), "labels": TRANSLATIONS[current_language()]})
+    payload = json.dumps({"type": "pending_notice", "notice": notice_payload(notice), "labels": TRANSLATIONS[current_language()], "pending_count": pending_notice_count()})
     await _broadcast(review_clients, payload)
+
+
+def pending_notice_count() -> int:
+    return int(row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending' AND hidden_at IS NULL")["count"])
+
+
+async def broadcast_pending_count() -> None:
+    payload = json.dumps({"type": "pending_count", "pending_count": pending_notice_count()})
+    await _broadcast(review_clients, payload)
+
+
+async def broadcast_notice_deleted(notice_id: int) -> None:
+    payload = json.dumps({"type": "notice_deleted", "id": notice_id})
+    await _broadcast(bulletin_clients, payload)
 
 
 async def broadcast_race_timer_changed(state: str, started_at: str) -> None:
@@ -1151,6 +1247,14 @@ async def delete_tactical_callsign(tac_id: int, _: Any = Depends(require_admin))
     return RedirectResponse("/setup", status_code=303)
 
 
+def split_runner_name(name: str) -> tuple[str, str]:
+    clean = name.strip()
+    if not clean:
+        return "", ""
+    parts = clean.split(" ", 1)
+    return parts[0], parts[1] if len(parts) > 1 else ""
+
+
 @app.post("/setup/runners/import")
 async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
     content = (await file.read()).decode("utf-8-sig")
@@ -1162,9 +1266,14 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
             hometown = (item.get("home town") or item.get("hometown") or item.get("town") or "").strip()
             if not bib or not name:
                 continue
+            first_name, last_name = split_runner_name(name)
             conn.execute(
-                "INSERT INTO runners (bib_number, name, hometown) VALUES (?, ?, ?) ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, hometown = excluded.hometown, active = 1",
-                (bib, name, hometown),
+                """
+                INSERT INTO runners (bib_number, name, first_name, last_name, hometown)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, first_name = excluded.first_name, last_name = excluded.last_name, hometown = excluded.hometown, active = 1
+                """,
+                (bib, name, first_name, last_name, hometown),
             )
     return RedirectResponse("/setup", status_code=303)
 
@@ -1172,14 +1281,22 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
 @app.post("/setup/runners")
 async def add_runner(
     bib_number: str = Form(...),
-    name: str = Form(...),
+    first_name: str = Form(""),
+    last_name: str = Form(""),
     hometown: str = Form(""),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
+    first = first_name.strip()
+    last = last_name.strip()
+    name = " ".join(part for part in [first, last] if part)
     with connect() as conn:
         conn.execute(
-            "INSERT INTO runners (bib_number, name, hometown) VALUES (?, ?, ?) ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, hometown = excluded.hometown, active = 1",
-            (bib_number.strip(), name.strip(), hometown.strip()),
+            """
+            INSERT INTO runners (bib_number, name, first_name, last_name, hometown)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, first_name = excluded.first_name, last_name = excluded.last_name, hometown = excluded.hometown, active = 1
+            """,
+            (bib_number.strip(), name, first, last, hometown.strip()),
         )
     return RedirectResponse("/setup", status_code=303)
 
@@ -1188,12 +1305,16 @@ async def add_runner(
 async def update_runner(
     runner_id: int,
     bib_number: str = Form(...),
-    name: str = Form(...),
+    first_name: str = Form(""),
+    last_name: str = Form(""),
     hometown: str = Form(""),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
+    first = first_name.strip()
+    last = last_name.strip()
+    name = " ".join(part for part in [first, last] if part)
     with connect() as conn:
-        conn.execute("UPDATE runners SET bib_number = ?, name = ?, hometown = ? WHERE id = ?", (bib_number.strip(), name.strip(), hometown.strip(), runner_id))
+        conn.execute("UPDATE runners SET bib_number = ?, name = ?, first_name = ?, last_name = ?, hometown = ? WHERE id = ?", (bib_number.strip(), name, first, last, hometown.strip(), runner_id))
     return RedirectResponse("/setup", status_code=303)
 
 
@@ -1219,7 +1340,11 @@ async def runner_action(runner_id: int, action: str = Form(...), _: Any = Depend
 @app.get("/api/runners/{bib_number}")
 async def api_runner(bib_number: str, _: Any = Depends(require_user_or_admin)) -> dict[str, object]:
     runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib_number,))
-    return dict(runner) if runner else {}
+    if not runner:
+        return {}
+    item = dict(runner)
+    item["name"] = display_runner_name(item.get("first_name", ""), item.get("last_name", ""))
+    return item
 
 
 @app.post("/archive/{archive_id}/delete")

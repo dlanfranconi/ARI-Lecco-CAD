@@ -15,13 +15,11 @@ function athleteRows(item) {
   const bibs = parts(item?.runner_bib);
   const names = parts(item?.runner_name);
   const towns = parts(item?.runner_hometown);
-  const cronos = parts(item?.crono_time);
   const positions = parts(item?.runner_position);
   return bibs.filter(Boolean).map((bib, index) => ({
     bib,
     name: names[index] || "",
     hometown: towns[index] || "",
-    crono: cronos[index] || "",
     position: positions[index] || ""
   }));
 }
@@ -32,9 +30,8 @@ function athleteRowsHtml(item) {
   return `<div class="athlete-rows">${rows.map((athlete) => `
     <div class="athlete-row">
       <span><strong>${labels.bib_number || "Bib Number"}:</strong> ${athlete.bib}</span>
-      <span><strong>${labels.display_name || "Name"}:</strong> ${athlete.name}</span>
+      <span><strong>${labels.runner_name || labels.display_name || "Name"}:</strong> ${athlete.name}</span>
       <span><strong>${labels.city || "City"}:</strong> ${athlete.hometown}</span>
-      ${athlete.crono ? `<span><strong>${labels.crono_time || "Crono Time"}:</strong> ${athlete.crono}</span>` : ""}
       ${athlete.position ? `<span><strong>${labels.athlete_position || "Position Number"}:</strong> ${athlete.position}</span>` : ""}
     </div>`).join("")}</div>`;
 }
@@ -45,7 +42,7 @@ function detailHtml(item) {
 
 function renderHistory() {
   if (!historyListEl) return;
-  const older = notices.filter((_, index) => index !== currentIndex).slice(0, 8);
+  const older = notices.slice(currentIndex + 1, currentIndex + 9);
   if (!older.length) {
     historyListEl.innerHTML = `<p>${labels.no_prior_notices || "No older notices"}</p>`;
     return;
@@ -60,7 +57,7 @@ function renderNoticeAt(index) {
   currentIndex = Math.max(0, Math.min(index, notices.length - 1));
   const item = notices[currentIndex];
   bulletinEl.textContent = item.message || labels.no_notice || "No approved notice";
-  timestampEl.textContent = item.approved_at || item.created_at || "";
+  timestampEl.textContent = item.approved_at_display || item.created_at_display || item.approved_at || item.created_at || "";
   const details = detailHtml(item);
   if (details) {
     runnerDetailsEl.classList.remove("hidden");
@@ -95,6 +92,11 @@ function connectWs() {
   socket.onmessage = (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === "notice" || payload.type === "bulletin") upsertNotice(payload.notice || payload.bulletin);
+    if (payload.type === "notice_deleted") {
+      notices = notices.filter((notice) => String(notice.id) !== String(payload.id));
+      if (notices.length) renderNoticeAt(Math.min(currentIndex, notices.length - 1));
+      else window.location.reload();
+    }
     if (payload.type === "race_timer_changed") window.location.reload();
   };
   socket.onclose = () => setTimeout(connectWs, 3000);
