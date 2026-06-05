@@ -210,7 +210,7 @@ Archived races also remain browsable from Setup.
 
 ## Athlete Management
 
-Setup supports CSV import and manual add/edit/disable/delete for athletes. Recommended CSV headers:
+Setup supports CSV import and manual add/edit/disable/delete for athletes. Importing a CSV replaces the athlete list: matching bib numbers are updated, new bib numbers are added, and athletes whose bib numbers are not present in the uploaded CSV are removed. Recommended CSV headers:
 
 ```csv
 bib_number,first_name,last_name,hometown

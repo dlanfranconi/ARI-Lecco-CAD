@@ -108,6 +108,8 @@ Un modello e disponibile in:
 
 ```text
 examples/athlete-list-template.csv
+
+L'importazione CSV sostituisce la lista atleti: i pettorali gia presenti vengono aggiornati, i nuovi pettorali vengono aggiunti e gli atleti non presenti nel nuovo CSV vengono rimossi.
 ```
 
 ## D-RATS / D-STAR

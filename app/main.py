@@ -147,6 +147,8 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("t", TRANSLATIONS[lang])
     context.setdefault("format_dt", format_dt)
     context.setdefault("athlete_rows", athlete_rows)
+    context.setdefault("has_athlete_hometown", has_athlete_hometown)
+    context.setdefault("has_athlete_position", has_athlete_position)
     context.setdefault("operator_option_label", operator_option_label)
     context.setdefault("race_name", setting("race_name", ""))
     context.setdefault("race_started_at", setting("race_started_at", ""))
@@ -277,11 +279,19 @@ def athlete_rows(item: Any) -> list[dict[str, str]]:
             rows_out.append({
                 "bib": bibs[index],
                 "name": names[index] if index < len(names) else "",
-                "hometown": towns[index] if index < len(towns) else "",
+                "hometown": (towns[index] if index < len(towns) else "").strip(),
                 "crono": cronos[index] if index < len(cronos) else "",
-                "position": positions[index] if index < len(positions) else "",
+                "position": (positions[index] if index < len(positions) else "").strip(),
             })
     return rows_out
+
+
+def has_athlete_hometown(athletes: list[dict[str, str]]) -> bool:
+    return any(str(athlete.get("hometown", "")).strip() for athlete in athletes)
+
+
+def has_athlete_position(athletes: list[dict[str, str]]) -> bool:
+    return any(str(athlete.get("position", "")).strip() for athlete in athletes)
 
 
 def recent_log_rows() -> list[dict[str, Any]]:
@@ -518,8 +528,7 @@ async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespo
     await broadcast_race_timer_changed("started", started_at)
     return RedirectResponse("/", status_code=303)
 
-@app.post("/race-timer/stop")
-async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
+def stop_race_timer_with_log(admin: Any) -> str:
     total_crono = crono_from_timer() or "00:00:00"
     stopped_at = local_now().replace(microsecond=0)
     message = TRANSLATIONS[current_language()]["race_stopped_log"].format(crono=total_crono, time=stopped_at.isoformat())
@@ -540,6 +549,12 @@ async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespon
                 admin["display_name"] or "",
             ),
         )
+    return total_crono
+
+
+@app.post("/race-timer/stop")
+async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
+    stop_race_timer_with_log(admin)
     await broadcast_race_timer_changed("stopped", "")
     return RedirectResponse("/", status_code=303)
 
@@ -1191,16 +1206,21 @@ async def clear_race(action: str = Form(""), confirm: str = Form(""), archive_fi
 
 
 @app.post("/setup/race")
-async def update_race_name(race_name: str = Form(...), archive_filename: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def update_race_name(race_name: str = Form(...), archive_filename: str = Form(""), admin: Any = Depends(require_admin)) -> RedirectResponse:
     old_name = setting("race_name", "")
     if old_name and race_name != old_name:
+        if setting("race_started_at", ""):
+            stop_race_timer_with_log(admin)
         archive_id = archive_current_race("new_race")
         with connect() as conn:
             conn.execute("DELETE FROM log_entries")
             conn.execute("DELETE FROM bulletins")
             conn.execute("DELETE FROM aprs_positions")
             conn.execute("DELETE FROM dstar_positions")
+        save_setting("race_started_at", "")
+        save_setting("race_stopped_crono", "")
         save_setting("race_name", race_name)
+        await broadcast_race_timer_changed("reset", "")
         return download_redirect(archive_id, archive_filename)
     save_setting("race_name", race_name)
     return RedirectResponse("/setup", status_code=303)
@@ -1294,6 +1314,8 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
     reader = csv_reader_for_content(content)
     imported = 0
     skipped = 0
+    removed = 0
+    imported_bibs: set[str] = set()
     with connect() as conn:
         for item in reader:
             bib = csv_value(item, "bib number", "bib_number", "bib", "race number", "runner number", "pettorale", "numero", "numero pettorale")
@@ -1316,8 +1338,13 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
                 """,
                 (bib, name, first_name, last_name, hometown),
             )
+            imported_bibs.add(bib)
             imported += 1
-    params = urlencode({"runner_imported": imported, "runner_skipped": skipped})
+        if imported_bibs:
+            placeholders = ",".join("?" for _ in imported_bibs)
+            cur = conn.execute(f"DELETE FROM runners WHERE bib_number NOT IN ({placeholders})", tuple(imported_bibs))
+            removed = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+    params = urlencode({"runner_imported": imported, "runner_skipped": skipped, "runner_removed": removed})
     return RedirectResponse(f"/setup?{params}", status_code=303)
 
 

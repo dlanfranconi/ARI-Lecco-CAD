@@ -228,7 +228,13 @@ th { color: var(--muted); font-size: 13px; }
 
 .announcer .athlete-rows.no-town .athlete-row { grid-template-columns: 190px 560px 280px; min-width: 980px; }
 .announcer .athlete-rows.no-town .athlete-position { grid-column: 3; }
+.announcer .athlete-rows.no-position.has-town .athlete-row { grid-template-columns: 190px 520px 300px; min-width: 1050px; }
+.announcer .athlete-rows.no-position.has-town .athlete-town { grid-column: 3; }
+.announcer .athlete-rows.no-town.no-position .athlete-row { grid-template-columns: 220px 620px; min-width: 880px; }
 @media (max-width: 860px) {
-  .announcer .athlete-rows.no-town .athlete-row { grid-template-columns: 1fr; min-width: 0; }
+  .announcer .athlete-rows.no-town .athlete-row,
+  .announcer .athlete-rows.no-position.has-town .athlete-row,
+  .announcer .athlete-rows.no-town.no-position .athlete-row { grid-template-columns: 1fr; min-width: 0; }
   .announcer .athlete-rows.no-town .athlete-position { grid-column: auto; }
+  .announcer .athlete-rows.no-position.has-town .athlete-town { grid-column: auto; }
 }

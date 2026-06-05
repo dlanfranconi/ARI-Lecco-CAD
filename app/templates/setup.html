@@ -143,7 +143,7 @@
   <section class="panel">
     <h2>{{ t.runner_import }}</h2>
     {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
-    {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
+    {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
     <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
     <h2>{{ t.archive }}</h2>
     <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
