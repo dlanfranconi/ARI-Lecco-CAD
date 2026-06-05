@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="announcer">
-  <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
+  <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
   <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
   {% if logo_url %}<div class="announcer-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main>

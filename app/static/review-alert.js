@@ -88,6 +88,7 @@ function connectReviewWs() {
       updatePendingCount(payload.pending_count);
     }
     if (payload.type === "pending_count") updatePendingCount(payload.pending_count);
+    if (payload.type === "race_timer_changed") window.location.reload();
   };
   socket.onclose = () => setTimeout(connectReviewWs, 3000);
 }

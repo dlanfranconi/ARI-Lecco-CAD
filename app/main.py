@@ -152,6 +152,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("operator_option_label", operator_option_label)
     context.setdefault("race_name", setting("race_name", ""))
     context.setdefault("race_started_at", setting("race_started_at", ""))
+    context.setdefault("race_started_epoch_ms", race_started_epoch_ms())
     context.setdefault("current_crono", crono_from_timer())
     context.setdefault("app_timezone", current_timezone_name())
     context.setdefault("app_locale", setting("app_locale", settings.app_locale))
@@ -326,16 +327,30 @@ def runner_for_bib(bib: str) -> dict[str, str]:
     return {"bib": runner["bib_number"], "name": display_runner_name(first_name, last_name), "first_name": first_name, "last_name": last_name, "hometown": runner["hometown"]}
 
 
-def crono_from_timer() -> str:
+def parsed_race_started_at() -> datetime | None:
     started = setting("race_started_at", "")
     if not started:
-        return setting("race_stopped_crono", "")
+        return None
     try:
         start = datetime.fromisoformat(started)
     except ValueError:
-        return ""
+        return None
     if start.tzinfo is None:
         start = start.replace(tzinfo=current_timezone())
+    return start
+
+
+def race_started_epoch_ms() -> str:
+    start = parsed_race_started_at()
+    if not start:
+        return ""
+    return str(int(start.timestamp() * 1000))
+
+
+def crono_from_timer() -> str:
+    start = parsed_race_started_at()
+    if not start:
+        return setting("race_stopped_crono", "")
     elapsed = max(0, int((local_now() - start).total_seconds()))
     hours, rem = divmod(elapsed, 3600)
     minutes, seconds = divmod(rem, 60)
@@ -507,6 +522,9 @@ async def create_log(
                     ),
                 )
     for notice_id in notice_ids:
+        notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
+        if notice:
+            log_notice_event(notice, "notice_approved_status", admin["username"] or "", admin["display_name"] or "", skip_if_existing=True)
         await broadcast_approved_bulletin(notice_id)
     return RedirectResponse("/", status_code=303)
 
@@ -605,6 +623,9 @@ async def direct_notice(
             )
             notice_ids.append(cur.lastrowid)
     for notice_id in notice_ids:
+        notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
+        if notice:
+            log_notice_event(notice, "notice_approved_status", admin["username"] or "", admin["display_name"] or "", skip_if_existing=True)
         await broadcast_approved_bulletin(notice_id)
     return RedirectResponse("/", status_code=303)
 
@@ -962,6 +983,39 @@ async def api_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[st
     return dict(notice)
 
 
+def notice_log_message(notice: Any, action_key: str) -> str:
+    prefix = TRANSLATIONS[current_language()][action_key]
+    submitter = notice["submitter_name"] or notice["source"]
+    return f"{prefix}: {notice['message']} ({TRANSLATIONS[current_language()]['from_label']} {submitter})"
+
+
+def log_notice_event(notice: Any, action_key: str, username: str = "", display_name: str = "", skip_if_existing: bool = False) -> None:
+    if skip_if_existing and row("SELECT id FROM log_entries WHERE bulletin_id = ? LIMIT 1", (notice["id"],)):
+        return
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO log_entries
+                (user_label, status, location, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, created_by_username, created_by_name, bulletin_requested, bulletin_id)
+            VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            """,
+            (
+                TRANSLATIONS[current_language()]["notice_log_user"],
+                TRANSLATIONS[current_language()][action_key],
+                notice_log_message(notice, action_key),
+                notice["runner_bib"] or "",
+                notice["runner_name"] or "",
+                notice["runner_hometown"] or "",
+                notice["runner_position"] or "",
+                notice["checkpoint"] or "",
+                notice["crono_time"] or "",
+                username,
+                display_name,
+                notice["id"],
+            ),
+        )
+
+
 @app.post("/notices/{notice_id}/approve")
 @app.post("/bulletins/{notice_id}/approve")
 async def approve_notice(notice_id: int, message: str = Form(""), crono_time: str = Form(""), admin: Any = Depends(require_admin)) -> RedirectResponse:
@@ -983,47 +1037,55 @@ async def approve_notice_id(notice_id: int, approved_by: str | None = None, mess
             current = row("SELECT message, crono_time FROM bulletins WHERE id = ?", (notice_id,))
             conn.execute("UPDATE bulletins SET message = ?, crono_time = ? WHERE id = ?", (message if message is not None else current["message"], crono_time if crono_time is not None else current["crono_time"], notice_id))
         conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (approved_by or settings.admin_username, notice_id))
+    notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
+    if notice:
+        log_notice_event(notice, "notice_approved_status", approved_by or settings.admin_username, approved_by or settings.admin_username, skip_if_existing=True)
     await broadcast_approved_bulletin(notice_id)
     await broadcast_pending_count()
-    notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     return dict(notice) if notice else {}
 
 
 @app.post("/notices/{notice_id}/reject")
 @app.post("/bulletins/{notice_id}/reject")
-async def reject_notice(notice_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
-    await reject_notice_id(notice_id)
+async def reject_notice(notice_id: int, admin: Any = Depends(require_admin)) -> RedirectResponse:
+    await reject_notice_id(notice_id, admin["username"] or "", admin["display_name"] or "")
     return RedirectResponse("/notices", status_code=303)
 
 
 @app.post("/api/notices/{notice_id}/reject")
 @app.post("/api/bulletins/{notice_id}/reject")
-async def api_reject_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
-    await reject_notice_id(notice_id)
+async def api_reject_notice(notice_id: int, admin: Any = Depends(require_admin)) -> dict[str, object]:
+    await reject_notice_id(notice_id, admin["username"] or "", admin["display_name"] or "")
     return {"ok": True}
 
 
-async def reject_notice_id(notice_id: int) -> None:
+async def reject_notice_id(notice_id: int, username: str = "", display_name: str = "") -> None:
+    notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     with connect() as conn:
         conn.execute("UPDATE bulletins SET status = 'rejected' WHERE id = ?", (notice_id,))
+    if notice:
+        log_notice_event(notice, "notice_rejected_status", username, display_name)
     await broadcast_pending_count()
 
 
 @app.post("/notices/{notice_id}/delete")
-async def delete_notice(notice_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
-    await delete_notice_id(notice_id)
+async def delete_notice(notice_id: int, admin: Any = Depends(require_admin)) -> RedirectResponse:
+    await delete_notice_id(notice_id, admin["username"] or "", admin["display_name"] or "")
     return RedirectResponse("/notices", status_code=303)
 
 
 @app.post("/api/notices/{notice_id}/delete")
-async def api_delete_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
-    await delete_notice_id(notice_id)
+async def api_delete_notice(notice_id: int, admin: Any = Depends(require_admin)) -> dict[str, object]:
+    await delete_notice_id(notice_id, admin["username"] or "", admin["display_name"] or "")
     return {"ok": True}
 
 
-async def delete_notice_id(notice_id: int) -> None:
+async def delete_notice_id(notice_id: int, username: str = "", display_name: str = "") -> None:
+    notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     with connect() as conn:
         conn.execute("UPDATE bulletins SET hidden_at = CURRENT_TIMESTAMP WHERE id = ?", (notice_id,))
+    if notice:
+        log_notice_event(notice, "notice_deleted_status", username, display_name)
     await broadcast_notice_deleted(notice_id)
     await broadcast_pending_count()
 
@@ -1099,8 +1161,9 @@ async def broadcast_notice_deleted(notice_id: int) -> None:
 
 
 async def broadcast_race_timer_changed(state: str, started_at: str) -> None:
-    payload = json.dumps({"type": "race_timer_changed", "state": state, "started_at": started_at})
+    payload = json.dumps({"type": "race_timer_changed", "state": state, "started_at": started_at, "started_epoch_ms": race_started_epoch_ms()})
     await _broadcast(bulletin_clients, payload)
+    await _broadcast(review_clients, payload)
 
 
 async def _broadcast(clients: set[WebSocket], payload: str) -> None:

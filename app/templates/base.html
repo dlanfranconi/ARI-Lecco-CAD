@@ -32,7 +32,7 @@
         <form method="post" action="/race-timer/start"><button class="start-button compact-button">{{ t.start_timer }}</button></form>
         {% endif %}
       {% endif %}
-      <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
+      <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
     </div>
     {% endif %}
     <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button><form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
