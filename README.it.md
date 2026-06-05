@@ -38,7 +38,7 @@ volumes:
   ari-lecco-cad-data:
 ```
 
-Apri `http://IP-SERVER:8000` dalla rete interna. Se il database non contiene utenti, il primo accesso predefinito e `dispatch` / `dispatch`; cambia la password prima dell'uso operativo.
+Apri `http://IP-SERVER:8000` dalla rete interna. Se il database non contiene utenti, il primo accesso predefinito e `dispatch` / `dispatch`, anche se `CAD_ADMIN_PASSWORD` contiene ancora un vecchio valore; cambia la password in Configurazione prima dell'uso operativo.
 
 ## Fuso orario e NTP
 

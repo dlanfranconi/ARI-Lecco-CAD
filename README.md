@@ -66,7 +66,7 @@ volumes:
   ari-lecco-cad-data:
 ```
 
-Default first login is `dispatch` / `dispatch` when the database has no users. Change `CAD_ADMIN_PASSWORD`, `SESSION_SECRET`, and `APRSFI_API_KEY` in Portainer before race use.
+Default first login is `dispatch` / `dispatch` when the database has no users. This bootstrap account is created even if `CAD_ADMIN_PASSWORD` is still set to an old value. Change the password in Setup, and change `SESSION_SECRET` and `APRSFI_API_KEY` in Portainer before race use.
 
 ## Time Zone and NTP
 

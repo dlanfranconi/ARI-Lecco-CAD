@@ -2,7 +2,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from .auth import hash_password
+from .auth import hash_password, verify_password
 from .config import settings
 
 
@@ -206,13 +206,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 
 def _seed_admin(conn: sqlite3.Connection) -> None:
-    existing = conn.execute("SELECT id FROM users WHERE username = ?", (settings.admin_username,)).fetchone()
-    if existing:
+    user_count = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()["count"]
+    if user_count == 0:
+        conn.execute(
+            "INSERT INTO users (display_name, username, password_hash, role, active) VALUES ('dispatch', 'dispatch', ?, 'admin', 1)",
+            (hash_password("dispatch"),),
+        )
         return
-    conn.execute(
-        "INSERT INTO users (display_name, username, password_hash, role, active) VALUES (?, ?, ?, 'admin', 1)",
-        (settings.admin_username, settings.admin_username, hash_password(settings.admin_password)),
-    )
+
+    legacy = conn.execute("SELECT id, password_hash FROM users WHERE username = 'dispatch' AND role = 'admin' LIMIT 1").fetchone()
+    if legacy and verify_password("change-me", legacy["password_hash"]) and not verify_password("dispatch", legacy["password_hash"]):
+        conn.execute("UPDATE users SET password_hash = ?, active = 1 WHERE id = ?", (hash_password("dispatch"), legacy["id"]))
 
 
 def rows(sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
