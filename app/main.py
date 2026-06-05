@@ -612,7 +612,14 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
     tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
     archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
-    runners = rows("SELECT *, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), name) AS full_name FROM runners ORDER BY active DESC, bib_number")
+    runners = rows("""
+        SELECT *, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), name) AS full_name
+        FROM runners
+        ORDER BY active DESC,
+            CASE WHEN bib_number GLOB '[0-9]*' AND bib_number NOT GLOB '*[^0-9]*' THEN 0 ELSE 1 END,
+            CASE WHEN bib_number GLOB '[0-9]*' AND bib_number NOT GLOB '*[^0-9]*' THEN CAST(bib_number AS INTEGER) END,
+            bib_number
+    """)
     return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
 
 
