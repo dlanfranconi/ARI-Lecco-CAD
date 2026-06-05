@@ -225,3 +225,10 @@ th { color: var(--muted); font-size: 13px; }
 @media (max-width: 860px) {
   .announcer .athlete-bib, .announcer .athlete-name, .announcer .athlete-town, .announcer .athlete-position { grid-column: auto; }
 }
+
+.announcer .athlete-rows.no-town .athlete-row { grid-template-columns: 190px 560px 280px; min-width: 980px; }
+.announcer .athlete-rows.no-town .athlete-position { grid-column: 3; }
+@media (max-width: 860px) {
+  .announcer .athlete-rows.no-town .athlete-row { grid-template-columns: 1fr; min-width: 0; }
+  .announcer .athlete-rows.no-town .athlete-position { grid-column: auto; }
+}

@@ -15,9 +15,12 @@
     <div id="bulletin" class="teleprompter">{% if latest %}{{ latest.message }}{% else %}{{ t.no_notice }}{% endif %}</div>
     <div id="runner-details" class="runner-details {% if not latest or not latest.runner_bib %}hidden{% endif %}">
       {% if latest and latest.runner_bib %}
-      {% for athlete in athlete_rows(latest) %}
+      {% set latest_athletes = athlete_rows(latest) %}
+      <div class="athlete-rows {% if latest_athletes|selectattr('hometown')|list %}has-town{% else %}no-town{% endif %}">
+      {% for athlete in latest_athletes %}
       <div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% if athlete.hometown %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
       {% endfor %}
+      </div>
       {% endif %}
     </div>
     <div id="timestamp" class="announcer-time">{% if latest %}{{ format_dt(latest.approved_at or latest.created_at) }}{% endif %}</div>
@@ -30,7 +33,7 @@
       <h2>{{ t.older_notices }}</h2>
       <div id="notice-history-list">
         {% for item in notices[1:] %}
-        <article>{{ item.message }}{% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% if athlete.hometown %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
+        <article>{{ item.message }}{% if item.runner_bib %}{% set item_athletes = athlete_rows(item) %}<div class="athlete-rows {% if item_athletes|selectattr('hometown')|list %}has-town{% else %}no-town{% endif %}">{% for athlete in item_athletes %}<div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% if athlete.hometown %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
         {% else %}
         <p>{{ t.no_prior_notices }}</p>
         {% endfor %}

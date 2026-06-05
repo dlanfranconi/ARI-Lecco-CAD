@@ -3,21 +3,45 @@ function initOperatorCombobox() {
   const hidden = document.querySelector(".operator-id");
   if (!input || !hidden) return;
   const options = Array.from(document.querySelectorAll("#operator-options option"));
+  function matchesForValue() {
+    const value = input.value.trim().toLowerCase();
+    if (!value) return [];
+    return options.filter((option) => option.value.trim().toLowerCase().includes(value));
+  }
+
+  function selectOption(option) {
+    if (!option) return false;
+    input.value = option.value;
+    hidden.value = option.dataset.id || "";
+    input.setCustomValidity("");
+    return Boolean(hidden.value);
+  }
+
   function syncId() {
     const value = input.value.trim().toLowerCase();
     const exact = options.find((option) => option.value.trim().toLowerCase() === value);
-    hidden.value = exact?.dataset.id || "";
-    input.setCustomValidity(hidden.value || !input.value.trim() ? "" : (window.CAD_LABELS?.select_operator_error || "Select a valid user/tactical callsign."));
-    return Boolean(hidden.value);
+    if (exact) return selectOption(exact);
+    hidden.value = "";
+    input.setCustomValidity(!input.value.trim() ? "" : (window.CAD_LABELS?.select_operator_error || "Select a valid user/tactical callsign."));
+    return false;
   }
   input.addEventListener("input", syncId);
   input.addEventListener("change", syncId);
   input.addEventListener("blur", syncId);
   input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !syncId()) {
-      event.preventDefault();
-      input.reportValidity();
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (syncId()) {
+      input.blur();
+      return;
     }
+    const matches = matchesForValue();
+    if (matches.length === 1) {
+      selectOption(matches[0]);
+      input.blur();
+      return;
+    }
+    if (matches.length === 0) input.reportValidity();
   });
   input.closest("form")?.addEventListener("submit", (event) => {
     if (!syncId()) {

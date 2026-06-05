@@ -27,7 +27,8 @@ function athleteRows(item) {
 function athleteRowsHtml(item) {
   const rows = athleteRows(item);
   if (!rows.length) return "";
-  return `<div class="athlete-rows">${rows.map((athlete) => `
+  const hasTown = rows.some((athlete) => athlete.hometown);
+  return `<div class="athlete-rows ${hasTown ? "has-town" : "no-town"}">${rows.map((athlete) => `
     <div class="athlete-row">
       <span class="athlete-bib"><strong>${labels.bib_number || "Bib Number"}:</strong> ${athlete.bib}</span>
       <span class="athlete-name"><strong>${labels.runner_name || labels.display_name || "Name"}:</strong> ${athlete.name}</span>
