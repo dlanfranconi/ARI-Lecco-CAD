@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     environment:
       CAD_ADMIN_USERNAME: dispatch
-      CAD_ADMIN_PASSWORD: change-me
+      CAD_ADMIN_PASSWORD: dispatch
       SESSION_SECRET: replace-with-a-long-random-string
       APRSFI_API_KEY: ""
       APRS_POLL_SECONDS: 60
@@ -38,7 +38,7 @@ volumes:
   ari-lecco-cad-data:
 ```
 
-Apri `http://IP-SERVER:8000` dalla rete interna.
+Apri `http://IP-SERVER:8000` dalla rete interna. Se il database non contiene utenti, il primo accesso predefinito e `dispatch` / `dispatch`; cambia la password prima dell'uso operativo.
 
 ## Fuso orario e NTP
 

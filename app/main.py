@@ -970,6 +970,17 @@ async def recent_notices() -> list[dict[str, object]]:
     return [notice_payload(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")]
 
 
+@app.get("/api/race-timer")
+async def api_race_timer() -> dict[str, str | bool]:
+    started_at = setting("race_started_at", "")
+    return {
+        "running": bool(started_at),
+        "started_at": started_at,
+        "started_epoch_ms": race_started_epoch_ms(),
+        "current_crono": crono_from_timer() or "00:00:00",
+    }
+
+
 @app.get("/api/notices/pending-count")
 async def api_pending_count(_: Any = Depends(require_admin)) -> dict[str, int]:
     return {"pending_count": pending_notice_count()}

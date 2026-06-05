@@ -3,7 +3,7 @@ import os
 
 class Settings:
     admin_username: str = os.getenv("CAD_ADMIN_USERNAME", "dispatch")
-    admin_password: str = os.getenv("CAD_ADMIN_PASSWORD", "change-me")
+    admin_password: str = os.getenv("CAD_ADMIN_PASSWORD", "dispatch")
     session_secret: str = os.getenv("SESSION_SECRET", "dev-only-change-me")
     aprsfi_api_key: str = os.getenv("APRSFI_API_KEY", "")
     aprs_poll_seconds: int = int(os.getenv("APRS_POLL_SECONDS", "60"))

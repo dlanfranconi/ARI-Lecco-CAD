@@ -48,7 +48,7 @@ services:
     restart: unless-stopped
     environment:
       CAD_ADMIN_USERNAME: dispatch
-      CAD_ADMIN_PASSWORD: change-me
+      CAD_ADMIN_PASSWORD: dispatch
       SESSION_SECRET: replace-with-a-long-random-string
       APRSFI_API_KEY: ""
       APRS_POLL_SECONDS: 60
@@ -66,7 +66,7 @@ volumes:
   ari-lecco-cad-data:
 ```
 
-Change `CAD_ADMIN_PASSWORD`, `SESSION_SECRET`, and `APRSFI_API_KEY` in Portainer before race use.
+Default first login is `dispatch` / `dispatch` when the database has no users. Change `CAD_ADMIN_PASSWORD`, `SESSION_SECRET`, and `APRSFI_API_KEY` in Portainer before race use.
 
 ## Time Zone and NTP
 
@@ -102,7 +102,7 @@ Configured in `.env`:
 
 ```bash
 CAD_ADMIN_USERNAME=dispatch
-CAD_ADMIN_PASSWORD=change-me
+CAD_ADMIN_PASSWORD=dispatch
 ```
 
 Change the password before real use, even on an internal network.
