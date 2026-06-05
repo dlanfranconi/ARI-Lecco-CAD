@@ -57,11 +57,11 @@ Imposta `TZ` al fuso orario della gara, per esempio `Europe/Rome`. In Configuraz
 - Annunciatore: `http://IP-SERVER:8000/annunciatore`
 - Configurazione: `http://IP-SERVER:8000/setup`
 
-## Cronometro gara e tempo crono
+## Cronometro gara
 
 Dal Log gara un admin puo premere `Avvia cronometro`. CAD salva automaticamente una voce log "Gara iniziata" con i metadati dell'admin che l'ha generata. La voce resta nei dati esportati anche se non serve mostrarla diversamente nella tabella.
 
-Nei log e nelle notizie puoi inserire un `Tempo crono` manuale. Se il campo viene lasciato vuoto, CAD usa il cronometro gara avviato dal Log gara.
+Il tempo crono viene mostrato solo come orologio gara in alto a destra. I moduli log/notizie non mostrano campi tempo crono separati.
 
 ## Notizie e log per piu atleti
 
@@ -91,13 +91,18 @@ Comandi disponibili:
 
 ## Import atleti
 
-Formato CSV:
+Formato CSV consigliato:
 
 ```csv
-bib number,name,home town
-101,Mario Rossi,Lecco
-102,Giulia Bianchi,Como
+bib_number,first_name,last_name,hometown
+101,Mario,Rossi,Lecco
+102,Giulia,Bianchi,Como
+103,Luca,Verdi,
 ```
+
+`hometown` e facoltativo. Se resta vuoto, la pagina annunciatore non mostra la colonna citta/localita per quell'atleta.
+
+Sono accettati anche formati piu semplici o vecchi, per esempio `bib number,name,home town`, `bib,name,hometown`, oppure intestazioni italiane come `pettorale,nome,cognome,citta`. Il file CSV puo usare virgola, punto e virgola o tab come separatore. Dopo l'import, la pagina Configurazione mostra quante righe sono state importate e quante sono state saltate. Una riga viene saltata se manca il pettorale o un nome utilizzabile.
 
 Un modello e disponibile in:
 

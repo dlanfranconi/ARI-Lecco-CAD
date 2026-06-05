@@ -180,20 +180,20 @@ Any D-RATS-side helper, D-PRS utility, or radio software that can write received
 
 ## Runner CSV Import
 
-Import runners from Setup using a CSV with these headers:
+Import runners from Setup using a CSV file. The recommended template is:
 
 ```csv
-bib number,name,home town
-101,Mario Rossi,Lecco
+bib_number,first_name,last_name,hometown
+101,Mario,Rossi,Lecco
+102,Giulia,Bianchi,Como
+103,Luca,Verdi,
 ```
 
-When submitting a notice, enter the bib number and select a checkpoint. CAD will populate a notice like:
+`hometown` is optional. If it is blank, the announcer page does not show a city/location column for that athlete.
 
-```text
-Runner Mario Rossi is arriving to CP1.
-```
+The importer also accepts older/simple headers, including `bib number,name,home town`, `bib,name,hometown`, and common Italian headers such as `pettorale,nome,cognome,citta`. CSV files may use comma, semicolon, or tab delimiters. After import, Setup shows how many rows were imported and how many were skipped. Rows are skipped when CAD cannot find both a bib number and a usable name.
 
-Italian mode uses the Italian arrival template.
+When submitting a notice, enter the bib number and select a checkpoint. CAD will populate a notice using the configured athlete name display setting. Italian mode uses the Italian arrival template.
 
 
 ## Archive Downloads
@@ -210,12 +210,14 @@ Archived races also remain browsable from Setup.
 
 ## Athlete Management
 
-Setup supports CSV import and manual add/edit/disable for athletes. CSV headers:
+Setup supports CSV import and manual add/edit/disable/delete for athletes. Recommended CSV headers:
 
 ```csv
-bib number,name,home town
-101,Mario Rossi,Lecco
+bib_number,first_name,last_name,hometown
+101,Mario,Rossi,Lecco
 ```
+
+The included template is `examples/athlete-list-template.csv`.
 
 
 ## Checkpoint Prepositions

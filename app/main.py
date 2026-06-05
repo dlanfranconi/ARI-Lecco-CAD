@@ -3,6 +3,7 @@ import csv
 import io
 import json
 from pathlib import Path
+from urllib.parse import urlencode
 from contextlib import suppress
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -1247,6 +1248,27 @@ async def delete_tactical_callsign(tac_id: int, _: Any = Depends(require_admin))
     return RedirectResponse("/setup", status_code=303)
 
 
+def csv_value(item: dict[str, str], *names: str) -> str:
+    normalized = {str(key or "").strip().lower().replace("_", " "): str(value or "").strip() for key, value in item.items()}
+    compact = {key.replace(" ", ""): value for key, value in normalized.items()}
+    for name in names:
+        key = name.strip().lower().replace("_", " ")
+        if normalized.get(key):
+            return normalized[key]
+        if compact.get(key.replace(" ", "")):
+            return compact[key.replace(" ", "")]
+    return ""
+
+
+def csv_reader_for_content(content: str) -> csv.DictReader:
+    sample = content[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+    except csv.Error:
+        dialect = csv.excel
+    return csv.DictReader(io.StringIO(content), dialect=dialect)
+
+
 def split_runner_name(name: str) -> tuple[str, str]:
     clean = name.strip()
     if not clean:
@@ -1257,16 +1279,28 @@ def split_runner_name(name: str) -> tuple[str, str]:
 
 @app.post("/setup/runners/import")
 async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
-    content = (await file.read()).decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(content))
+    try:
+        content = (await file.read()).decode("utf-8-sig")
+    except UnicodeDecodeError:
+        params = urlencode({"runner_import_error": "decode"})
+        return RedirectResponse(f"/setup?{params}", status_code=303)
+    reader = csv_reader_for_content(content)
+    imported = 0
+    skipped = 0
     with connect() as conn:
         for item in reader:
-            bib = (item.get("bib number") or item.get("bib_number") or item.get("bib") or "").strip()
-            name = (item.get("name") or "").strip()
-            hometown = (item.get("home town") or item.get("hometown") or item.get("town") or "").strip()
+            bib = csv_value(item, "bib number", "bib_number", "bib", "race number", "runner number", "pettorale", "numero", "numero pettorale")
+            first_name = csv_value(item, "first name", "first_name", "firstname", "given name", "nome")
+            last_name = csv_value(item, "last name", "last_name", "lastname", "surname", "family name", "cognome")
+            name = csv_value(item, "name", "full name", "runner name", "athlete name", "nome completo", "nome atleta")
+            hometown = csv_value(item, "home town", "hometown", "town", "city", "residence", "location", "citta", "città", "paese", "comune")
+            if name and (not first_name and not last_name):
+                first_name, last_name = split_runner_name(name)
+            elif not name:
+                name = " ".join(part for part in [first_name, last_name] if part)
             if not bib or not name:
+                skipped += 1
                 continue
-            first_name, last_name = split_runner_name(name)
             conn.execute(
                 """
                 INSERT INTO runners (bib_number, name, first_name, last_name, hometown)
@@ -1275,7 +1309,9 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
                 """,
                 (bib, name, first_name, last_name, hometown),
             )
-    return RedirectResponse("/setup", status_code=303)
+            imported += 1
+    params = urlencode({"runner_imported": imported, "runner_skipped": skipped})
+    return RedirectResponse(f"/setup?{params}", status_code=303)
 
 
 @app.post("/setup/runners")

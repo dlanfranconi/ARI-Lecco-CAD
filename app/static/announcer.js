@@ -29,10 +29,10 @@ function athleteRowsHtml(item) {
   if (!rows.length) return "";
   return `<div class="athlete-rows">${rows.map((athlete) => `
     <div class="athlete-row">
-      <span><strong>${labels.bib_number || "Bib Number"}:</strong> ${athlete.bib}</span>
-      <span><strong>${labels.runner_name || labels.display_name || "Name"}:</strong> ${athlete.name}</span>
-      <span><strong>${labels.city || "City"}:</strong> ${athlete.hometown}</span>
-      ${athlete.position ? `<span><strong>${labels.athlete_position || "Position Number"}:</strong> ${athlete.position}</span>` : ""}
+      <span class="athlete-bib"><strong>${labels.bib_number || "Bib Number"}:</strong> ${athlete.bib}</span>
+      <span class="athlete-name"><strong>${labels.runner_name || labels.display_name || "Name"}:</strong> ${athlete.name}</span>
+      ${athlete.hometown ? `<span class="athlete-town"><strong>${labels.city || "City"}:</strong> ${athlete.hometown}</span>` : ""}
+      ${athlete.position ? `<span class="athlete-position"><strong>${labels.athlete_position || "Position Number"}:</strong> ${athlete.position}</span>` : ""}
     </div>`).join("")}</div>`;
 }
 

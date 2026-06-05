@@ -1,3 +1,4 @@
-bib number,name,home town
-101,Mario Rossi,Lecco
-102,Giulia Bianchi,Como
+bib_number,first_name,last_name,hometown
+101,Mario,Rossi,Lecco
+102,Giulia,Bianchi,Como
+103,Luca,Verdi,
