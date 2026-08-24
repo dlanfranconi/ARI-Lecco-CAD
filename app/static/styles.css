@@ -249,6 +249,7 @@ th { color: var(--muted); font-size: 13px; }
 .page-logo img { display: block; max-height: 112px; max-width: min(390px, 70vw); object-fit: contain; }
 .logo-preview img { display: block; max-height: 132px; max-width: 340px; object-fit: contain; margin-bottom: 12px; }
 .site-footer { padding: 18px 20px 24px; text-align: center; color: var(--muted); font-size: 12px; }
+.app-version { opacity: .6; font-variant-numeric: tabular-nums; }
 .announcer-logo { position: fixed; top: 16px; left: 16px; z-index: 20; }
 .announcer-logo img { display: block; max-width: 320px; max-height: 126px; object-fit: contain; }
 .announcer-footer { position: fixed; left: 0; right: 0; bottom: 8px; color: #789195; }

@@ -236,6 +236,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("athlete_name_display", setting("athlete_name_display", "full"))
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
+    context.setdefault("app_version", settings.app_version)
     return templates.TemplateResponse(request, name, context)
 
 

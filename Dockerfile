@@ -3,6 +3,15 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Baked in at build time so the running app can show which build it actually
+# is — CI passes the real branch and commit; local `docker compose up
+# --build` without them just shows "dev". This is what tells apart a stale
+# deployment from an updated one without digging through SSH.
+ARG GIT_SHA=dev
+ARG GIT_REF=local
+ENV APP_GIT_SHA=${GIT_SHA}
+ENV APP_GIT_REF=${GIT_REF}
+
 WORKDIR /app
 
 COPY requirements.txt .
