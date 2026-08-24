@@ -17,7 +17,10 @@ VOLUME ["/data"]
 ENV PORT=80
 EXPOSE 80
 
-# Shell form (not exec form) so ${PORT} expands — lets PORT be overridden at
-# `docker run`/compose without rebuilding the image.
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+# exec form with an explicit `exec` inside the shell: still expands ${PORT}
+# for runtime overrides, but uvicorn replaces the shell as PID 1 instead of
+# running as its child, so it receives SIGTERM directly for a clean shutdown
+# (including unregistering the mDNS advertisement) instead of the shell
+# swallowing the signal until Docker's kill timeout.
+CMD ["/bin/sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
 
