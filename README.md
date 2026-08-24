@@ -97,6 +97,41 @@ Recommended persistent bind mount:
 
 Set environment variables in Portainer or copy `.env.example` to `.env`.
 
+### Host networking (required for mDNS) — what to expect
+
+`docker-compose.yml` uses `network_mode: host`, which is what makes `ari-cad.local` work on the LAN. It also changes how the container gets its port, in ways that trip people up if you don't know to expect them:
+
+- **There is no "Published Ports" mapping.** With `network_mode: host` the container talks directly on the host's own network — Portainer will not show a ports field for it, and that's correct, not a bug. Don't add a `ports:` entry back in; it's ignored (and can mask real conflicts) under host networking.
+- **Port 8000 must be completely free on the host itself** before the container starts — not "free inside Docker," free on the actual machine. Anything already listening on 8000 (including an old copy of this same container that didn't fully stop) will make the new one fail immediately with:
+  ```text
+  ERROR: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+  ```
+- **Linux Docker hosts only.** Docker Desktop on Mac/Windows doesn't support real host networking. If you're deploying there, see "Don't want host networking?" below instead.
+
+### Fixing "address already in use" on port 8000
+
+This almost always means an older `ari-lecco-cad` container is still running (most common right after switching an existing stack over to `network_mode: host`, or after a Portainer stack update that didn't fully clean up the previous container).
+
+1. In Portainer, go to **Containers** and look for any container named `ari-lecco-cad`. If you see more than one, or one that's still `running` from before your update, select it and **Stop**, then **Remove** it.
+2. Go back to **Stacks**, open this stack, and click **Update the stack** (or **Deploy**) again.
+3. Still failing? Something *other* than this app is on port 8000. SSH into the Docker host and run:
+   ```bash
+   sudo ss -tlnp | grep :8000
+   ```
+   This prints the process holding the port. If it's a Docker container, `docker ps` will show its name so you can `docker stop <name>` it. If it's some other service entirely, stop that service, or pick a different Docker host — the app's port is fixed at 8000 (not configurable), so under host networking there's no way to move this container to a different port to dodge the conflict. Bridge networking (below) does let you remap the published port if you need to.
+
+### Don't want host networking?
+
+If you're on Docker Desktop, don't need `ari-cad.local`, or just want the simpler/safer setup: delete the `network_mode: host` line from your stack and add back a normal port mapping instead:
+
+```yaml
+    # network_mode: host   <- remove this line
+    ports:
+      - "8000:8000"        <- add this instead
+```
+
+Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `ari-cad.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if 8000 is taken, rather than the container silently trying to bind the whole host's network).
+
 ## APRS.fi
 
 Set an APRS.fi API key:
