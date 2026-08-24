@@ -1,4 +1,21 @@
-if ("serviceWorker" in navigator) {
+const isNativeApp = Boolean(window.Capacitor?.isNativePlatform?.());
+
+if (isNativeApp) {
+  // The app is already an installed native shell — it gets none of the benefit a
+  // service worker gives a browser tab (installability, offline caching of a
+  // page you might revisit), and it caused a real bug: the WebView's SW storage
+  // is entirely separate from any desktop browser, so once registered here it
+  // kept serving whatever static JS/CSS was cached at install time indefinitely,
+  // with no way to know it was even happening from the app side. Actively clean
+  // up anything already registered from before this fix, then never register
+  // one again in this context.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((reg) => reg.unregister()));
+  }
+  if ("caches" in window) {
+    caches.keys().then((names) => names.forEach((name) => caches.delete(name)));
+  }
+} else if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {
       // Installability is a bonus, not a requirement — ignore registration failures.
@@ -12,6 +29,6 @@ if ("serviceWorker" in navigator) {
 // on, and Capacitor's back-button handling only knows about the one WebView
 // instance it's tracking, not any window this might have tried to open. Strip
 // the attribute so these links just navigate in place instead.
-if (window.Capacitor?.isNativePlatform?.()) {
+if (isNativeApp) {
   document.querySelectorAll('a[target="_blank"]').forEach((link) => link.removeAttribute("target"));
 }
