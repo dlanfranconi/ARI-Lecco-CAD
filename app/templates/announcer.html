@@ -7,8 +7,11 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="announcer">
-  <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
-  <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
+  <div class="announcer-topbar">
+    <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
+    <button id="sound-toggle" class="sound-toggle" type="button" aria-label="{{ t.notification_sound }}">🔔</button>
+    <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
+  </div>
   {% if logo_url %}<div class="announcer-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main>
     <div class="announcer-label">{{ t.current_notice }}</div>
@@ -29,16 +32,7 @@
       <span id="notice-position">1</span>
       <button id="newer-notice" type="button" aria-label="{{ t.next_notice }}">›</button>
     </div>
-    <section class="notice-history" aria-label="{{ t.older_notices }}">
-      <h2>{{ t.older_notices }}</h2>
-      <div id="notice-history-list">
-        {% for item in notices[1:] %}
-        <article>{{ item.message }}{% if item.runner_bib %}{% set item_athletes = athlete_rows(item) %}<div class="athlete-rows {% if has_athlete_hometown(item_athletes) %}has-town{% else %}no-town{% endif %} {% if has_athlete_position(item_athletes) %}has-position{% else %}no-position{% endif %}">{% for athlete in item_athletes %}<div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% if athlete.hometown|trim %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position|trim %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</article>
-        {% else %}
-        <p>{{ t.no_prior_notices }}</p>
-        {% endfor %}
-      </div>
-    </section>
+    <button id="history-open" class="history-open-button" type="button">{{ t.older_notices }}</button>
   </main>
   <footer class="site-footer announcer-footer">{{ t.designed_by }}</footer>
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>

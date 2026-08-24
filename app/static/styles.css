@@ -142,10 +142,15 @@ th { color: var(--muted); font-size: 13px; }
   margin-bottom: 24px;
 }
 .teleprompter {
-  font-size: clamp(42px, 8vw, 112px);
-  line-height: 1.08;
+  font-size: clamp(52px, 10vw, 148px);
+  line-height: 1.06;
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+.teleprompter.flash { animation: teleprompter-flash 0.6s ease-in-out 3; }
+@keyframes teleprompter-flash {
+  0%, 100% { color: inherit; text-shadow: none; }
+  50% { color: #ffd23f; text-shadow: 0 0 24px rgba(255, 210, 63, .85); }
 }
 .announcer-time { margin-top: 28px; color: #b7c7c9; font-size: 24px; }
 
@@ -175,8 +180,9 @@ th { color: var(--muted); font-size: 13px; }
 .compact-table table { min-width: 560px; }
 .actions-cell { display: flex; gap: 8px; align-items: center; }
 .tac-table input { min-width: 110px; }
-.announcer-clock { position: fixed; top: 16px; right: 68px; z-index: 20; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: #8bd3ce; background: rgba(7,16,18,.72); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; }
-.contrast-toggle { position: fixed; top: 16px; right: 16px; z-index: 20; width: 42px; padding: 0; font-size: 24px; background: #dce6ea; color: #071012; }
+.announcer-topbar { position: fixed; top: 16px; right: 16px; z-index: 20; display: flex; align-items: center; gap: 10px; }
+.announcer-clock { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: #8bd3ce; background: rgba(7,16,18,.72); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; }
+.contrast-toggle { width: 42px; padding: 0; font-size: 24px; background: #dce6ea; color: #071012; }
 .announcer.light-mode { background: #f8fbfb; color: #071012; }
 .announcer.light-mode .announcer-clock { background: rgba(248,251,251,.88); color: #146c75; border-color: rgba(0,0,0,.18); }
 .announcer.light-mode .announcer-label { color: #146c75; }
@@ -189,13 +195,20 @@ th { color: var(--muted); font-size: 13px; }
 .notice-edit-form textarea { min-height: 110px; }
 .announcer-controls { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 22px; }
 .announcer-controls button { width: 54px; height: 44px; padding: 0; font-size: 30px; line-height: 1; }
-.notice-history { margin: 34px auto 0; max-width: 1100px; text-align: left; }
-.notice-history h2 { text-align: center; font-size: 20px; color: #8bd3ce; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0; }
-.notice-history article, .notice-history p { font-size: clamp(18px, 2.4vw, 34px); line-height: 1.25; color: #c9dadd; border-top: 1px solid rgba(255,255,255,.14); padding: 12px 0; margin: 0; }
-.notice-history span { color: #98b8bd; font-size: .78em; }
-.announcer.light-mode .notice-history h2 { color: #146c75; }
-.announcer.light-mode .notice-history article, .announcer.light-mode .notice-history p { color: #273b40; border-color: rgba(0,0,0,.14); }
-.announcer.light-mode .notice-history span { color: #546970; }
+.history-open-button { margin-top: 22px; }
+.notice-history-list { max-height: 60vh; overflow-y: auto; text-align: left; }
+.notice-history-list article { display: block; width: 100%; background: none; border: none; border-top: 1px solid rgba(255,255,255,.14); text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.notice-history-list article, .notice-history-list p { font-size: clamp(16px, 2vw, 26px); line-height: 1.25; color: #c9dadd; padding: 12px 0; margin: 0; }
+.notice-history-list article:hover { color: #ffd23f; }
+.notice-history-list article .meta { display: block; color: #98b8bd; font-size: .55em; margin-top: 4px; }
+.announcer.light-mode .notice-history-list article, .announcer.light-mode .notice-history-list p { color: #273b40; border-color: rgba(0,0,0,.14); }
+.announcer.light-mode .notice-history-list article .meta { color: #546970; }
+.announcer .modal-panel { background: #0c1d21; color: #f8fbfb; border-color: rgba(255,255,255,.18); }
+.announcer.light-mode .modal-panel { background: #fff; color: #071012; }
+.sound-toggle { width: 42px; padding: 0; font-size: 22px; background: #dce6ea; color: #071012; }
+.sound-settings-panel { display: grid; gap: 14px; }
+.sound-settings-panel label { display: grid; gap: 6px; }
+.sound-settings-panel .actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 .page-logo { max-width: 1500px; margin: 14px auto 0; padding: 0 20px; }
 .page-logo img { display: block; max-height: 112px; max-width: min(390px, 70vw); object-fit: contain; }

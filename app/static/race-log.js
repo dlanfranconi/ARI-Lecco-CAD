@@ -1,6 +1,9 @@
+const LAST_OPERATOR_KEY = "dispatch-last-operator";
+
 function initOperatorCombobox() {
-  const input = document.querySelector(".operator-combobox");
-  const hidden = document.querySelector(".operator-id");
+  const form = document.querySelector('form[action="/logs"]');
+  const input = form?.querySelector(".operator-combobox");
+  const hidden = form?.querySelector(".operator-id");
   if (!input || !hidden) return;
   const options = Array.from(document.querySelectorAll("#operator-options option"));
   function matchesForValue() {
@@ -47,8 +50,20 @@ function initOperatorCombobox() {
     if (!syncId()) {
       event.preventDefault();
       input.reportValidity();
+      return;
     }
+    localStorage.setItem(LAST_OPERATOR_KEY, JSON.stringify({ id: hidden.value, label: input.value }));
   });
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAST_OPERATOR_KEY) || "null");
+    if (saved?.id) {
+      const match = options.find((option) => option.dataset.id === saved.id);
+      if (match) selectOption(match);
+    }
+  } catch (_) {
+    // Ignore malformed/unavailable localStorage data.
+  }
 }
 
 function initStatusLocation() {

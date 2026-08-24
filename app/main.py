@@ -526,6 +526,8 @@ async def create_log(
         if notice:
             log_notice_event(notice, "notice_approved_status", admin["username"] or "", admin["display_name"] or "", skip_if_existing=True)
         await broadcast_approved_bulletin(notice_id)
+    if notice_ids:
+        await broadcast_pending_count()
     return RedirectResponse("/", status_code=303)
 
 
@@ -627,6 +629,8 @@ async def direct_notice(
         if notice:
             log_notice_event(notice, "notice_approved_status", admin["username"] or "", admin["display_name"] or "", skip_if_existing=True)
         await broadcast_approved_bulletin(notice_id)
+    if notice_ids:
+        await broadcast_pending_count()
     return RedirectResponse("/", status_code=303)
 
 
@@ -967,7 +971,7 @@ async def old_bulletin_submit_post(message: str = Form(...), user: Any = Depends
 
 @app.get("/api/notices/recent")
 async def recent_notices() -> list[dict[str, object]]:
-    return [notice_payload(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")]
+    return [notice_payload(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 30")]
 
 
 @app.get("/api/race-timer")
@@ -1105,7 +1109,7 @@ async def delete_notice_id(notice_id: int, username: str = "", display_name: str
 @app.get("/annunciatore", response_class=HTMLResponse)
 async def announcer(request: Request) -> HTMLResponse:
     latest_row = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
-    notice_rows = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 12")
+    notice_rows = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 30")
     latest = dict(latest_row) if latest_row else None
     notices = [notice_payload(item) for item in notice_rows]
     return page(request, "announcer.html", latest=latest, notices=notices)
