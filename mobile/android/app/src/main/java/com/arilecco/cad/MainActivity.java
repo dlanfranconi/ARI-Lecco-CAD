@@ -11,7 +11,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onBackPressed() {
-        WebView webView = getBridge().getWebView();
+        WebView webView = getBridge() != null ? getBridge().getWebView() : null;
         String currentUrl = webView != null ? webView.getUrl() : null;
 
         if (currentUrl != null) {
