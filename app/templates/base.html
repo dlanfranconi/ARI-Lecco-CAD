@@ -18,16 +18,19 @@
   {% if dispatch_user %}
   <header class="topbar">
     <a class="brand" href="/notices">{{ t.app_title }}</a>
-    <nav>
+    <button id="nav-toggle" class="nav-toggle ghost icon-button" type="button" aria-label="{{ t.menu }}" aria-expanded="false">☰</button>
+    <nav id="topbar-nav">
       {% if current_user.role in ['admin', 'user'] %}
       <a href="/">{{ t.race_log }}</a>
       <a href="/map">{{ t.aprs_map }}</a>
       <a href="{{ submit_notice_url }}">{{ t.submit_notice_link }}</a>
+      <a href="/speed-test">{{ t.speed_test }}</a>
       {% endif %}
       <a href="/notices">{{ t.notices }}</a>
       {% if current_user.role == 'admin' %}<a href="/network">{{ t.network }}</a>{% endif %}
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
       <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
+      <form method="post" action="/logout" class="nav-logout-form"><button class="ghost">{{ t.logout }}</button></form>
     </nav>
     {% if is_admin or race_started_at or current_crono %}
     <div class="header-timer">
@@ -43,7 +46,7 @@
       <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
     </div>
     {% endif %}
-    <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button><form method="post" action="/logout"><button class="ghost">{{ t.logout }}</button></form>
+    <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button>
   </header>
   {% endif %}
   {% if logo_url %}<div class="page-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}

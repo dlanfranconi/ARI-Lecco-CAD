@@ -64,14 +64,17 @@
       errorEl.textContent = "";
       button.disabled = true;
       button.textContent = "Connecting...";
-      const url = `http://${host}/login`;
+      // Check against /login (always reachable, no auth needed) but land on "/" —
+      // if there's already a valid session (server keeps you signed in for 30
+      // days), that goes straight into the app instead of forcing a fresh login
+      // every time the app opens.
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
-        await fetch(url, { method: "GET", mode: "no-cors", signal: controller.signal });
+        await fetch(`http://${host}/login`, { method: "GET", mode: "no-cors", signal: controller.signal });
         clearTimeout(timeout);
         localStorage.setItem(STORAGE_KEY, host);
-        window.location.href = url;
+        window.location.href = `http://${host}/`;
       } catch (err) {
         errorEl.textContent = "Could not reach that server. Check the name and that you're on the race network.";
         button.disabled = false;

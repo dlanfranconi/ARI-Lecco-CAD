@@ -72,6 +72,15 @@ services:
 
 volumes:
   ari-lecco-cad-data:
+    # Explicit, fixed name — without this, Docker prefixes the volume with
+    # the stack/project name (e.g. a stack named "cad" gets
+    # "cad_ari-lecco-cad-data"). Redeploy under a different stack name, or
+    # `docker compose up` from a differently-named folder, and Compose
+    # silently creates a brand-new empty volume instead of reusing the old
+    # one — your data isn't destroyed, just orphaned under its old name, and
+    # it looks exactly like everything got wiped. Pinning the name here
+    # means the volume is the same regardless of how you deploy it.
+    name: ari-lecco-cad-data
 ```
 
 Default first login is `dispatch` / `dispatch` when the database has no users. This bootstrap account is created even if `CAD_ADMIN_PASSWORD` is still set to an old value. Change the password in Setup, and change `SESSION_SECRET` and `APRSFI_API_KEY` in Portainer before race use.

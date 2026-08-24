@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -489,8 +489,14 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
     return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
 
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request) -> HTMLResponse:
+SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days — long-lived so the Android app doesn't need a fresh login every launch.
+
+
+@app.get("/login", response_class=HTMLResponse, response_model=None)
+async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
+    user = current_user(request)
+    if user:
+        return RedirectResponse("/announcer" if user["role"] == "announcer" else "/", status_code=303)
     return page(request, "login.html", error="")
 
 
@@ -501,7 +507,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         return page(request, "login.html", error="Invalid username or password.")
     target = "/announcer" if user["role"] == "announcer" else "/"
     response = RedirectResponse(target, status_code=303)
-    response.set_cookie(COOKIE_NAME, make_session(username), httponly=True, samesite="lax")
+    response.set_cookie(COOKIE_NAME, make_session(username), max_age=SESSION_COOKIE_MAX_AGE, httponly=True, samesite="lax")
     return response
 
 
@@ -1746,3 +1752,26 @@ async def run_iperf_test(target_id: int, _: Any = Depends(require_admin)) -> dic
         raise HTTPException(status_code=404, detail="Target not found")
     result = await iperf.run_and_store(target["id"], target["name"], target["host"], target["port"])
     return result
+
+
+SPEEDTEST_MAX_BYTES = 25_000_000
+
+
+@app.get("/speed-test", response_class=HTMLResponse)
+async def speed_test_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
+    return page(request, "speed_test.html")
+
+
+@app.get("/api/network/speedtest-download")
+async def speedtest_download(size: int = 5_000_000, _: Any = Depends(require_user_or_admin)) -> Response:
+    size = max(1, min(size, SPEEDTEST_MAX_BYTES))
+    return Response(content=os.urandom(size), media_type="application/octet-stream")
+
+
+@app.post("/api/network/speedtest-upload")
+async def speedtest_upload(request: Request, _: Any = Depends(require_user_or_admin)) -> dict[str, int]:
+    content_length = int(request.headers.get("content-length") or 0)
+    if content_length > SPEEDTEST_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Payload too large")
+    body = await request.body()
+    return {"received_bytes": len(body)}

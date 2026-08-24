@@ -48,8 +48,11 @@ a { color: inherit; }
 .announcer.light-mode .athlete-row { color: #173b40; }
 .announcer.light-mode .athlete-row strong { color: #071012; }
 .brand { font-weight: 700; text-decoration: none; }
-.topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; }
+.topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; align-items: center; }
 .topbar nav a { color: #fff; text-decoration: none; }
+.nav-toggle { display: none; }
+.nav-logout-form { margin: 0; }
+.nav-logout-form button { padding: 0; background: none; border: none; color: #fff; font: inherit; cursor: pointer; }
 .content { padding: 20px; max-width: 1500px; margin: 0 auto; }
 .grid { display: grid; gap: 16px; }
 .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -117,6 +120,10 @@ th { color: var(--muted); font-size: 13px; }
 .network-toast.status-down { background: #c0392b; }
 .network-toast.status-up { background: #1f8a4c; }
 @keyframes toast-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.speedtest-results { display: flex; gap: 32px; margin-top: 20px; flex-wrap: wrap; }
+.speedtest-metric { display: grid; gap: 4px; }
+.speedtest-label { color: var(--muted); font-size: 13px; text-transform: uppercase; }
+.speedtest-value { font-size: 28px; font-weight: 800; }
 .cards { display: grid; gap: 12px; }
 .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfcfd; }
 .modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(7, 16, 18, .55); }
@@ -167,7 +174,26 @@ th { color: var(--muted); font-size: 13px; }
   .runner-list-row, .compact-log-row, .athlete-row, .announcer .athlete-row { grid-template-columns: 1fr; }
   .grid.two, .grid.three { grid-template-columns: 1fr; }
   .span-two { grid-column: auto; }
-  .topbar { align-items: flex-start; flex-direction: column; }
+  .topbar { position: relative; flex-wrap: wrap; }
+  .nav-toggle { display: inline-flex; order: 1; }
+  .topbar .brand { margin-right: auto; }
+  .topbar nav {
+    display: none;
+    order: 5;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    background: #102a2f;
+    padding: 8px 12px 14px;
+    box-shadow: 0 12px 24px rgba(0,0,0,.3);
+    z-index: 40;
+  }
+  .topbar nav.nav-open { display: flex; }
+  .topbar nav a, .nav-logout-form button { padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
   .clear-form { grid-template-columns: 1fr; }
   .edit-grid, .edit-grid.compact { grid-template-columns: 1fr; }
 }
