@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ t.app_title }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#071012">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="{{ t.app_title }}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -43,6 +50,7 @@
   <footer class="site-footer">{{ t.designed_by }}</footer>
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
   <script src="/static/theme.js"></script>
+  <script src="/static/pwa.js"></script>
   {% if is_admin or race_started_at or current_crono %}<script src="/static/race-timer.js"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>

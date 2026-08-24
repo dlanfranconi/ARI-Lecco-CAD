@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -23,6 +23,13 @@ from .i18n import TRANSLATIONS, normalize_language
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+@app.get("/sw.js")
+async def service_worker() -> FileResponse:
+    # Served from root (not /static/) so its default scope covers the whole app, including "/".
+    return FileResponse("app/static/sw.js", media_type="application/javascript")
+
 
 bulletin_clients: set[WebSocket] = set()
 review_clients: set[WebSocket] = set()
