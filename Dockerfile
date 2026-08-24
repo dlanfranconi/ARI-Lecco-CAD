@@ -14,7 +14,10 @@ COPY app ./app
 RUN mkdir -p /data
 VOLUME ["/data"]
 
-EXPOSE 8000
+ENV PORT=80
+EXPOSE 80
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form (not exec form) so ${PORT} expands — lets PORT be overridden at
+# `docker run`/compose without rebuilding the image.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
 

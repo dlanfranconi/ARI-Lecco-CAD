@@ -5,8 +5,8 @@ services:
     restart: unless-stopped
     # Host networking so mDNS (ari-cad.local) can reach the LAN — multicast
     # doesn't cross Docker's default bridge network. Requires a Linux Docker
-    # host and port 8000 free on it. Set MDNS_ENABLED=false and switch back
-    # to a `ports:` mapping if you don't want this.
+    # host and the PORT below free on it. Set MDNS_ENABLED=false and switch
+    # back to a `ports:` mapping if you don't want this.
     network_mode: host
     environment:
       CAD_ADMIN_USERNAME: ${CAD_ADMIN_USERNAME:-dispatch}
@@ -16,5 +16,9 @@ services:
       APRS_POLL_SECONDS: ${APRS_POLL_SECONDS:-60}
       DATABASE_PATH: /data/cad.sqlite3
       MDNS_HOSTNAME: ${MDNS_HOSTNAME:-ari-cad}
+      # 80 so the app is reachable with no port in the URL (http://ari-cad.local).
+      # The container runs as root, so binding to this privileged port is fine.
+      # Change if something else on the host already uses 80.
+      PORT: ${PORT:-80}
     volumes:
       - ./data:/data

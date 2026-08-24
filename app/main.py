@@ -42,7 +42,7 @@ async def startup() -> None:
     app.state.aprs_task = asyncio.create_task(aprs_loop())
     if settings.mdns_enabled:
         try:
-            app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(settings.mdns_hostname, 8000)
+            app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(settings.mdns_hostname, settings.port)
         except OSError:
             # No multicast on this network (e.g. restricted Docker networking) — mDNS is a nicety, not required.
             app.state.mdns_zeroconf = None

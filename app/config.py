@@ -14,6 +14,7 @@ class Settings:
     ntp_server: str = os.getenv("NTP_SERVER", "pool.ntp.org")
     mdns_hostname: str = os.getenv("MDNS_HOSTNAME", "ari-cad")
     mdns_enabled: bool = os.getenv("MDNS_ENABLED", "true").lower() not in {"0", "false", "no"}
+    port: int = int(os.getenv("PORT", "80"))
 
 
 settings = Settings()

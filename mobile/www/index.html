@@ -45,18 +45,19 @@
   </div>
   <script>
     const STORAGE_KEY = "cad-server-host";
-    const DEFAULT_PORT = "8000";
     const form = document.getElementById("connect-form");
     const input = document.getElementById("server");
     const errorEl = document.getElementById("error");
     const button = document.getElementById("connect-btn");
 
     function normalizeHost(raw) {
+      // No port suffix by default — the server listens on 80, so plain
+      // "ari-cad.local" just works. Users can still type "host:port" for a
+      // non-default setup.
       let value = raw.trim();
       value = value.replace(/^https?:\/\//i, "");
       value = value.replace(/\/+$/, "");
-      if (!value) return null;
-      return value.includes(":") ? value : `${value}:${DEFAULT_PORT}`;
+      return value || null;
     }
 
     async function tryConnect(host) {

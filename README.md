@@ -25,9 +25,11 @@ docker compose up --build
 
 Open:
 
-- Dispatch app: `http://SERVER-IP:8000`
-- Announcer view: `http://SERVER-IP:8000/announcer`
-- Notice submission: `http://SERVER-IP:8000/submit-notification`
+- Dispatch app: `http://SERVER-IP`
+- Announcer view: `http://SERVER-IP/announcer`
+- Notice submission: `http://SERVER-IP/submit-notification`
+
+The app listens on port 80 by default, so no port number is needed in the URL. Set `PORT` in `.env` to change it (e.g. if something else on the host already uses 80).
 
 
 ## Prebuilt Docker Image
@@ -47,7 +49,7 @@ services:
     container_name: ari-lecco-cad
     restart: unless-stopped
     # Host networking so mDNS (ari-cad.local) can reach the LAN. Linux Docker
-    # host only; needs port 8000 free on the host. See "Server Discovery (mDNS)" below.
+    # host only; needs port 80 free on the host. See "Server Discovery (mDNS)" below.
     network_mode: host
     environment:
       CAD_ADMIN_USERNAME: dispatch
@@ -61,6 +63,7 @@ services:
       NTP_SERVER: pool.ntp.org
       DATABASE_PATH: /data/cad.sqlite3
       MDNS_HOSTNAME: ari-cad
+      PORT: 80
     volumes:
       - ari-lecco-cad-data:/data
 
@@ -102,28 +105,30 @@ Set environment variables in Portainer or copy `.env.example` to `.env`.
 `docker-compose.yml` uses `network_mode: host`, which is what makes `ari-cad.local` work on the LAN. It also changes how the container gets its port, in ways that trip people up if you don't know to expect them:
 
 - **There is no "Published Ports" mapping.** With `network_mode: host` the container talks directly on the host's own network — Portainer will not show a ports field for it, and that's correct, not a bug. Don't add a `ports:` entry back in; it's ignored (and can mask real conflicts) under host networking.
-- **Port 8000 must be completely free on the host itself** before the container starts — not "free inside Docker," free on the actual machine. Anything already listening on 8000 (including an old copy of this same container that didn't fully stop) will make the new one fail immediately with:
+- **Port 80 (or whatever `PORT` is set to) must be completely free on the host itself** before the container starts — not "free inside Docker," free on the actual machine. Anything already listening on that port (including an old copy of this same container that didn't fully stop, or another web service on the host) will make the new one fail immediately with:
   ```text
-  ERROR: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+  ERROR: [Errno 98] error while attempting to bind on address ('0.0.0.0', 80): address already in use
   ```
+  Port 80 is convenient (no port number in the URL) but it's also the most commonly-used web port on a machine — if the host already runs something else on 80 (a reverse proxy, Pi-hole's UI, another app), set `PORT` to something else, e.g. `8420`, in your environment.
 - **Linux Docker hosts only.** Docker Desktop on Mac/Windows doesn't support real host networking. If you're deploying there, see "Don't want host networking?" below instead.
+- Binding to port 80 needs root privileges; the container already runs as root internally, so this works out of the box — nothing extra to configure.
 
-### Fixing "address already in use" on port 8000
+### Fixing "address already in use"
 
-This almost always means an older `ari-lecco-cad` container is still running (most common right after switching an existing stack over to `network_mode: host`, or after a Portainer stack update that didn't fully clean up the previous container).
+This almost always means something is already bound to the port you're deploying on — most commonly an older `ari-lecco-cad` container still running (right after switching a stack to `network_mode: host`, or after a Portainer update that didn't fully clean up the previous container), or another service that happens to already use port 80.
 
 1. In Portainer, go to **Containers** and look for any container named `ari-lecco-cad`. If you see more than one, or one that's still `running` from before your update, select it and **Stop**, then **Remove** it.
 2. Go back to **Stacks**, open this stack, and click **Update the stack** (or **Deploy**) again.
-3. Still failing, or not sure which container it is? SSH into the Docker host and run:
+3. Still failing, or not sure which container it is? SSH into the Docker host and run (substitute your port if you changed `PORT`):
    ```bash
-   docker ps --filter "publish=8000"
+   docker ps --filter "publish=80"
    ```
-   This finds the exact container still holding the *old* bridge-mode port mapping (its logs will show a `docker-proxy` process if you check with `sudo ss -tlnp | grep :8000` — that process is Docker's own port-forwarder for a bridged container, confirming it's a leftover container and not some unrelated service). Stop and remove it:
+   This finds the exact container still holding the *old* bridge-mode port mapping (its logs will show a `docker-proxy` process if you check with `sudo ss -tlnp | grep :80` — that process is Docker's own port-forwarder for a bridged container, confirming it's a leftover container and not some unrelated service). Stop and remove it:
    ```bash
    docker stop <name-or-id>
    docker rm <name-or-id>
    ```
-   Then redeploy the stack. If `docker ps --filter "publish=8000"` comes back empty, something *other* than this app is on port 8000 — stop that service, or pick a different Docker host. The app's port is fixed at 8000 (not configurable), so under host networking there's no way to move this container to a different port to dodge the conflict. Bridge networking (below) does let you remap the published port if you need to.
+   Then redeploy the stack. If `docker ps --filter "publish=80"` comes back empty, something *other* than Docker is on that port — stop that service, or set `PORT` to something else in your environment (e.g. `PORT=8420`) and redeploy.
 
 ### Don't want host networking?
 
@@ -132,10 +137,10 @@ If you're on Docker Desktop, don't need `ari-cad.local`, or just want the simple
 ```yaml
     # network_mode: host   <- remove this line
     ports:
-      - "8000:8000"        <- add this instead
+      - "80:80"             <- add this instead
 ```
 
-Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `ari-cad.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if 8000 is taken, rather than the container silently trying to bind the whole host's network).
+Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `ari-cad.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if the port is taken, rather than the container silently trying to bind the whole host's network).
 
 ## APRS.fi
 
@@ -174,7 +179,7 @@ DRATS_INGEST_TOKEN: change-this-token
 The CAD endpoint is:
 
 ```text
-POST http://SERVER-IP:8000/api/dstar/positions
+POST http://SERVER-IP/api/dstar/positions
 ```
 
 JSON payload:
@@ -193,7 +198,7 @@ Manual test from the D-RATS PC:
 
 ```bash
 python3 scripts/post_dstar_position.py \
-  --cad-url http://SERVER-IP:8000 \
+  --cad-url http://SERVER-IP \
   --token change-this-token \
   --callsign IU2ABC \
   --lat 45.85 \
@@ -203,7 +208,7 @@ python3 scripts/post_dstar_position.py \
 Or with curl:
 
 ```bash
-curl -X POST http://SERVER-IP:8000/api/dstar/positions \
+curl -X POST http://SERVER-IP/api/dstar/positions \
   -H "Content-Type: application/json" \
   -H "X-D-RATS-Token: change-this-token" \
   -d '{"callsign":"IU2ABC","lat":45.85,"lon":9.39,"source":"d-rats"}'
@@ -218,7 +223,7 @@ Continuous D-RATS feed watcher:
 
 ```bash
 python3 scripts/watch_dstar_positions.py \
-  --cad-url http://SERVER-IP:8000 \
+  --cad-url http://SERVER-IP \
   --token change-this-token \
   --file dstar_positions.csv
 ```
