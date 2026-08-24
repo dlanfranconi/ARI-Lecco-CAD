@@ -2,7 +2,7 @@ name: Build Docker image
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "WIP"]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -30,13 +30,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=wip,enable=${{ github.ref == 'refs/heads/WIP' }}
+            type=ref,event=tag
+            type=sha,format=short
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

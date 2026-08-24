@@ -34,11 +34,14 @@ The app listens on port 80 by default, so no port number is needed in the URL. S
 
 ## Prebuilt Docker Image
 
-After changes are pushed to `main`, GitHub Actions publishes:
+GitHub Actions builds and publishes an image on every push to `main` or `WIP`:
 
 ```text
-ghcr.io/dlanfranconi/ari-lecco-cad:latest
+ghcr.io/dlanfranconi/ari-lecco-cad:latest   # from main — the actual release
+ghcr.io/dlanfranconi/ari-lecco-cad:wip      # from WIP — for testing before a release
 ```
+
+Both tags also get a `:<git-sha>` build for pinning to an exact commit. Use `:wip` to test in-progress work on Portainer before merging `WIP` into `main` to cut a real release — `:latest` only ever moves when `main` does.
 
 Portainer stack using the prebuilt image:
 
