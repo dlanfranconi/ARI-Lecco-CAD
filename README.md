@@ -114,11 +114,16 @@ This almost always means an older `ari-lecco-cad` container is still running (mo
 
 1. In Portainer, go to **Containers** and look for any container named `ari-lecco-cad`. If you see more than one, or one that's still `running` from before your update, select it and **Stop**, then **Remove** it.
 2. Go back to **Stacks**, open this stack, and click **Update the stack** (or **Deploy**) again.
-3. Still failing? Something *other* than this app is on port 8000. SSH into the Docker host and run:
+3. Still failing, or not sure which container it is? SSH into the Docker host and run:
    ```bash
-   sudo ss -tlnp | grep :8000
+   docker ps --filter "publish=8000"
    ```
-   This prints the process holding the port. If it's a Docker container, `docker ps` will show its name so you can `docker stop <name>` it. If it's some other service entirely, stop that service, or pick a different Docker host — the app's port is fixed at 8000 (not configurable), so under host networking there's no way to move this container to a different port to dodge the conflict. Bridge networking (below) does let you remap the published port if you need to.
+   This finds the exact container still holding the *old* bridge-mode port mapping (its logs will show a `docker-proxy` process if you check with `sudo ss -tlnp | grep :8000` — that process is Docker's own port-forwarder for a bridged container, confirming it's a leftover container and not some unrelated service). Stop and remove it:
+   ```bash
+   docker stop <name-or-id>
+   docker rm <name-or-id>
+   ```
+   Then redeploy the stack. If `docker ps --filter "publish=8000"` comes back empty, something *other* than this app is on port 8000 — stop that service, or pick a different Docker host. The app's port is fixed at 8000 (not configurable), so under host networking there's no way to move this container to a different port to dodge the conflict. Bridge networking (below) does let you remap the published port if you need to.
 
 ### Don't want host networking?
 
