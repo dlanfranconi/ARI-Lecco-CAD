@@ -144,6 +144,50 @@ def init_db() -> None:
                 approved_at TEXT,
                 approved_by TEXT DEFAULT ''
             );
+
+            CREATE TABLE IF NOT EXISTS monitored_devices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                ip_address TEXT NOT NULL,
+                notify_user_id INTEGER,
+                active INTEGER NOT NULL DEFAULT 1,
+                last_status TEXT NOT NULL DEFAULT 'unknown',
+                last_checked_at TEXT,
+                last_changed_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(notify_user_id) REFERENCES users(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS device_status_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id INTEGER NOT NULL,
+                device_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(device_id) REFERENCES monitored_devices(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS iperf_targets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 5201,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS iperf_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                target_id INTEGER NOT NULL,
+                target_name TEXT NOT NULL,
+                ok INTEGER NOT NULL,
+                mbps REAL,
+                jitter_ms REAL,
+                loss_percent REAL,
+                error TEXT DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(target_id) REFERENCES iperf_targets(id) ON DELETE CASCADE
+            );
             """
         )
         _migrate(conn)

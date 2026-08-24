@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>{{ t.network_monitoring }}</h1>
+  <div class="table-wrap compact-table">
+    <table class="setup-table" id="device-table">
+      <thead><tr><th>{{ t.device_name }}</th><th>{{ t.ip_address }}</th><th>{{ t.notify_user }}</th><th>{{ t.status }}</th><th>{{ t.last_checked }}</th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <form method="post" action="/network/devices">
+            <td><input name="name" required placeholder="{{ t.device_name }}"></td>
+            <td><input name="ip_address" required placeholder="192.168.1.50"></td>
+            <td><select name="notify_user_id"><option value="">{{ t.notify_all_admins }}</option>{% for user in users_list %}<option value="{{ user.id }}">{{ user.display_name }}</option>{% endfor %}</select></td>
+            <td>{{ t.unknown }}</td>
+            <td></td>
+            <td><button>{{ t.add }}</button></td>
+            <td></td>
+          </form>
+        </tr>
+        {% for device in devices %}
+        <tr class="device-row" id="device-{{ device.id }}" data-device-id="{{ device.id }}">
+          <form method="post" action="/network/devices/{{ device.id }}">
+            <td><input name="name" value="{{ device.name }}" required></td>
+            <td><input name="ip_address" value="{{ device.ip_address }}" required></td>
+            <td><select name="notify_user_id"><option value="">{{ t.notify_all_admins }}</option>{% for user in users_list %}<option value="{{ user.id }}" {% if device.notify_user_id == user.id %}selected{% endif %}>{{ user.display_name }}</option>{% endfor %}</select></td>
+            <td><span class="device-status status-{{ device.last_status }}">{{ t[device.last_status] if device.last_status in ['up', 'down'] else t.unknown }}</span></td>
+            <td class="device-last-checked">{{ format_dt(device.last_checked_at) if device.last_checked_at else '' }}</td>
+            <td>{{ t.active if device.active else t.disabled }} <button>{{ t.save }}</button></td>
+          </form>
+          <td class="actions-cell">
+            <form method="post" action="/network/devices/{{ device.id }}/toggle"><button class="secondary">{{ t.disable if device.active else t.enable }}</button></form>
+            <form method="post" action="/network/devices/{{ device.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>{{ t.recent_status_events }}</h2>
+  <div class="table-wrap">
+    <table id="events-table">
+      <thead><tr><th>{{ t.time }}</th><th>{{ t.device_name }}</th><th>{{ t.status }}</th></tr></thead>
+      <tbody id="events-body">
+        {% for event in events %}
+        <tr><td>{{ format_dt(event.created_at) }}</td><td>{{ event.device_name }}</td><td><span class="device-status status-{{ event.status }}">{{ t[event.status] }}</span></td></tr>
+        {% else %}
+        <tr><td colspan="3">{{ t.no_events_yet }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>{{ t.iperf_targets }}</h2>
+  <p class="meta">{{ t.iperf_hint }}</p>
+  <div class="table-wrap compact-table">
+    <table class="setup-table" id="iperf-table">
+      <thead><tr><th>{{ t.device_name }}</th><th>{{ t.ip_address }}</th><th>{{ t.port }}</th><th>{{ t.latest_result }}</th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <form method="post" action="/network/iperf-targets">
+            <td><input name="name" required placeholder="{{ t.device_name }}"></td>
+            <td><input name="host" required placeholder="192.168.1.60"></td>
+            <td><input name="port" type="number" value="5201"></td>
+            <td></td>
+            <td><button>{{ t.add }}</button></td>
+            <td></td>
+          </form>
+        </tr>
+        {% for target in targets %}
+        {% set latest = latest_by_target.get(target.id) %}
+        <tr class="iperf-row" id="iperf-{{ target.id }}" data-target-id="{{ target.id }}">
+          <td>{{ target.name }}</td>
+          <td>{{ target.host }}</td>
+          <td>{{ target.port }}</td>
+          <td class="iperf-latest">
+            {% if latest %}
+              {% if latest.ok %}{{ latest.mbps }} Mbps{% else %}<span class="error">{{ latest.error }}</span>{% endif %}
+              <span class="meta">{{ format_dt(latest.created_at) }}</span>
+            {% else %}
+              {{ t.no_tests_yet }}
+            {% endif %}
+          </td>
+          <td><button type="button" class="iperf-test-button" data-target-id="{{ target.id }}">{{ t.run_test }}</button></td>
+          <td class="actions-cell">
+            <form method="post" action="/network/iperf-targets/{{ target.id }}/toggle"><button class="secondary">{{ t.disable if target.active else t.enable }}</button></form>
+            <form method="post" action="/network/iperf-targets/{{ target.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>window.CAD_LABELS = {{ t|tojson }};</script>
+<script src="/static/network.js"></script>
+{% endblock %}

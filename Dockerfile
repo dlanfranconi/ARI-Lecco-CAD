@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 COPY requirements.txt .
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata iputils-ping iperf3 && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
@@ -15,7 +15,7 @@ RUN mkdir -p /data
 VOLUME ["/data"]
 
 ENV PORT=80
-EXPOSE 80
+EXPOSE 80 443
 
 # exec form with an explicit `exec` inside the shell: still expands ${PORT}
 # for runtime overrides, but uvicorn replaces the shell as PID 1 instead of

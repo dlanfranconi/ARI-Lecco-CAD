@@ -25,6 +25,7 @@
       <a href="{{ submit_notice_url }}">{{ t.submit_notice_link }}</a>
       {% endif %}
       <a href="/notices">{{ t.notices }}</a>
+      {% if current_user.role == 'admin' %}<a href="/network">{{ t.network }}</a>{% endif %}
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
       <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
     </nav>

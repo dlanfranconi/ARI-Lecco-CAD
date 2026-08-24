@@ -20,5 +20,12 @@ services:
       # The container runs as root, so binding to this privileged port is fine.
       # Change if something else on the host already uses 80.
       PORT: ${PORT:-80}
+      # Optional: also serve HTTPS with a self-signed cert (auto-generated on
+      # first start, persisted in the data volume). Off by default — browsers
+      # and the app will show a one-time "not trusted" warning until you
+      # explicitly trust it, since it's not from a public CA.
+      HTTPS_ENABLED: ${HTTPS_ENABLED:-false}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
+      NETWORK_MONITOR_ENABLED: ${NETWORK_MONITOR_ENABLED:-true}
     volumes:
       - ./data:/data

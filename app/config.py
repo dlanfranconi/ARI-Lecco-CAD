@@ -15,6 +15,13 @@ class Settings:
     mdns_hostname: str = os.getenv("MDNS_HOSTNAME", "ari-cad")
     mdns_enabled: bool = os.getenv("MDNS_ENABLED", "true").lower() not in {"0", "false", "no"}
     port: int = int(os.getenv("PORT", "80"))
+    https_enabled: bool = os.getenv("HTTPS_ENABLED", "false").lower() not in {"0", "false", "no"}
+    https_port: int = int(os.getenv("HTTPS_PORT", "443"))
+    cert_dir: str = os.getenv("CERT_DIR", "/data/certs")
+    is_https_child: bool = os.getenv("ARI_CAD_HTTPS_CHILD") == "1"
+    network_monitor_enabled: bool = os.getenv("NETWORK_MONITOR_ENABLED", "true").lower() not in {"0", "false", "no"}
+    network_monitor_poll_seconds: int = int(os.getenv("NETWORK_MONITOR_POLL_SECONDS", "30"))
+    iperf_test_seconds: int = int(os.getenv("IPERF_TEST_SECONDS", "5"))
 
 
 settings = Settings()

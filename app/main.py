@@ -2,6 +2,8 @@ import asyncio
 import csv
 import io
 import json
+import os
+import sys
 from pathlib import Path
 from urllib.parse import urlencode
 from contextlib import suppress
@@ -19,7 +21,7 @@ from .auth import COOKIE_NAME, hash_password, make_session, read_session, verify
 from .config import settings
 from .db import connect, init_db, row, rows
 from .i18n import TRANSLATIONS, normalize_language
-from . import mdns
+from . import iperf, mdns, netmon, tls
 
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
@@ -34,30 +36,70 @@ async def service_worker() -> FileResponse:
 
 bulletin_clients: set[WebSocket] = set()
 review_clients: set[WebSocket] = set()
+network_clients: set[WebSocket] = set()
 
 
 @app.on_event("startup")
 async def startup() -> None:
     init_db()
+    if settings.is_https_child:
+        # This process only exists to serve HTTPS on a second port; the primary
+        # process (started from the Dockerfile CMD) already owns every
+        # background duty below. Running them here too would duplicate APRS
+        # polling, device pings, and mDNS registration.
+        return
     app.state.aprs_task = asyncio.create_task(aprs_loop())
+    if settings.network_monitor_enabled:
+        app.state.netmon_task = asyncio.create_task(network_monitor_loop())
     if settings.mdns_enabled:
         try:
             app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(settings.mdns_hostname, settings.port)
         except OSError:
             # No multicast on this network (e.g. restricted Docker networking) — mDNS is a nicety, not required.
             app.state.mdns_zeroconf = None
+    if settings.https_enabled:
+        app.state.https_process = await start_https_server()
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-    task = getattr(app.state, "aprs_task", None)
-    if task:
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
+    if settings.is_https_child:
+        return
+    for task_name in ("aprs_task", "netmon_task"):
+        task = getattr(app.state, task_name, None)
+        if task:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+    https_process = getattr(app.state, "https_process", None)
+    if https_process:
+        with suppress(ProcessLookupError):
+            https_process.terminate()
+        with suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(https_process.wait(), timeout=10)
     zeroconf = getattr(app.state, "mdns_zeroconf", None)
     if zeroconf:
         await mdns.unregister(zeroconf, app.state.mdns_info)
+
+
+async def start_https_server() -> asyncio.subprocess.Process:
+    # A real second `uvicorn` process (not a second Server instance sharing this
+    # event loop) — running two uvicorn.Server objects concurrently in one
+    # process hit a reproducible hang in this environment (both stuck inside
+    # Server._serve before even logging "Started server process"; root cause
+    # not pinned down after fairly extensive isolation testing). Two
+    # independent OS processes is the standard way to serve two ports anyway,
+    # and sidesteps whatever that interaction was entirely.
+    cert_path, key_path = tls.ensure_self_signed_cert(settings.cert_dir, settings.mdns_hostname)
+    env = {**os.environ, "ARI_CAD_HTTPS_CHILD": "1", "PORT": str(settings.https_port)}
+    return await asyncio.create_subprocess_exec(
+        sys.executable, "-m", "uvicorn", "app.main:app",
+        "--host", "0.0.0.0",
+        "--port", str(settings.https_port),
+        "--ssl-certfile", cert_path,
+        "--ssl-keyfile", key_path,
+        env=env,
+    )
 
 
 async def aprs_loop() -> None:
@@ -65,6 +107,22 @@ async def aprs_loop() -> None:
         with suppress(Exception):
             await poll_aprs_once()
         await asyncio.sleep(max(settings.aprs_poll_seconds, 30))
+
+
+async def network_monitor_loop() -> None:
+    while True:
+        with suppress(Exception):
+            changed = await netmon.poll_devices_once()
+            for device in changed:
+                await broadcast_device_status(device)
+        await asyncio.sleep(max(settings.network_monitor_poll_seconds, 10))
+
+
+async def broadcast_device_status(device: dict) -> None:
+    now = local_now().isoformat()
+    enriched = {**device, "created_at_display": format_dt(now), "checked_at_display": format_dt(now)}
+    payload = json.dumps({"type": "device_status", "device": enriched})
+    await _broadcast(network_clients, payload)
 
 
 def setting(key: str, default: str = "") -> str:
@@ -1555,3 +1613,136 @@ async def view_archive(archive_id: int, request: Request, _: Any = Depends(requi
         raise HTTPException(status_code=404, detail="Archive not found")
     snapshot = json.loads(archive["snapshot_json"])
     return page(request, "archive.html", archive=archive, logs=snapshot.get("logs", []), notices=snapshot.get("notices", []))
+
+
+@app.get("/network", response_class=HTMLResponse)
+async def network_page(request: Request, _: Any = Depends(require_admin)) -> HTMLResponse:
+    devices = rows(
+        """
+        SELECT monitored_devices.*, users.display_name AS notify_user_name
+        FROM monitored_devices
+        LEFT JOIN users ON users.id = monitored_devices.notify_user_id
+        ORDER BY active DESC, name
+        """
+    )
+    events = rows(
+        """
+        SELECT * FROM device_status_events ORDER BY id DESC LIMIT 30
+        """
+    )
+    targets = rows("SELECT * FROM iperf_targets ORDER BY active DESC, name")
+    latest_results = rows(
+        """
+        SELECT r.* FROM iperf_results r
+        INNER JOIN (SELECT target_id, MAX(id) AS max_id FROM iperf_results GROUP BY target_id) latest
+            ON latest.target_id = r.target_id AND latest.max_id = r.id
+        """
+    )
+    latest_by_target = {item["target_id"]: item for item in latest_results}
+    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name")
+    return page(
+        request,
+        "network.html",
+        devices=devices,
+        events=events,
+        targets=targets,
+        latest_by_target=latest_by_target,
+        users_list=users_list,
+    )
+
+
+@app.post("/network/devices")
+async def add_monitored_device(
+    name: str = Form(...),
+    ip_address: str = Form(...),
+    notify_user_id: str = Form(""),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO monitored_devices (name, ip_address, notify_user_id) VALUES (?, ?, ?)",
+            (name.strip(), ip_address.strip(), int(notify_user_id) if notify_user_id else None),
+        )
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.post("/network/devices/{device_id}")
+async def update_monitored_device(
+    device_id: int,
+    name: str = Form(...),
+    ip_address: str = Form(...),
+    notify_user_id: str = Form(""),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute(
+            "UPDATE monitored_devices SET name = ?, ip_address = ?, notify_user_id = ? WHERE id = ?",
+            (name.strip(), ip_address.strip(), int(notify_user_id) if notify_user_id else None, device_id),
+        )
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.post("/network/devices/{device_id}/toggle")
+async def toggle_monitored_device(device_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE monitored_devices SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (device_id,))
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.post("/network/devices/{device_id}/delete")
+async def delete_monitored_device(device_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("DELETE FROM monitored_devices WHERE id = ?", (device_id,))
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.get("/api/network/status")
+async def api_network_status(_: Any = Depends(require_admin)) -> list[dict[str, object]]:
+    devices = rows("SELECT id, name, ip_address, active, last_status, last_checked_at, last_changed_at FROM monitored_devices ORDER BY name")
+    return [dict(item) for item in devices]
+
+
+@app.websocket("/ws/network")
+async def ws_network(websocket: WebSocket) -> None:
+    await websocket.accept()
+    network_clients.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        network_clients.discard(websocket)
+
+
+@app.post("/network/iperf-targets")
+async def add_iperf_target(
+    name: str = Form(...),
+    host: str = Form(...),
+    port: int = Form(5201),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("INSERT INTO iperf_targets (name, host, port) VALUES (?, ?, ?)", (name.strip(), host.strip(), port))
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.post("/network/iperf-targets/{target_id}/toggle")
+async def toggle_iperf_target(target_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE iperf_targets SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (target_id,))
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.post("/network/iperf-targets/{target_id}/delete")
+async def delete_iperf_target(target_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("DELETE FROM iperf_targets WHERE id = ?", (target_id,))
+    return RedirectResponse("/network", status_code=303)
+
+
+@app.post("/api/network/iperf-targets/{target_id}/test")
+async def run_iperf_test(target_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
+    target = row("SELECT * FROM iperf_targets WHERE id = ?", (target_id,))
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    result = await iperf.run_and_store(target["id"], target["name"], target["host"], target["port"])
+    return result

@@ -108,6 +108,15 @@ button, .button {
 table { width: 100%; border-collapse: collapse; min-width: 760px; }
 th, td { text-align: left; padding: 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-size: 13px; }
+.device-status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.device-status.status-up { background: #dff5e6; color: #146c2e; }
+.device-status.status-down { background: #fde2e0; color: #a3241a; }
+.device-status.status-unknown { background: #edf1f2; color: #58686d; }
+.network-toasts { position: fixed; top: 16px; right: 16px; z-index: 60; display: grid; gap: 8px; }
+.network-toast { padding: 12px 16px; border-radius: 8px; color: #fff; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,.2); animation: toast-in .2s ease-out; }
+.network-toast.status-down { background: #c0392b; }
+.network-toast.status-up { background: #1f8a4c; }
+@keyframes toast-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .cards { display: grid; gap: 12px; }
 .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfcfd; }
 .modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(7, 16, 18, .55); }
