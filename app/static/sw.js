@@ -1,4 +1,4 @@
-const CACHE_NAME = "ari-cad-static-v1";
+const CACHE_NAME = "ari-cad-static-v2";
 const STATIC_ASSETS = [
   "/static/styles.css",
   "/static/theme.js",
@@ -26,21 +26,26 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Only static assets are cached. Race logs, notices, and the map are live data —
-// they must always hit the network, never be served stale from a cache.
+// Only static assets are cached, and only as an offline fallback — network-first,
+// not cache-first. A deploy updates these files in place at the same URLs (no
+// cache-busting query params/hashes), so cache-first meant anyone who'd loaded
+// the app before a deploy kept silently running old JS/CSS indefinitely, with no
+// way to tell short of comparing served bytes by hand. Race logs, notices, and
+// the map were already excluded from caching entirely — this closes the same gap
+// for static assets: always prefer the network, fall back to cache only when a
+// fetch genuinely fails (offline).
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith("/static/")) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
+    fetch(event.request)
+      .then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
