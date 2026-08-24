@@ -1,0 +1,9 @@
+{
+  "appId": "com.arilecco.cad",
+  "appName": "ARI Lecco CAD",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  }
+}
