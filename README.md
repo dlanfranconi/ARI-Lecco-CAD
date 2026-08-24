@@ -46,6 +46,9 @@ services:
     image: ghcr.io/dlanfranconi/ari-lecco-cad:latest
     container_name: ari-lecco-cad
     restart: unless-stopped
+    # Host networking so mDNS (ari-cad.local) can reach the LAN. Linux Docker
+    # host only; needs port 8000 free on the host. See "Server Discovery (mDNS)" below.
+    network_mode: host
     environment:
       CAD_ADMIN_USERNAME: dispatch
       CAD_ADMIN_PASSWORD: dispatch
@@ -57,8 +60,7 @@ services:
       LANG: it_IT.UTF-8
       NTP_SERVER: pool.ntp.org
       DATABASE_PATH: /data/cad.sqlite3
-    ports:
-      - "8000:8000"
+      MDNS_HOSTNAME: ari-cad
     volumes:
       - ari-lecco-cad-data:/data
 
@@ -67,6 +69,17 @@ volumes:
 ```
 
 Default first login is `dispatch` / `dispatch` when the database has no users. This bootstrap account is created even if `CAD_ADMIN_PASSWORD` is still set to an old value. Change the password in Setup, and change `SESSION_SECRET` and `APRSFI_API_KEY` in Portainer before race use.
+
+## Server Discovery (mDNS)
+
+The server advertises itself on the LAN as `ari-cad.local` (via mDNS/Bonjour) so users can type a name instead of hunting for an IP each race — this is what the mobile app's "server name" field resolves. Configure with:
+
+```bash
+MDNS_HOSTNAME=ari-cad   # results in ari-cad.local
+MDNS_ENABLED=true       # set to false to disable
+```
+
+Requires `network_mode: host` in Docker (set above) since mDNS multicast doesn't cross Docker's default bridge network — under bridge networking the app still starts normally, but nothing on the LAN will see the advertisement. If two CAD servers run on the same network, give them different `MDNS_HOSTNAME` values.
 
 ## Time Zone and NTP
 

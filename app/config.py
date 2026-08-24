@@ -12,6 +12,8 @@ class Settings:
     app_timezone: str = os.getenv("TZ", os.getenv("APP_TIMEZONE", "Europe/Rome"))
     app_locale: str = os.getenv("LANG", os.getenv("APP_LOCALE", "it_IT.UTF-8"))
     ntp_server: str = os.getenv("NTP_SERVER", "pool.ntp.org")
+    mdns_hostname: str = os.getenv("MDNS_HOSTNAME", "ari-cad")
+    mdns_enabled: bool = os.getenv("MDNS_ENABLED", "true").lower() not in {"0", "false", "no"}
 
 
 settings = Settings()

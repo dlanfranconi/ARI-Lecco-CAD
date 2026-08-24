@@ -3,6 +3,11 @@ services:
     build: .
     container_name: ari-lecco-cad
     restart: unless-stopped
+    # Host networking so mDNS (ari-cad.local) can reach the LAN — multicast
+    # doesn't cross Docker's default bridge network. Requires a Linux Docker
+    # host and port 8000 free on it. Set MDNS_ENABLED=false and switch back
+    # to a `ports:` mapping if you don't want this.
+    network_mode: host
     environment:
       CAD_ADMIN_USERNAME: ${CAD_ADMIN_USERNAME:-dispatch}
       CAD_ADMIN_PASSWORD: ${CAD_ADMIN_PASSWORD:-dispatch}
@@ -10,7 +15,6 @@ services:
       APRSFI_API_KEY: ${APRSFI_API_KEY:-}
       APRS_POLL_SECONDS: ${APRS_POLL_SECONDS:-60}
       DATABASE_PATH: /data/cad.sqlite3
-    ports:
-      - "8000:8000"
+      MDNS_HOSTNAME: ${MDNS_HOSTNAME:-ari-cad}
     volumes:
       - ./data:/data

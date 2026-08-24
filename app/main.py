@@ -19,6 +19,7 @@ from .auth import COOKIE_NAME, hash_password, make_session, read_session, verify
 from .config import settings
 from .db import connect, init_db, row, rows
 from .i18n import TRANSLATIONS, normalize_language
+from . import mdns
 
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
@@ -39,6 +40,12 @@ review_clients: set[WebSocket] = set()
 async def startup() -> None:
     init_db()
     app.state.aprs_task = asyncio.create_task(aprs_loop())
+    if settings.mdns_enabled:
+        try:
+            app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(settings.mdns_hostname, 8000)
+        except OSError:
+            # No multicast on this network (e.g. restricted Docker networking) — mDNS is a nicety, not required.
+            app.state.mdns_zeroconf = None
 
 
 @app.on_event("shutdown")
@@ -48,6 +55,9 @@ async def shutdown() -> None:
         task.cancel()
         with suppress(asyncio.CancelledError):
             await task
+    zeroconf = getattr(app.state, "mdns_zeroconf", None)
+    if zeroconf:
+        await mdns.unregister(zeroconf, app.state.mdns_info)
 
 
 async def aprs_loop() -> None:
