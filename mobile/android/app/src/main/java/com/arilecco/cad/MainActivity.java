@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.webkit.WebView;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -14,6 +15,14 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Apps targeting API 35+ get edge-to-edge by default, which lets the
+        // WebView draw its content underneath the status bar / camera cutout
+        // instead of below it. Restoring the pre-35 fitting behavior here is
+        // simpler and more reliable than trying to replicate it with
+        // safe-area-inset CSS alone (the WebView doesn't always report those
+        // insets correctly without this).
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
 
         // Overriding the deprecated Activity.onBackPressed() is unreliable on
         // modern Android: with predictive back (API 33+, which this app's
