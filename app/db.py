@@ -30,6 +30,7 @@ def init_db() -> None:
                 password_hash TEXT DEFAULT '',
                 role TEXT NOT NULL DEFAULT 'user',
                 active INTEGER NOT NULL DEFAULT 1,
+                must_change_password INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -209,6 +210,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "username": "ALTER TABLE users ADD COLUMN username TEXT",
         "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''",
         "role": "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+        "must_change_password": "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
     }.items():
         if column not in user_cols:
             conn.execute(sql)
@@ -270,7 +272,7 @@ def _seed_admin(conn: sqlite3.Connection) -> None:
     user_count = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()["count"]
     if user_count == 0:
         conn.execute(
-            "INSERT INTO users (display_name, username, password_hash, role, active) VALUES ('dispatch', 'dispatch', ?, 'admin', 1)",
+            "INSERT INTO users (display_name, username, password_hash, role, active, must_change_password) VALUES ('dispatch', 'dispatch', ?, 'admin', 1, 1)",
             (hash_password("dispatch"),),
         )
         return

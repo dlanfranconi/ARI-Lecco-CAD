@@ -208,6 +208,8 @@ def require_login(request: Request) -> Any:
     user = current_user(request)
     if not user:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
+    if user["must_change_password"] and request.url.path not in {"/change-password", "/logout"}:
+        raise HTTPException(status_code=303, headers={"Location": "/change-password"})
     return user
 
 
@@ -539,6 +541,35 @@ async def logout() -> RedirectResponse:
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(COOKIE_NAME)
     return response
+
+
+@app.get("/change-password", response_class=HTMLResponse)
+async def change_password_page(request: Request, user: Any = Depends(require_login)) -> HTMLResponse:
+    return page(request, "change_password.html", error="", required=bool(user["must_change_password"]))
+
+
+@app.post("/change-password")
+async def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    user: Any = Depends(require_login),
+) -> HTMLResponse | RedirectResponse:
+    required = bool(user["must_change_password"])
+    if not verify_password(current_password, user["password_hash"]):
+        return page(request, "change_password.html", error=TRANSLATIONS[current_language()]["current_password_incorrect"], required=required)
+    if len(new_password) < 8:
+        return page(request, "change_password.html", error=TRANSLATIONS[current_language()]["password_too_short"], required=required)
+    if new_password != confirm_password:
+        return page(request, "change_password.html", error=TRANSLATIONS[current_language()]["password_mismatch"], required=required)
+    with connect() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+            (hash_password(new_password), user["id"]),
+        )
+    target = "/announcer" if user["role"] == "announcer" else "/"
+    return RedirectResponse(target, status_code=303)
 
 
 @app.post("/logs")
