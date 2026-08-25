@@ -77,6 +77,19 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Capacitor deps and sync Android project
+        # cap sync generates mobile/android/capacitor-cordova-android-plugins/
+        # (gitignored, not committed) -- the Gradle build fails without it.
+        working-directory: mobile
+        run: |
+          npm install
+          npx cap sync android
+
       - name: Build debug APK
         # Sideloaded internal tool, not Play Store distribution -- a
         # debug-signed APK installs fine and avoids standing up release
