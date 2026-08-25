@@ -93,7 +93,7 @@ public class MainActivity extends BridgeActivity {
         // late enough to cross that line. It reconnects moments later once
         // the real user info comes back; the brief default-filtered window
         // in between is harmless.
-        startBackgroundMonitor(host, scheme, -1, false);
+        startBackgroundMonitor(host, scheme, -1, false, false, false);
 
         // The WebView renderer process gets frozen by Android a few seconds
         // after backgrounding, independent of this activity's own foreground
@@ -101,11 +101,17 @@ public class MainActivity extends BridgeActivity {
         // to still be running once it needs to react to anything. It opens
         // its own native WebSocket connections instead; this is just a
         // last read of who's logged in before that JS stops executing.
+        // inSpeakerGroup/pushMuted come from window.CAD_CURRENT_USER and the
+        // announcer page's own mute toggle (localStorage) respectively --
+        // both are only meaningful on the announcer page, and default to
+        // false/unmuted everywhere else.
         webView.evaluateJavascript(
-            "(function(){var u=window.CAD_CURRENT_USER||{};return JSON.stringify({userId:u.id||-1,isAdmin:!!u.isAdmin});})()",
+            "(function(){var u=window.CAD_CURRENT_USER||{};var muted=false;try{muted=localStorage.getItem('announcer-push-muted')==='1';}catch(e){}return JSON.stringify({userId:u.id||-1,isAdmin:!!u.isAdmin,inSpeakerGroup:!!u.inSpeakerGroup,pushMuted:muted});})()",
             (value) -> {
                 int userId = -1;
                 boolean isAdmin = false;
+                boolean inSpeakerGroup = false;
+                boolean pushMuted = false;
                 try {
                     // evaluateJavascript wraps whatever the script returns in
                     // an extra layer of JSON encoding — our script already
@@ -115,21 +121,25 @@ public class MainActivity extends BridgeActivity {
                     org.json.JSONObject obj = new org.json.JSONObject(json);
                     userId = obj.optInt("userId", -1);
                     isAdmin = obj.optBoolean("isAdmin", false);
+                    inSpeakerGroup = obj.optBoolean("inSpeakerGroup", false);
+                    pushMuted = obj.optBoolean("pushMuted", false);
                 } catch (Exception ignored) {
                     // Fall back to the already-running "no alerts" defaults.
                     return;
                 }
-                startBackgroundMonitor(host, scheme, userId, isAdmin);
+                startBackgroundMonitor(host, scheme, userId, isAdmin, inSpeakerGroup, pushMuted);
             }
         );
     }
 
-    private void startBackgroundMonitor(String host, String scheme, int userId, boolean isAdmin) {
+    private void startBackgroundMonitor(String host, String scheme, int userId, boolean isAdmin, boolean inSpeakerGroup, boolean pushMuted) {
         Intent serviceIntent = new Intent(this, BackgroundMonitorService.class);
         serviceIntent.putExtra(BackgroundMonitorService.EXTRA_HOST, host);
         serviceIntent.putExtra(BackgroundMonitorService.EXTRA_SCHEME, scheme);
         serviceIntent.putExtra(BackgroundMonitorService.EXTRA_USER_ID, userId);
         serviceIntent.putExtra(BackgroundMonitorService.EXTRA_IS_ADMIN, isAdmin);
+        serviceIntent.putExtra(BackgroundMonitorService.EXTRA_IN_SPEAKER_GROUP, inSpeakerGroup);
+        serviceIntent.putExtra(BackgroundMonitorService.EXTRA_PUSH_MUTED, pushMuted);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent);
         } else {

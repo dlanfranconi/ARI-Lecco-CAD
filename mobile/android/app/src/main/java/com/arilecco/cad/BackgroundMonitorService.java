@@ -33,6 +33,8 @@ public class BackgroundMonitorService extends Service {
     public static final String EXTRA_SCHEME = "scheme";
     public static final String EXTRA_USER_ID = "user_id";
     public static final String EXTRA_IS_ADMIN = "is_admin";
+    public static final String EXTRA_IN_SPEAKER_GROUP = "in_speaker_group";
+    public static final String EXTRA_PUSH_MUTED = "push_muted";
 
     private static final String STATUS_CHANNEL_ID = "background_monitor";
     private static final String ALERT_CHANNEL_ID = "background_alerts";
@@ -42,6 +44,7 @@ public class BackgroundMonitorService extends Service {
     private OkHttpClient client;
     private WebSocket reviewSocket;
     private WebSocket networkSocket;
+    private WebSocket announcerSocket;
 
     @Override
     public void onCreate() {
@@ -65,13 +68,15 @@ public class BackgroundMonitorService extends Service {
         String scheme = intent.getStringExtra(EXTRA_SCHEME);
         int userId = intent.getIntExtra(EXTRA_USER_ID, -1);
         boolean isAdmin = intent.getBooleanExtra(EXTRA_IS_ADMIN, false);
+        boolean inSpeakerGroup = intent.getBooleanExtra(EXTRA_IN_SPEAKER_GROUP, false);
+        boolean pushMuted = intent.getBooleanExtra(EXTRA_PUSH_MUTED, false);
         if (host != null && scheme != null) {
-            connect(host, scheme, userId, isAdmin);
+            connect(host, scheme, userId, isAdmin, inSpeakerGroup, pushMuted);
         }
         return START_STICKY;
     }
 
-    private void connect(String host, String scheme, int userId, boolean isAdmin) {
+    private void connect(String host, String scheme, int userId, boolean isAdmin, boolean inSpeakerGroup, boolean pushMuted) {
         closeSockets();
         String wsScheme = "https".equals(scheme) ? "wss" : "ws";
 
@@ -91,6 +96,16 @@ public class BackgroundMonitorService extends Service {
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
                     handleNetworkMessage(text, userId, isAdmin);
+                }
+            }
+        );
+
+        announcerSocket = client.newWebSocket(
+            new Request.Builder().url(wsScheme + "://" + host + "/ws/announcer").build(),
+            new WebSocketListener() {
+                @Override
+                public void onMessage(WebSocket webSocket, String text) {
+                    if (!pushMuted) handleAnnouncerMessage(text, userId, inSpeakerGroup);
                 }
             }
         );
@@ -144,6 +159,34 @@ public class BackgroundMonitorService extends Service {
         }
     }
 
+    private void handleAnnouncerMessage(String text, int userId, boolean inSpeakerGroup) {
+        try {
+            JSONObject payload = new JSONObject(text);
+            if (!"notice".equals(payload.optString("type"))) return;
+            JSONObject notice = payload.optJSONObject("notice");
+            if (notice == null) return;
+
+            JSONArray recipients = notice.optJSONArray("recipient_user_ids");
+            boolean isRecipient;
+            if (recipients == null || recipients.length() == 0) {
+                isRecipient = inSpeakerGroup;
+            } else {
+                isRecipient = false;
+                for (int i = 0; i < recipients.length(); i++) {
+                    if (recipients.optInt(i) == userId) {
+                        isRecipient = true;
+                        break;
+                    }
+                }
+            }
+            if (!isRecipient) return;
+
+            notify("New announcement", notice.optString("message", ""));
+        } catch (Exception ignored) {
+            // Malformed/unexpected payload; skip rather than crash the service.
+        }
+    }
+
     private void notify(String title, String body) {
         Notification notification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
                 .setContentTitle(title)
@@ -171,6 +214,7 @@ public class BackgroundMonitorService extends Service {
     private void closeSockets() {
         if (reviewSocket != null) reviewSocket.close(1000, null);
         if (networkSocket != null) networkSocket.close(1000, null);
+        if (announcerSocket != null) announcerSocket.close(1000, null);
     }
 
     private void createChannelsIfNeeded() {
