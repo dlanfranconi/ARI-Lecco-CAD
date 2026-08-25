@@ -29,6 +29,13 @@
     {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
   </section>
 
+  <section class="panel">
+    <h1>{{ t.notification_sound }}</h1>
+    {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
+    <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
+    {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
+  </section>
+
   <form method="post" action="/setup/race" class="panel">
     <h1>{{ t.race_name }}</h1>
     <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>

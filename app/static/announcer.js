@@ -187,6 +187,18 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+let customAudio = null;
+function playCustomSound(volume) {
+  const url = window.CAD_NOTIFICATION_SOUND_URL;
+  if (!url) return;
+  if (!customAudio || customAudio.src.indexOf(url) === -1) customAudio = new Audio(url);
+  customAudio.currentTime = 0;
+  customAudio.volume = Math.max(0, Math.min(1, volume));
+  customAudio.play().catch(() => {
+    // Autoplay blocked until the user interacts with the page; ignore.
+  });
+}
+
 function soundPrefs() {
   return {
     preset: localStorage.getItem("announcer-sound-preset") || "chime",
@@ -210,8 +222,13 @@ function playTone(ctx, startAt, { freq, duration, delay = 0 }, volume) {
 
 function playNotificationSound() {
   const { preset, volume } = soundPrefs();
+  if (volume <= 0) return;
+  if (preset === "custom") {
+    playCustomSound(volume);
+    return;
+  }
   const tones = SOUND_PRESETS[preset];
-  if (!tones || volume <= 0) return;
+  if (!tones) return;
   try {
     const ctx = getAudioCtx();
     const now = ctx.currentTime;
@@ -238,6 +255,7 @@ function ensureSoundModal() {
             <option value="soft">${labels.sound_soft || "Soft"}</option>
             <option value="chime">${labels.sound_chime || "Chime"}</option>
             <option value="alert">${labels.sound_alert || "Alert"}</option>
+            ${window.CAD_NOTIFICATION_SOUND_URL ? `<option value="custom">${labels.sound_custom || "Custom"}</option>` : ""}
           </select>
         </label>
         <label>${labels.sound_volume || "Volume"}

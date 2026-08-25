@@ -245,6 +245,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("app_locale", setting("app_locale", settings.app_locale))
     context.setdefault("ntp_server", setting("ntp_server", settings.ntp_server))
     context.setdefault("logo_url", setting("logo_url", ""))
+    context.setdefault("notification_sound_url", setting("notification_sound_url", ""))
     context.setdefault("athlete_name_display", setting("athlete_name_display", "full"))
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
@@ -803,6 +804,34 @@ async def delete_logo(_: Any = Depends(require_admin)) -> RedirectResponse:
     for old in upload_dir.glob("logo.*"):
         old.unlink(missing_ok=True)
     save_setting("logo_url", "")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/notification-sound")
+async def upload_notification_sound(sound: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    content_type = (sound.content_type or "").lower()
+    suffix = ".mp3" if content_type in {"audio/mpeg", "audio/mp3"} else ".wav" if content_type in {"audio/wav", "audio/x-wav", "audio/wave"} else ""
+    if not suffix:
+        return RedirectResponse("/setup", status_code=303)
+    data = await sound.read()
+    if not data:
+        return RedirectResponse("/setup", status_code=303)
+    upload_dir = Path("app/static/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    for old in upload_dir.glob("notification-sound.*"):
+        old.unlink(missing_ok=True)
+    target = upload_dir / f"notification-sound{suffix}"
+    target.write_bytes(data)
+    save_setting("notification_sound_url", f"/static/uploads/{target.name}")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/notification-sound/delete")
+async def delete_notification_sound(_: Any = Depends(require_admin)) -> RedirectResponse:
+    upload_dir = Path("app/static/uploads")
+    for old in upload_dir.glob("notification-sound.*"):
+        old.unlink(missing_ok=True)
+    save_setting("notification_sound_url", "")
     return RedirectResponse("/setup", status_code=303)
 
 

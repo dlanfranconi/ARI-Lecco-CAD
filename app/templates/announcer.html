@@ -42,7 +42,7 @@
     <button id="history-open" class="history-open-button" type="button">{{ t.older_notices }}</button>
   </main>
   <footer class="site-footer announcer-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
-  <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>
+  <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }}; window.CAD_NOTIFICATION_SOUND_URL = {{ notification_sound_url|tojson }};</script>
   <script src="{{ asset('/static/race-timer.js') }}"></script>
   <script src="{{ asset('/static/announcer.js') }}"></script>
   <script src="{{ asset('/static/pwa.js') }}"></script>
