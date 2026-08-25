@@ -24,10 +24,9 @@
       <a href="/">{{ t.race_log }}</a>
       <a href="/map">{{ t.aprs_map }}</a>
       <a href="{{ submit_notice_url }}">{{ t.submit_notice_link }}</a>
-      <a href="/speed-test">{{ t.speed_test }}</a>
+      <a href="/network">{{ t.network }}</a>
       {% endif %}
       <a href="/notices">{{ t.notices }}</a>
-      {% if current_user.role == 'admin' %}<a href="/network">{{ t.network }}</a>{% endif %}
       {% if current_user.role == 'admin' %}<a href="/setup">{{ t.setup }}</a>{% endif %}
       <a href="{{ announcer_url }}" target="_blank">{{ t.announcer }}</a>
       <form method="post" action="/logout" class="nav-logout-form"><button class="ghost">{{ t.logout }}</button></form>
@@ -35,6 +34,7 @@
     {% if is_admin or race_started_at or current_crono %}
     <div class="header-timer">
       {% if is_admin %}
+      <div id="race-timer-controls" data-state="{% if race_started_at %}running{% elif current_crono %}stopped{% else %}fresh{% endif %}">
         {% if race_started_at %}
         <form method="post" action="/race-timer/stop" data-confirm="{{ t.stop_timer_confirm }}"><button class="danger compact-button">{{ t.stop_timer }}</button></form>
         {% elif current_crono %}
@@ -42,6 +42,7 @@
         {% else %}
         <form method="post" action="/race-timer/start"><button class="start-button compact-button">{{ t.start_timer }}</button></form>
         {% endif %}
+      </div>
       {% endif %}
       <span id="race-timer" class="header-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</span>
     </div>

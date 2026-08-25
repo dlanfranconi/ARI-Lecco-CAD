@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel">
+  <h1>{{ t.speed_test }}</h1>
+  <p class="meta">{{ t.speed_test_hint }}</p>
+  <button id="speedtest-run" type="button">{{ t.run_test }}</button>
+  <div class="speedtest-results">
+    <div class="speedtest-metric"><span class="speedtest-label">{{ t.download }}</span><span class="speedtest-value" id="speedtest-download">—</span></div>
+    <div class="speedtest-metric"><span class="speedtest-label">{{ t.upload }}</span><span class="speedtest-value" id="speedtest-upload">—</span></div>
+    <div class="speedtest-metric"><span class="speedtest-label">{{ t.latency }}</span><span class="speedtest-value" id="speedtest-latency">—</span></div>
+  </div>
+  <p class="error" id="speedtest-error"></p>
+</section>
+
+<section class="panel">
   <h1>{{ t.network_monitoring }}</h1>
   <div class="table-wrap compact-table">
     <table class="setup-table" id="device-table">
-      <thead><tr><th>{{ t.device_name }}</th><th>{{ t.ip_address }}</th><th>{{ t.notify_user }}</th><th>{{ t.status }}</th><th>{{ t.last_checked }}</th><th></th><th></th></tr></thead>
+      <thead><tr><th>{{ t.device_name }}</th><th>{{ t.ip_address }}</th><th>{{ t.notify_user }}</th><th>{{ t.status }}</th><th>{{ t.last_checked }}</th>{% if is_admin %}<th></th><th></th>{% endif %}</tr></thead>
       <tbody>
+        {% if is_admin %}
         <tr>
           <form method="post" action="/network/devices">
             <td><input name="name" required placeholder="{{ t.device_name }}"></td>
@@ -17,8 +30,10 @@
             <td></td>
           </form>
         </tr>
+        {% endif %}
         {% for device in devices %}
         <tr class="device-row" id="device-{{ device.id }}" data-device-id="{{ device.id }}">
+          {% if is_admin %}
           <form method="post" action="/network/devices/{{ device.id }}">
             <td><input name="name" value="{{ device.name }}" required></td>
             <td><input name="ip_address" value="{{ device.ip_address }}" required></td>
@@ -31,6 +46,13 @@
             <form method="post" action="/network/devices/{{ device.id }}/toggle"><button class="secondary">{{ t.disable if device.active else t.enable }}</button></form>
             <form method="post" action="/network/devices/{{ device.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
           </td>
+          {% else %}
+          <td>{{ device.name }}</td>
+          <td>{{ device.ip_address }}</td>
+          <td>{{ device.notify_user_name or t.notify_all_admins }}</td>
+          <td><span class="device-status status-{{ device.last_status }}">{{ t[device.last_status] if device.last_status in ['up', 'down'] else t.unknown }}</span></td>
+          <td class="device-last-checked">{{ format_dt(device.last_checked_at) if device.last_checked_at else '' }}</td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
@@ -59,8 +81,9 @@
   <p class="meta">{{ t.iperf_hint }}</p>
   <div class="table-wrap compact-table">
     <table class="setup-table" id="iperf-table">
-      <thead><tr><th>{{ t.device_name }}</th><th>{{ t.ip_address }}</th><th>{{ t.port }}</th><th>{{ t.latest_result }}</th><th></th><th></th></tr></thead>
+      <thead><tr><th>{{ t.device_name }}</th><th>{{ t.ip_address }}</th><th>{{ t.port }}</th><th>{{ t.latest_result }}</th><th></th>{% if is_admin %}<th></th>{% endif %}</tr></thead>
       <tbody>
+        {% if is_admin %}
         <tr>
           <form method="post" action="/network/iperf-targets">
             <td><input name="name" required placeholder="{{ t.device_name }}"></td>
@@ -71,6 +94,7 @@
             <td></td>
           </form>
         </tr>
+        {% endif %}
         {% for target in targets %}
         {% set latest = latest_by_target.get(target.id) %}
         <tr class="iperf-row" id="iperf-{{ target.id }}" data-target-id="{{ target.id }}">
@@ -86,10 +110,12 @@
             {% endif %}
           </td>
           <td><button type="button" class="iperf-test-button" data-target-id="{{ target.id }}">{{ t.run_test }}</button></td>
+          {% if is_admin %}
           <td class="actions-cell">
             <form method="post" action="/network/iperf-targets/{{ target.id }}/toggle"><button class="secondary">{{ t.disable if target.active else t.enable }}</button></form>
             <form method="post" action="/network/iperf-targets/{{ target.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
           </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
@@ -100,4 +126,5 @@
 {% block scripts %}
 <script>window.CAD_LABELS = {{ t|tojson }};</script>
 <script src="/static/network.js"></script>
+<script src="/static/speed-test.js"></script>
 {% endblock %}

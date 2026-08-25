@@ -37,6 +37,7 @@ async def service_worker() -> FileResponse:
 bulletin_clients: set[WebSocket] = set()
 review_clients: set[WebSocket] = set()
 network_clients: set[WebSocket] = set()
+race_log_clients: set[WebSocket] = set()
 
 
 @app.on_event("startup")
@@ -610,6 +611,7 @@ async def create_log(
         await broadcast_approved_bulletin(notice_id)
     if notice_ids:
         await broadcast_pending_count()
+    await broadcast_race_log_created()
     return RedirectResponse("/", status_code=303)
 
 
@@ -628,6 +630,7 @@ async def start_race_timer(admin: Any = Depends(require_admin)) -> RedirectRespo
             (admin["display_name"], TRANSLATIONS[current_language()]["race_started_status"], message, admin["username"] or "", admin["display_name"] or ""),
         )
     await broadcast_race_timer_changed("started", started_at)
+    await broadcast_race_log_created()
     return RedirectResponse("/", status_code=303)
 
 def stop_race_timer_with_log(admin: Any) -> str:
@@ -658,6 +661,7 @@ def stop_race_timer_with_log(admin: Any) -> str:
 async def stop_race_timer(admin: Any = Depends(require_admin)) -> RedirectResponse:
     stop_race_timer_with_log(admin)
     await broadcast_race_timer_changed("stopped", "")
+    await broadcast_race_log_created()
     return RedirectResponse("/", status_code=303)
 
 
@@ -1059,8 +1063,11 @@ async def recent_notices() -> list[dict[str, object]]:
 @app.get("/api/race-timer")
 async def api_race_timer() -> dict[str, str | bool]:
     started_at = setting("race_started_at", "")
+    stopped_crono = setting("race_stopped_crono", "")
+    state = "running" if started_at else ("stopped" if stopped_crono else "fresh")
     return {
         "running": bool(started_at),
+        "state": state,
         "started_at": started_at,
         "started_epoch_ms": race_started_epoch_ms(),
         "current_crono": crono_from_timer() or "00:00:00",
@@ -1139,6 +1146,7 @@ async def approve_notice_id(notice_id: int, approved_by: str | None = None, mess
         log_notice_event(notice, "notice_approved_status", approved_by or settings.admin_username, approved_by or settings.admin_username, skip_if_existing=True)
     await broadcast_approved_bulletin(notice_id)
     await broadcast_pending_count()
+    await broadcast_race_log_created()
     return dict(notice) if notice else {}
 
 
@@ -1163,6 +1171,7 @@ async def reject_notice_id(notice_id: int, username: str = "", display_name: str
     if notice:
         log_notice_event(notice, "notice_rejected_status", username, display_name)
     await broadcast_pending_count()
+    await broadcast_race_log_created()
 
 
 @app.post("/notices/{notice_id}/delete")
@@ -1185,6 +1194,7 @@ async def delete_notice_id(notice_id: int, username: str = "", display_name: str
         log_notice_event(notice, "notice_deleted_status", username, display_name)
     await broadcast_notice_deleted(notice_id)
     await broadcast_pending_count()
+    await broadcast_race_log_created()
 
 
 @app.get("/announcer", response_class=HTMLResponse)
@@ -1224,6 +1234,21 @@ async def ws_review(websocket: WebSocket) -> None:
             await websocket.receive_text()
     except WebSocketDisconnect:
         review_clients.discard(websocket)
+
+
+@app.websocket("/ws/race-log")
+async def ws_race_log(websocket: WebSocket) -> None:
+    await websocket.accept()
+    race_log_clients.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        race_log_clients.discard(websocket)
+
+
+async def broadcast_race_log_created() -> None:
+    await _broadcast(race_log_clients, json.dumps({"type": "race_log_created"}))
 
 
 async def broadcast_approved_bulletin(notice_id: int) -> None:
@@ -1623,7 +1648,7 @@ async def view_archive(archive_id: int, request: Request, _: Any = Depends(requi
 
 
 @app.get("/network", response_class=HTMLResponse)
-async def network_page(request: Request, _: Any = Depends(require_admin)) -> HTMLResponse:
+async def network_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
     devices = rows(
         """
         SELECT monitored_devices.*, users.display_name AS notify_user_name
@@ -1758,9 +1783,9 @@ async def run_iperf_test(target_id: int, _: Any = Depends(require_admin)) -> dic
 SPEEDTEST_MAX_BYTES = 25_000_000
 
 
-@app.get("/speed-test", response_class=HTMLResponse)
-async def speed_test_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
-    return page(request, "speed_test.html")
+@app.get("/speed-test")
+async def speed_test_page_alias() -> RedirectResponse:
+    return RedirectResponse("/network", status_code=303)
 
 
 @app.get("/api/network/speedtest-download")
