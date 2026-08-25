@@ -88,7 +88,7 @@
   </label>
   <div class="table-wrap">
     <table class="setup-table">
-      <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
+      <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.speaker_group }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
       <tbody>
         <tr>
           <form method="post" action="/setup/users">
@@ -101,6 +101,7 @@
             <td><input name="username"></td>
             <td><input name="password" type="password"></td>
             <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="announcer">{{ t.announcer_role }}</option></select></td>
+            <td><input type="checkbox" name="in_speaker_group" checked></td>
             <td>{{ t.active }}</td>
             <td><button>{{ t.add }}</button></td>
             <td></td>
@@ -118,6 +119,7 @@
             <td><input name="username" value="{{ user.username or '' }}"></td>
             <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
             <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="announcer" {% if user.role == 'announcer' %}selected{% endif %}>{{ t.announcer_role }}</option></select></td>
+            <td><input type="checkbox" name="in_speaker_group" {% if user.in_speaker_group %}checked{% endif %}></td>
             <td>{{ t.active if user.active else t.disabled }}</td>
             <td><button>{{ t.save }}</button></td>
           </form>

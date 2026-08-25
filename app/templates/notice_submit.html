@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="grid two">
-  <form method="post" action="{{ submit_notice_url }}" class="panel" data-runner-compose>
+  <form method="post" action="{{ submit_notice_url }}" class="panel" data-runner-compose data-recipients>
     <h1>{{ t.submit_notice }}</h1>
     {% if request.query_params.get("sent") %}<p class="success">{{ t.sent_to_dispatch }}</p>{% endif %}
     {% if request.query_params.get("error") == "message" %}<p class="error">{{ t.message_required_error }}</p>{% endif %}
@@ -10,6 +10,9 @@
       <select id="checkpoint" class="checkpoint" name="checkpoint"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}</select>
     </label>
     <label>{{ t.notice_message }}<textarea id="notice-message" class="notice-message" name="message" rows="6"></textarea></label>
+    <label>{{ t.notify_recipients }}
+      <div class="recipient-checks">{% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}"> {{ u.display_name }}</label>{% endfor %}{% if not users_list %}<span class="meta">{{ t.notify_broadcast_hint }}</span>{% endif %}</div>
+    </label>
     <button>{{ t.send_notice }}</button>
   </form>
   <section class="panel">
@@ -22,4 +25,4 @@
   </section>
 </section>
 {% endblock %}
-{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script>{% endblock %}
+{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/notice-recipients.js') }}"></script>{% endblock %}

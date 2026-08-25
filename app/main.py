@@ -268,6 +268,9 @@ def notice_payload(item: Any) -> dict[str, object]:
     data = dict(item)
     data["created_at_display"] = format_dt(str(data.get("created_at") or ""))
     data["approved_at_display"] = format_dt(str(data.get("approved_at") or ""))
+    data["recipient_user_ids"] = [
+        r["user_id"] for r in rows("SELECT user_id FROM bulletin_recipients WHERE bulletin_id = ?", (data["id"],))
+    ]
     return data
 
 
@@ -895,6 +898,7 @@ async def add_user(
     username: str = Form(""),
     password: str = Form(""),
     role: str = Form("user"),
+    in_speaker_group: bool = Form(False),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     clean_username = username.strip() or None
@@ -906,10 +910,10 @@ async def add_user(
         station_id = aprs_station_id_for_callsign(conn, aprs_callsign)
         conn.execute(
             """
-            INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign, username, password_hash, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign, username, password_hash, role, in_speaker_group)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), clean_username, password_hash, role),
+            (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), clean_username, password_hash, role, in_speaker_group),
         )
     return RedirectResponse("/setup", status_code=303)
 
@@ -953,6 +957,7 @@ async def update_user(
     username: str = Form(""),
     password: str = Form(""),
     role: str = Form("user"),
+    in_speaker_group: bool = Form(False),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     clean_username = username.strip() or None
@@ -965,10 +970,10 @@ async def update_user(
             """
             UPDATE users
             SET display_name = ?, operator_callsign = ?, tactical_callsign = ?,
-                default_location = ?, aprs_station_id = ?, dstar_callsign = ?, username = ?, role = ?
+                default_location = ?, aprs_station_id = ?, dstar_callsign = ?, username = ?, role = ?, in_speaker_group = ?
             WHERE id = ?
             """,
-            (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), clean_username, role, user_id),
+            (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), clean_username, role, in_speaker_group, user_id),
         )
         if password:
             conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), user_id))
@@ -1069,7 +1074,25 @@ def combined_latest_positions() -> list[dict[str, object]]:
 async def notices(request: Request, user: Any = Depends(require_notice_view)) -> HTMLResponse:
     pending = rows("SELECT * FROM bulletins WHERE status = 'pending' AND hidden_at IS NULL ORDER BY id DESC") if user["role"] == "admin" else []
     approved = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 50")
-    return page(request, "notices.html", pending=pending, approved=approved)
+    recipient_rows = rows(
+        """
+        SELECT bulletin_recipients.bulletin_id, users.id AS user_id
+        FROM bulletin_recipients
+        INNER JOIN users ON users.id = bulletin_recipients.user_id
+        """
+    )
+    recipient_ids_by_notice: dict[int, list[int]] = {}
+    for item in recipient_rows:
+        recipient_ids_by_notice.setdefault(item["bulletin_id"], []).append(item["user_id"])
+    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name")
+    return page(
+        request,
+        "notices.html",
+        pending=pending,
+        approved=approved,
+        users_list=users_list,
+        recipient_ids_by_notice=recipient_ids_by_notice,
+    )
 
 
 @app.get("/bulletins", response_class=HTMLResponse)
@@ -1080,7 +1103,12 @@ async def bulletins_alias() -> RedirectResponse:
 @app.get("/submit-notification", response_class=HTMLResponse)
 @app.get("/invia-notizia", response_class=HTMLResponse)
 async def notice_submit_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
-    return page(request, "notice_submit.html", tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
+    return page(
+        request,
+        "notice_submit.html",
+        tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"),
+        users_list=rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name"),
+    )
 
 
 @app.get("/bulletin-submit", response_class=HTMLResponse)
@@ -1097,6 +1125,7 @@ async def notice_submit(
     crono_time: str = Form(""),
     runner_crono: list[str] = Form([]),
     runner_position: list[str] = Form([]),
+    notify_user_ids: list[str] = Form([]),
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -1124,6 +1153,11 @@ async def notice_submit(
                 ),
             )
             notice_ids.append(cur.lastrowid)
+            for recipient_id in notify_user_ids:
+                conn.execute(
+                    "INSERT OR IGNORE INTO bulletin_recipients (bulletin_id, user_id) VALUES (?, ?)",
+                    (cur.lastrowid, recipient_id),
+                )
     for notice_id in notice_ids:
         await broadcast_review_notice(notice_id)
     await broadcast_pending_count()
@@ -1136,8 +1170,12 @@ async def old_bulletin_submit_post(message: str = Form(...), user: Any = Depends
 
 
 @app.get("/api/notices/recent")
-async def recent_notices() -> list[dict[str, object]]:
-    return [notice_payload(item) for item in rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 30")]
+async def recent_notices(request: Request) -> list[dict[str, object]]:
+    audience_clause, params = announcer_audience_clause(current_user(request))
+    return [
+        notice_payload(item)
+        for item in rows(f"SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL AND {audience_clause} ORDER BY id DESC LIMIT 30", params)
+    ]
 
 
 @app.get("/api/race-timer")
@@ -1202,8 +1240,14 @@ def log_notice_event(notice: Any, action_key: str, username: str = "", display_n
 
 @app.post("/notices/{notice_id}/approve")
 @app.post("/bulletins/{notice_id}/approve")
-async def approve_notice(notice_id: int, message: str = Form(""), crono_time: str = Form(""), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None)
+async def approve_notice(
+    notice_id: int,
+    message: str = Form(""),
+    crono_time: str = Form(""),
+    notify_user_ids: list[str] = Form([]),
+    admin: Any = Depends(require_admin),
+) -> RedirectResponse:
+    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids)
     return RedirectResponse("/notices", status_code=303)
 
 
@@ -1211,16 +1255,36 @@ async def approve_notice(notice_id: int, message: str = Form(""), crono_time: st
 @app.post("/api/bulletins/{notice_id}/approve")
 async def api_approve_notice(notice_id: int, request: Request, admin: Any = Depends(require_admin)) -> dict[str, object]:
     data = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    notice = await approve_notice_id(notice_id, admin["username"], str(data.get("message", "")).strip() or None, str(data.get("crono_time", "")).strip() or None)
+    notify_user_ids = data.get("notify_user_ids")
+    notice = await approve_notice_id(
+        notice_id,
+        admin["username"],
+        str(data.get("message", "")).strip() or None,
+        str(data.get("crono_time", "")).strip() or None,
+        [str(uid) for uid in notify_user_ids] if notify_user_ids is not None else None,
+    )
     return {"ok": True, "notice": notice}
 
 
-async def approve_notice_id(notice_id: int, approved_by: str | None = None, message: str | None = None, crono_time: str | None = None) -> dict[str, object]:
+async def approve_notice_id(
+    notice_id: int,
+    approved_by: str | None = None,
+    message: str | None = None,
+    crono_time: str | None = None,
+    notify_user_ids: list[str] | None = None,
+) -> dict[str, object]:
     with connect() as conn:
         if message is not None or crono_time is not None:
             current = row("SELECT message, crono_time FROM bulletins WHERE id = ?", (notice_id,))
             conn.execute("UPDATE bulletins SET message = ?, crono_time = ? WHERE id = ?", (message if message is not None else current["message"], crono_time if crono_time is not None else current["crono_time"], notice_id))
         conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (approved_by or settings.admin_username, notice_id))
+        if notify_user_ids is not None:
+            conn.execute("DELETE FROM bulletin_recipients WHERE bulletin_id = ?", (notice_id,))
+            for recipient_id in notify_user_ids:
+                conn.execute(
+                    "INSERT OR IGNORE INTO bulletin_recipients (bulletin_id, user_id) VALUES (?, ?)",
+                    (notice_id, recipient_id),
+                )
     notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     if notice:
         log_notice_event(notice, "notice_approved_status", approved_by or settings.admin_username, approved_by or settings.admin_username, skip_if_existing=True)
@@ -1277,20 +1341,38 @@ async def delete_notice_id(notice_id: int, username: str = "", display_name: str
     await broadcast_race_log_created()
 
 
+def announcer_audience_clause(viewer: Any | None) -> tuple[str, tuple[Any, ...]]:
+    # Logged out: the generic speaker/broadcast board only, exactly like
+    # before. Logged in: your own routed notices, plus broadcasts too if
+    # you're a speaker-group member.
+    if viewer is None:
+        return "id NOT IN (SELECT bulletin_id FROM bulletin_recipients)", ()
+    if viewer["in_speaker_group"]:
+        return (
+            "(id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?) OR id NOT IN (SELECT bulletin_id FROM bulletin_recipients))",
+            (viewer["id"],),
+        )
+    return "id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?)", (viewer["id"],)
+
+
 @app.get("/announcer", response_class=HTMLResponse)
 @app.get("/annunciatore", response_class=HTMLResponse)
 async def announcer(request: Request) -> HTMLResponse:
-    latest_row = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
-    notice_rows = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 30")
+    viewer = current_user(request)
+    audience_clause, params = announcer_audience_clause(viewer)
+    latest_row = row(f"SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL AND {audience_clause} ORDER BY id DESC LIMIT 1", params)
+    notice_rows = rows(f"SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL AND {audience_clause} ORDER BY id DESC LIMIT 30", params)
     latest = dict(latest_row) if latest_row else None
     notices = [notice_payload(item) for item in notice_rows]
-    return page(request, "announcer.html", latest=latest, notices=notices)
+    viewer_context = {"id": viewer["id"], "isAdmin": False, "inSpeakerGroup": bool(viewer["in_speaker_group"])} if viewer else None
+    return page(request, "announcer.html", latest=latest, notices=notices, viewer_user=viewer_context)
 
 
 @app.get("/api/notices/latest")
 @app.get("/api/bulletins/latest")
-async def latest_notice() -> dict[str, object]:
-    latest = row("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
+async def latest_notice(request: Request) -> dict[str, object]:
+    audience_clause, params = announcer_audience_clause(current_user(request))
+    latest = row(f"SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL AND {audience_clause} ORDER BY id DESC LIMIT 1", params)
     return notice_payload(latest) if latest else {}
 
 

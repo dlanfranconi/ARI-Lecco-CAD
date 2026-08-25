@@ -197,6 +197,14 @@ def init_db() -> None:
                 FOREIGN KEY(device_id) REFERENCES monitored_devices(id) ON DELETE CASCADE,
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS bulletin_recipients (
+                bulletin_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                PRIMARY KEY(bulletin_id, user_id),
+                FOREIGN KEY(bulletin_id) REFERENCES bulletins(id) ON DELETE CASCADE,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
             """
         )
         _migrate(conn)
@@ -211,6 +219,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''",
         "role": "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
         "must_change_password": "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
+        "in_speaker_group": "ALTER TABLE users ADD COLUMN in_speaker_group INTEGER NOT NULL DEFAULT 1",
     }.items():
         if column not in user_cols:
             conn.execute(sql)

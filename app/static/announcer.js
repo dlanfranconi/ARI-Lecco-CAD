@@ -107,16 +107,28 @@ function flashBulletin() {
   bulletinEl.classList.add("flash");
 }
 
+function isVisibleToViewer(item) {
+  const viewer = window.CAD_CURRENT_USER;
+  const recipients = item?.recipient_user_ids || [];
+  if (!viewer) return recipients.length === 0;
+  return recipients.includes(viewer.id) || (recipients.length === 0 && viewer.inSpeakerGroup);
+}
+
+function alertsMuted() {
+  return localStorage.getItem("announcer-push-muted") === "1";
+}
+
 function upsertNotice(item) {
-  if (!item || !item.id) return;
+  if (!item || !item.id || !isVisibleToViewer(item)) return;
   const isNew = hasRenderedOnce && !notices.some((notice) => notice.id === item.id);
   notices = notices.filter((notice) => notice.id !== item.id);
   notices.unshift(item);
   currentIndex = 0;
   renderNoticeAt(0);
-  if (isNew) {
+  if (isNew && !alertsMuted()) {
     flashBulletin();
     playNotificationSound();
+    window.CAD_NATIVE_NOTIFY?.(labels.new_announcement || "New announcement", item.message || "");
   }
 }
 
@@ -261,6 +273,10 @@ function ensureSoundModal() {
         <label>${labels.sound_volume || "Volume"}
           <input id="sound-volume-range" type="range" min="0" max="1" step="0.05" value="${volume}">
         </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="sound-mute-toggle">
+          ${labels.mute_alerts || "Mute push alerts and sounds on this device"}
+        </label>
         <div class="actions">
           <button type="button" id="sound-test">${labels.sound_test || "Test"}</button>
           <button type="button" class="secondary" id="sound-close">${labels.dismiss || "Close"}</button>
@@ -276,6 +292,9 @@ function ensureSoundModal() {
   select.addEventListener("change", () => localStorage.setItem("announcer-sound-preset", select.value));
   const range = modal.querySelector("#sound-volume-range");
   range.addEventListener("input", () => localStorage.setItem("announcer-sound-volume", range.value));
+  const muteToggle = modal.querySelector("#sound-mute-toggle");
+  muteToggle.checked = alertsMuted();
+  muteToggle.addEventListener("change", () => localStorage.setItem("announcer-push-muted", muteToggle.checked ? "1" : "0"));
   modal.querySelector("#sound-test")?.addEventListener("click", playNotificationSound);
   modal.querySelector("#sound-close")?.addEventListener("click", () => modal.classList.add("hidden"));
   return modal;
