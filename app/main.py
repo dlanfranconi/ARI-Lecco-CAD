@@ -548,7 +548,7 @@ async def change_password_page(request: Request, user: Any = Depends(require_log
     return page(request, "change_password.html", error="", required=bool(user["must_change_password"]))
 
 
-@app.post("/change-password")
+@app.post("/change-password", response_model=None)
 async def change_password(
     request: Request,
     current_password: str = Form(...),
