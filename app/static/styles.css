@@ -51,8 +51,8 @@ a { color: inherit; }
 .brand { font-weight: 700; text-decoration: none; }
 .topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; align-items: center; }
 .topbar nav a { color: #fff; text-decoration: none; }
-.nav-toggle { display: none; }
-.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+#nav-toggle { display: none; }
+.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; order: 3; }
 .nav-logout-icon { margin: 0; }
 .content { padding: 20px; max-width: 1500px; margin: 0 auto; }
 .grid { display: grid; gap: 16px; }
@@ -175,8 +175,10 @@ th { color: var(--muted); font-size: 13px; }
   .runner-list-row, .compact-log-row, .athlete-row, .announcer .athlete-row { grid-template-columns: 1fr; }
   .grid.two, .grid.three { grid-template-columns: 1fr; }
   .span-two { grid-column: auto; }
-  .topbar { position: relative; flex-wrap: wrap; }
-  .nav-toggle { display: inline-flex; }
+  .topbar { position: relative; flex-wrap: wrap; gap: 8px; }
+  #nav-toggle { display: inline-flex; order: 1; }
+  .brand { order: 2; }
+  .header-timer { order: 4; flex-basis: 100%; justify-content: center; }
   .topbar nav {
     display: none;
     order: 5;
