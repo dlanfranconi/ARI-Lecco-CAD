@@ -1,6 +1,8 @@
 package com.arilecco.cad;
 
+import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebView;
 import android.widget.Toast;
@@ -63,5 +65,33 @@ public class MainActivity extends BridgeActivity {
                 }
             }
         });
+    }
+
+    private boolean isConnectedToServer() {
+        WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+        String currentUrl = webView != null ? webView.getUrl() : null;
+        if (currentUrl == null) return false;
+        return !"localhost".equals(Uri.parse(currentUrl).getHost());
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Only worth keeping alive in the background once actually connected
+        // to a dispatch server — nothing to monitor from the connect screen.
+        if (isConnectedToServer()) {
+            Intent serviceIntent = new Intent(this, BackgroundMonitorService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        stopService(new Intent(this, BackgroundMonitorService.class));
     }
 }

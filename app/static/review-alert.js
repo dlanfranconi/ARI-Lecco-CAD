@@ -84,11 +84,16 @@ function connectReviewWs() {
   socket.onmessage = (event) => {
     const payload = JSON.parse(event.data);
     if ((payload.type === "pending_notice" || payload.type === "pending_bulletin") && (payload.notice || payload.bulletin)) {
-      showNoticeModal(payload.notice || payload.bulletin);
+      const notice = payload.notice || payload.bulletin;
+      showNoticeModal(notice);
       updatePendingCount(payload.pending_count);
+      window.CAD_NATIVE_NOTIFY?.(labels.new_notice || "New notice pending review", notice.message || "");
     }
     if (payload.type === "pending_count") updatePendingCount(payload.pending_count);
-    if (payload.type === "race_timer_changed") window.location.reload();
+    if (payload.type === "race_timer_changed") {
+      window.CAD_NATIVE_NOTIFY?.(labels.race_timer_update || "Race timer updated", "");
+      window.location.reload();
+    }
   };
   socket.onclose = () => setTimeout(connectReviewWs, 3000);
 }

@@ -56,7 +56,9 @@ function connectNetworkWs() {
     const isRecipient = currentUser && (recipients.includes(currentUser.id) || (recipients.length === 0 && currentUser.isAdmin));
     if (!isRecipient) return;
     const template = device.status === "down" ? (networkLabels.device_down_alert || "{name} went offline") : (networkLabels.device_up_alert || "{name} is back online");
-    showToast(template.replace("{name}", device.name), device.status);
+    const message = template.replace("{name}", device.name);
+    showToast(message, device.status);
+    window.CAD_NATIVE_NOTIFY?.(networkLabels.network_monitoring || "Network", message);
   };
   socket.onclose = () => setTimeout(connectNetworkWs, 3000);
 }

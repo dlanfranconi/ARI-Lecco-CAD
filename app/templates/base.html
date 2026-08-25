@@ -60,6 +60,7 @@
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/review-alert.js') }}"></script>{% endif %}
   <script src="{{ asset('/static/theme.js') }}"></script>
   <script src="{{ asset('/static/pwa.js') }}"></script>
+  <script src="{{ asset('/static/native-notify.js') }}"></script>
   {% if is_admin or race_started_at or current_crono %}<script src="{{ asset('/static/race-timer.js') }}"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
