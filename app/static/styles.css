@@ -211,7 +211,7 @@ th { color: var(--muted); font-size: 13px; }
 .dark-ui { --bg: #071012; --panel: #102a2f; --text: #f8fbfb; --muted: #b7c7c9; --line: #28454b; }
 .dark-ui input, .dark-ui select, .dark-ui textarea { background: #071012; color: #f8fbfb; border-color: #46666d; }
 .dark-ui .card { background: #0c1d21; }
-.icon-button { width: 38px; padding: 0; font-size: 22px; }
+.icon-button { width: 38px; padding: 0; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; }
 .compact-table table { min-width: 560px; }
 .actions-cell { display: flex; gap: 8px; align-items: center; }
 .tac-table input { min-width: 110px; }
