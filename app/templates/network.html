@@ -125,6 +125,6 @@
 {% endblock %}
 {% block scripts %}
 <script>window.CAD_LABELS = {{ t|tojson }};</script>
-<script src="/static/network.js"></script>
-<script src="/static/speed-test.js"></script>
+<script src="{{ asset('/static/network.js') }}"></script>
+<script src="{{ asset('/static/speed-test.js') }}"></script>
 {% endblock %}

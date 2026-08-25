@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{{ t.app_title }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <link rel="manifest" href="/static/manifest.json">
-  <link rel="icon" href="/static/icons/favicon-32.png">
-  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="{{ asset('/static/styles.css') }}">
+  <link rel="manifest" href="{{ asset('/static/manifest.json') }}">
+  <link rel="icon" href="{{ asset('/static/icons/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ asset('/static/icons/apple-touch-icon.png') }}">
   <meta name="theme-color" content="#071012">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -57,10 +57,10 @@
   {% if logo_url %}<div class="page-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main class="content">{% block content %}{% endblock %}</main>
   <footer class="site-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
-  {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/review-alert.js"></script>{% endif %}
-  <script src="/static/theme.js"></script>
-  <script src="/static/pwa.js"></script>
-  {% if is_admin or race_started_at or current_crono %}<script src="/static/race-timer.js"></script>{% endif %}
+  {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/review-alert.js') }}"></script>{% endif %}
+  <script src="{{ asset('/static/theme.js') }}"></script>
+  <script src="{{ asset('/static/pwa.js') }}"></script>
+  {% if is_admin or race_started_at or current_crono %}<script src="{{ asset('/static/race-timer.js') }}"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

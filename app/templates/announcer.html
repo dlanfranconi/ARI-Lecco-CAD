@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{{ t.announcer }}</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <link rel="manifest" href="/static/manifest.json">
-  <link rel="icon" href="/static/icons/favicon-32.png">
-  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="{{ asset('/static/styles.css') }}">
+  <link rel="manifest" href="{{ asset('/static/manifest.json') }}">
+  <link rel="icon" href="{{ asset('/static/icons/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ asset('/static/icons/apple-touch-icon.png') }}">
   <meta name="theme-color" content="#071012">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -43,8 +43,8 @@
   </main>
   <footer class="site-footer announcer-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>
-  <script src="/static/race-timer.js"></script>
-  <script src="/static/announcer.js"></script>
-  <script src="/static/pwa.js"></script>
+  <script src="{{ asset('/static/race-timer.js') }}"></script>
+  <script src="{{ asset('/static/announcer.js') }}"></script>
+  <script src="{{ asset('/static/pwa.js') }}"></script>
 </body>
 </html>

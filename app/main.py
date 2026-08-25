@@ -28,6 +28,17 @@ templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
+def asset(path: str) -> str:
+    # Cache-busts static assets against Cloudflare's (or any CDN's) edge
+    # cache: the query string changes on every deploy since it's tied to the
+    # build hash, so each new build is a fresh URL rather than a hit against
+    # a 4-hour-old cached response — no manual purge needed after a deploy.
+    return f"{path}?v={settings.app_build}"
+
+
+templates.env.globals["asset"] = asset
+
+
 @app.get("/sw.js")
 async def service_worker() -> FileResponse:
     # Served from root (not /static/) so its default scope covers the whole app, including "/".

@@ -22,4 +22,4 @@
   </section>
 </section>
 {% endblock %}
-{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script>{% endblock %}
+{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script>{% endblock %}

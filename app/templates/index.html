@@ -95,6 +95,6 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="/static/notice-compose.js"></script><script src="/static/race-log.js"></script>{% endif %}
-<script src="/static/race-log-live.js"></script>
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/race-log.js') }}"></script>{% endif %}
+<script src="{{ asset('/static/race-log-live.js') }}"></script>
 {% endblock %}
