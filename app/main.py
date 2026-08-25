@@ -2,6 +2,7 @@ import asyncio
 import csv
 import io
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -66,8 +67,15 @@ async def startup() -> None:
     if settings.mdns_enabled:
         try:
             app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(settings.mdns_hostname, settings.port)
-        except OSError:
-            # No multicast on this network (e.g. restricted Docker networking) — mDNS is a nicety, not required.
+        except Exception:
+            # mDNS is a nicety, not required — covers both no multicast on
+            # this network (OSError, e.g. restricted Docker networking) and
+            # a name collision with another device already advertising the
+            # same MDNS_HOSTNAME on the LAN (zeroconf's NonUniqueNameException).
+            # Either way the app should still come up; just without mDNS.
+            logging.getLogger("uvicorn.error").warning(
+                "mDNS registration failed for hostname '%s' — continuing without it", settings.mdns_hostname, exc_info=True
+            )
             app.state.mdns_zeroconf = None
     if settings.https_enabled:
         app.state.https_process = await start_https_server()
