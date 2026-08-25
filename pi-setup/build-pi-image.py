@@ -110,6 +110,17 @@ write_files:
 {indented_unit}
 
 runcmd:
+  # ssh.service is disabled by default on a stock image unless Raspberry Pi
+  # Imager's own customization dialog enables it -- we skip that dialog, so
+  # it needs enabling here or the Pi is unreachable over SSH.
+  - systemctl enable --now ssh
+  # Debian's default PAM stack rejects a new password that's too similar to
+  # the old one (pam_unix.so's "obscure" checks) -- on a forced change over
+  # SSH, a rejected password kills the whole session, which looks exactly
+  # like SSH being broken. This is a convenience gate against the shipped
+  # default, not a security boundary, so drop the complexity check rather
+  # than risk locking someone out of a headless box entirely.
+  - sed -i 's/pam_unix.so obscure/pam_unix.so/' /etc/pam.d/common-password
   - systemctl daemon-reload
   - systemctl enable --now ari-lecco-cad-bootstrap.service
 """
