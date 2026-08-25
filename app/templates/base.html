@@ -57,6 +57,7 @@
   {% if logo_url %}<div class="page-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main class="content">{% block content %}{% endblock %}</main>
   <footer class="site-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
+  {% if dispatch_user %}<script>window.CAD_CURRENT_USER = {id: {{ current_user.id }}, isAdmin: {{ (current_user.role == 'admin')|tojson }}};</script>{% endif %}
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/review-alert.js') }}"></script>{% endif %}
   <script src="{{ asset('/static/theme.js') }}"></script>
   <script src="{{ asset('/static/pwa.js') }}"></script>

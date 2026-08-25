@@ -79,13 +79,61 @@ public class MainActivity extends BridgeActivity {
         super.onPause();
         // Only worth keeping alive in the background once actually connected
         // to a dispatch server — nothing to monitor from the connect screen.
-        if (isConnectedToServer()) {
-            Intent serviceIntent = new Intent(this, BackgroundMonitorService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent);
-            } else {
-                startService(serviceIntent);
+        WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+        if (webView == null || !isConnectedToServer()) return;
+
+        Uri uri = Uri.parse(webView.getUrl());
+        String host = uri.getAuthority();
+        String scheme = uri.getScheme();
+
+        // Start the foreground service synchronously, right here, rather
+        // than waiting on the async JS read below — Android restricts apps
+        // from starting foreground services once they've actually dropped
+        // out of the foreground, and that read's callback could land just
+        // late enough to cross that line. It reconnects moments later once
+        // the real user info comes back; the brief default-filtered window
+        // in between is harmless.
+        startBackgroundMonitor(host, scheme, -1, false);
+
+        // The WebView renderer process gets frozen by Android a few seconds
+        // after backgrounding, independent of this activity's own foreground
+        // service — so BackgroundMonitorService can't rely on this page's JS
+        // to still be running once it needs to react to anything. It opens
+        // its own native WebSocket connections instead; this is just a
+        // last read of who's logged in before that JS stops executing.
+        webView.evaluateJavascript(
+            "(function(){var u=window.CAD_CURRENT_USER||{};return JSON.stringify({userId:u.id||-1,isAdmin:!!u.isAdmin});})()",
+            (value) -> {
+                int userId = -1;
+                boolean isAdmin = false;
+                try {
+                    // evaluateJavascript wraps whatever the script returns in
+                    // an extra layer of JSON encoding — our script already
+                    // returns a JSON string itself, so `value` here is that
+                    // string, quoted and escaped. Unwrap the outer layer first.
+                    String json = (String) new org.json.JSONTokener(value).nextValue();
+                    org.json.JSONObject obj = new org.json.JSONObject(json);
+                    userId = obj.optInt("userId", -1);
+                    isAdmin = obj.optBoolean("isAdmin", false);
+                } catch (Exception ignored) {
+                    // Fall back to the already-running "no alerts" defaults.
+                    return;
+                }
+                startBackgroundMonitor(host, scheme, userId, isAdmin);
             }
+        );
+    }
+
+    private void startBackgroundMonitor(String host, String scheme, int userId, boolean isAdmin) {
+        Intent serviceIntent = new Intent(this, BackgroundMonitorService.class);
+        serviceIntent.putExtra(BackgroundMonitorService.EXTRA_HOST, host);
+        serviceIntent.putExtra(BackgroundMonitorService.EXTRA_SCHEME, scheme);
+        serviceIntent.putExtra(BackgroundMonitorService.EXTRA_USER_ID, userId);
+        serviceIntent.putExtra(BackgroundMonitorService.EXTRA_IS_ADMIN, isAdmin);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
         }
     }
 

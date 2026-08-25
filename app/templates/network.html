@@ -125,7 +125,7 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script>window.CAD_LABELS = {{ t|tojson }}; window.CAD_CURRENT_USER = {id: {{ current_user.id }}, isAdmin: {{ (current_user.role == 'admin')|tojson }}};</script>
+<script>window.CAD_LABELS = {{ t|tojson }};</script>
 <script src="{{ asset('/static/network.js') }}"></script>
 <script src="{{ asset('/static/speed-test.js') }}"></script>
 {% endblock %}
