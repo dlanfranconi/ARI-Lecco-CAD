@@ -207,6 +207,33 @@ If you're on Docker Desktop, don't need `ari-cad.local`, or just want the simple
 
 Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `ari-cad.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if the port is taken, rather than the container silently trying to bind the whole host's network).
 
+## Raspberry Pi
+
+The easiest way to run a dedicated CAD server is a Raspberry Pi (3B+ or newer, 64-bit) — cheap, low-power, and easy to carry to a race site. Two ways to set one up, from easiest to most flexible:
+
+### Option A: Flash the prebuilt appliance image (recommended)
+
+Every [GitHub Release](https://github.com/dlanfranconi/ARI-Lecco-CAD/releases) includes `ari-lecco-cad-pi-vX.Y.Z.img.xz` — a Raspberry Pi OS image that provisions itself completely on first boot. No SSH, no typing, no Raspberry Pi Imager customization dialog needed.
+
+1. Download the `.img.xz` from the release and flash it to a microSD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom" → pick the file) or `balenaEtcher` — don't use Imager's OS customization dialog, the image already has everything set.
+2. Insert the card, connect the Pi to your network with an **Ethernet cable** (the image doesn't have Wi-Fi credentials preloaded), and power it on.
+3. Wait 3–5 minutes for first boot (installing Docker and pulling the image takes most of that). Then open `http://ari-cad.local` from any device on the same network.
+4. Log in with `dispatch` / `dispatch` — you'll be required to change the password immediately.
+
+The Pi's own OS login (console or SSH, e.g. `ssh pi@ari-cad.local`) defaults to `pi` / `arilecco` and **also forces a password change on first login**, independent of the app's own login. Change it the first time you actually SSH in.
+
+To add Wi-Fi instead of Ethernet, or to change the default mDNS hostname before first boot, insert the flashed card into a PC and edit `user-data` / `network-config` on the small boot partition (plain text, [cloud-init](https://cloudinit.readthedocs.io/) format) before powering on the Pi.
+
+### Option B: Bootstrap script on an existing install
+
+If you already have Raspberry Pi OS installed and reachable over SSH (e.g. flashed and configured yourself via Raspberry Pi Imager's own customization dialog), run:
+
+```bash
+curl -fsSL https://github.com/dlanfranconi/ARI-Lecco-CAD/releases/latest/download/bootstrap.sh | sudo sh
+```
+
+This installs Docker, generates a random session secret, and starts the CAD container the same way Option A's image does under the hood — see `pi-setup/INSTALL.md` for details and the full `pi-setup/` bundle attached to each release.
+
 ## APRS.fi
 
 Set an APRS.fi API key:

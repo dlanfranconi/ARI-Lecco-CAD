@@ -1,13 +1,25 @@
 # Installing ARI Lecco CAD on a Raspberry Pi
 
-Two ways to get from a blank SD card to a running CAD server. Both start the same way:
+Two ways to get from a blank SD card to a running CAD server.
 
-1. Download [Raspberry Pi Imager](https://www.raspberrypi.com/software/) and flash **Raspberry Pi OS Lite (64-bit)** to the SD card.
-2. Before writing, open the gear icon / "Edit Settings" (Ctrl+Shift+X) in Imager and set: a hostname, enable SSH (with a password or your public key), and Wi-Fi if the Pi isn't on Ethernet. This is all built into Imager -- no extra tools needed.
+## Option A -- flash the prebuilt appliance image (recommended, zero-touch)
 
-Then pick one of the two paths below.
+Every [GitHub Release](https://github.com/dlanfranconi/ARI-Lecco-CAD/releases) includes `ari-lecco-cad-pi-vX.Y.Z.img.xz` -- a Raspberry Pi OS image that provisions itself completely on first boot via [cloud-init](https://cloudinit.readthedocs.io/). No SSH, no typing, no Raspberry Pi Imager customization dialog needed.
 
-## Path A -- one command over SSH (simplest)
+1. Download the `.img.xz` and flash it with [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom" -> pick the file) or `balenaEtcher`. Skip Imager's OS customization dialog entirely -- the image already has everything set, and running that dialog would just overwrite it.
+2. Insert the card, connect the Pi to your network over **Ethernet** (the image has no Wi-Fi credentials preloaded), and power it on.
+3. Wait 3-5 minutes for first boot -- installing Docker and pulling the CAD image takes most of that. Then open `http://ari-cad.local` from any device on the same network.
+4. Log in with `dispatch` / `dispatch` -- the app forces a password change immediately.
+
+The Pi's own OS login (console or SSH, `ssh pi@ari-cad.local`) defaults to `pi` / `arilecco` and also forces a password change on first login, independent of the app. Change it the first time you actually SSH in.
+
+To use Wi-Fi instead of Ethernet, or change the default mDNS hostname before first boot: insert the freshly-flashed card into a PC and edit `user-data` / `network-config` on the small boot partition (plain text, cloud-init format) before powering on the Pi.
+
+Built by `pi-setup/build-pi-image.py` in CI on every version tag -- see that script if you need to reproduce or modify the image yourself.
+
+## Option B -- bootstrap script over SSH (existing install)
+
+Use this if you already have Raspberry Pi OS installed and reachable over SSH -- e.g. you flashed and customized it yourself via Raspberry Pi Imager's own settings dialog (hostname, SSH, Wi-Fi).
 
 1. Insert the SD card into the Pi and power it on. Give it a minute to boot.
 2. SSH in (`ssh <user>@<hostname-or-ip>`), then run:
@@ -15,18 +27,6 @@ Then pick one of the two paths below.
    curl -fsSL https://github.com/dlanfranconi/ARI-Lecco-CAD/releases/latest/download/bootstrap.sh | sudo sh
    ```
 3. Wait for it to finish -- it installs Docker, then pulls and starts the CAD server. First run takes a few minutes depending on your connection.
-
-## Path B -- zero manual SSH (drop the script on the boot partition)
-
-If you'd rather not SSH in at all:
-
-1. After flashing (before ejecting), the SD card's boot partition is mounted on your computer. Copy `bootstrap.sh` from this release onto that boot partition.
-2. Also drop this onto the boot partition as `firstrun-append.sh` isn't automatic on stock images -- the reliable way is to append a line to the Imager-generated `firstrun.sh` on that same partition so it runs our script too:
-   ```bash
-   echo 'sh /boot/firmware/bootstrap.sh' >> /boot/firmware/firstrun.sh
-   ```
-   (path is `/boot/firmware/` on Bookworm-based images; older images use `/boot/`)
-3. Eject the SD card, insert it into the Pi, and power it on. No further steps -- it provisions itself on first boot.
 
 ## After it's running
 

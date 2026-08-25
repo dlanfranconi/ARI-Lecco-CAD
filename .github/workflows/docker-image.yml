@@ -61,8 +61,63 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-android:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        # Sideloaded internal tool, not Play Store distribution -- a
+        # debug-signed APK installs fine and avoids standing up release
+        # keystore secrets for a low-stakes internal app.
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+  build-pi-image:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: pip install -r pi-setup/build-requirements.txt
+
+      - name: Build Pi image
+        run: |
+          python3 pi-setup/build-pi-image.py \
+            --output "dist/ari-lecco-cad-pi-${{ github.ref_name }}.img.xz"
+
+      - name: Upload Pi image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-image
+          path: dist/ari-lecco-cad-pi-${{ github.ref_name }}.img.xz
+
   release:
-    needs: build
+    needs: [build, build-android, build-pi-image]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -76,6 +131,21 @@ jobs:
           mkdir -p dist
           zip -r "dist/ari-lecco-cad-pi-setup-${{ github.ref_name }}.zip" pi-setup
 
+      - name: Download Android APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: dist
+
+      - name: Download Pi image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pi-image
+          path: dist
+
+      - name: Rename APK with version
+        run: mv dist/app-debug.apk "dist/ari-lecco-cad-${{ github.ref_name }}.apk"
+
       # Only ever creates the release asset for a tag that's already been
       # pushed -- this workflow never pushes tags itself, and pushing a
       # version tag is a manual, explicit step, never automated.
@@ -86,5 +156,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             "dist/ari-lecco-cad-pi-setup-${{ github.ref_name }}.zip" \
             "pi-setup/bootstrap.sh" \
+            "dist/ari-lecco-cad-${{ github.ref_name }}.apk" \
+            "dist/ari-lecco-cad-pi-${{ github.ref_name }}.img.xz" \
             --title "${{ github.ref_name }}" \
             --generate-notes
