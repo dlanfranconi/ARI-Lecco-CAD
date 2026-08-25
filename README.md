@@ -4,7 +4,7 @@ Internal web-based computer aided dispatch app for race and event operations.
 
 ## What is included
 
-- Race log with persistent SQLite storage
+- Race log with persistent SQLite storage, live on every open tab/device — no manual refresh needed for the race timer, dispatch log, or notice queue
 - Editable race setup for users/operators and APRS stations
 - User dropdown with tactical callsign/location, operator callsign, status, and free-text location
 - Optional APRS station assignment per user
@@ -14,6 +14,13 @@ Internal web-based computer aided dispatch app for race and event operations.
 - Announcer display that updates live over WebSocket with polling fallback
 - CSV log export, APRS waypoint CSV export, and GeoJSON waypoint export
 - Clear race data after export
+- Network device monitoring with live up/down status and alerts (Network page)
+- iperf3 link-quality testing between the server and remote radio sites
+- Phone/device speed test against the dispatch server, right from the Network page
+- Server discovery on the LAN via mDNS (`ari-cad.local`) — no IP hunting
+- Optional HTTPS with an auto-generated self-signed certificate
+- Android app (see "Mobile App" below) with offline-safe server picker, persistent login, and a native back button that behaves like an app instead of a browser
+- Build version shown in the page footer, so you can tell at a glance which build a device is actually running
 - Docker and Portainer-friendly deployment
 
 ## Quick start with Docker Compose
@@ -85,6 +92,10 @@ volumes:
 
 Default first login is `dispatch` / `dispatch` when the database has no users. This bootstrap account is created even if `CAD_ADMIN_PASSWORD` is still set to an old value. Change the password in Setup, and change `SESSION_SECRET` and `APRSFI_API_KEY` in Portainer before race use.
 
+### Which build is actually running?
+
+Every page footer shows a version string, e.g. `vmain@a1b2c3d` (branch + short commit) or `vdev` for a local `docker compose up --build` without CI. This is what to check before assuming something is broken — an old, un-updated deployment showing old behavior isn't a bug, and the footer tells you that at a glance instead of needing to SSH in and diff files by hand.
+
 ## Server Discovery (mDNS)
 
 The server advertises itself on the LAN as `ari-cad.local` (via mDNS/Bonjour) so users can type a name instead of hunting for an IP each race — this is what the mobile app's "server name" field resolves. Configure with:
@@ -95,6 +106,48 @@ MDNS_ENABLED=true       # set to false to disable
 ```
 
 Requires `network_mode: host` in Docker (set above) since mDNS multicast doesn't cross Docker's default bridge network — under bridge networking the app still starts normally, but nothing on the LAN will see the advertisement. If two CAD servers run on the same network, give them different `MDNS_HOSTNAME` values.
+
+## Network Tools (Network page)
+
+The **Network** page (in the top nav) is a dashboard for the health of the network the race actually runs on — separate from race data. Device status, events, and iperf3 targets are admin-managed, but any signed-in user/operator can view status and run tests, since the point is letting operators self-test from wherever they're standing, not just admins at a desk.
+
+### Device monitoring
+
+Add a device by name and IP address; the server pings it every `NETWORK_MONITOR_POLL_SECONDS` (default 30) and shows live up/down status with a timestamp of the last check. Status changes appear instantly on every open Network page (no reload) with a toast notification, and are logged to a running events history. Optionally assign a device to notify a specific user — that's a label for now (shown in the events feed), not yet a push notification to a phone.
+
+```bash
+NETWORK_MONITOR_ENABLED=true
+NETWORK_MONITOR_POLL_SECONDS=30
+```
+
+### iperf3 link-quality testing
+
+For testing actual throughput on the PTMP wireless links (not just reachability), add a target with the host/port of an `iperf3` server already running at that site:
+
+```bash
+# On the radio-side PC/Pi at each site you want to test:
+iperf3 -s
+```
+
+Then click **Run Test** next to that target on the Network page — the CAD server runs `iperf3 -c <host>` and shows the result (Mbps) inline, with history. This needs an `iperf3` server actually running at the far end; the CAD server only acts as the client. `IPERF_TEST_SECONDS` (default 5) controls how long each test runs.
+
+### Speed test
+
+At the top of the Network page, **Run Test** under Speed Test measures download/upload throughput and latency between the current device (phone, laptop, whatever you're viewing the page on) and the dispatch server itself. This is a plain HTTP-based test (not iperf3 protocol) so it works from any browser or the mobile app with no extra software — a good quick "is my connection to dispatch actually OK" check from wherever an operator is standing.
+
+## HTTPS (Optional)
+
+Off by default. The server can also listen on a second port over HTTPS, using a self-signed certificate it generates itself on first start and reuses across restarts (stored under `CERT_DIR`, inside the persistent data volume by default):
+
+```bash
+HTTPS_ENABLED=false   # set to true to enable
+HTTPS_PORT=443
+CERT_DIR=/data/certs
+```
+
+Since it's self-signed (not from a public CA — there's no public domain to get one for on a private LAN), browsers and the app will show a one-time "not trusted" warning; proceed/trust it. There's no way around that without either a real public domain or manually installing the certificate as trusted on every device, so this is expected, not a bug.
+
+**Known limitation:** HTTP and HTTPS currently run as two separate server processes (needed to work around an environment-specific bug — see the `62c8c12`/`7defca9` commit history if curious). This means live WebSocket updates (new notices, device status, race timer) only reach clients connected via whichever port/protocol they're actually using — an HTTP tab and an HTTPS tab won't see each other's live updates instantly, though both still get correct data on every page load/reload.
 
 ## Time Zone and NTP
 
@@ -177,6 +230,38 @@ CAD_ADMIN_PASSWORD=dispatch
 
 Change the password before real use, even on an internal network.
 
+## Mobile App (Android)
+
+The `mobile/` folder is a [Capacitor](https://capacitorjs.com) project that wraps this same web app in a native Android shell — it's not a separate app with its own UI, it's a thin WebView that connects to your actual dispatch server. There's no bundled offline UI beyond a one-time "enter server name" connect screen.
+
+### Building the APK
+
+Requires Node.js, a JDK (17 or 21; **not** the very latest JDK — Gradle doesn't support brand-new JDKs immediately after release), and the Android SDK command-line tools.
+
+```bash
+cd mobile
+npm install
+npx cap sync android
+cd android
+./gradlew assembleDebug
+```
+
+The debug APK is written to `mobile/android/app/build/outputs/apk/debug/app-debug.apk`. Sideload it (`adb install -r app-debug.apk`, or copy it to the phone and open it — you'll need to allow "install unknown apps" for whichever app you use to open it, since this isn't a Play Store build).
+
+### How it connects
+
+On first launch, the app asks for a server name or IP — type the mDNS name (`ari-cad.local`) or the server's IP address; no port needed if the server's on the default port 80. It checks reachability, then hands off into the live server's own pages, same as a browser would. Login persists for 30 days (a real session cookie, not stored credentials), so you generally only log in once per install.
+
+### Behavior specific to the app
+
+- **Back button**: goes to the dispatch home screen from anywhere else in the app (Announcer, Setup, Network, etc.) instead of leaving the app or walking backward through page history. From the home screen, back twice within 2 seconds exits the app.
+- **No service worker**: the app doesn't use the same offline-caching mechanism the web version does (there's no benefit to it in an already-installed native app, and it caused real staleness bugs early on — see commit history if curious). If a page looks stale after a deploy, relaunching the app or reinstalling the APK covers it.
+- **`target="_blank"` links** (like the Announcer link, which opens a second tab on desktop) are automatically rewritten to navigate in place instead — there's no tab UI in a WebView for a "new tab" to land on.
+- **Logout** lives in the same dropdown menu as the rest of the nav (see below), not a separate native UI element.
+
+### Responsive nav
+
+On any narrow screen (web or app, under ~860px wide) the top navigation collapses into a hamburger menu — tap it to open, tap outside or a link to close. This isn't Android-specific; a phone browser gets the same treatment.
 
 ## D-RATS / D-STAR Position Ingest
 
