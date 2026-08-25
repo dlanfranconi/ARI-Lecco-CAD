@@ -51,6 +51,10 @@ function connectNetworkWs() {
     const device = payload.device;
     updateDeviceRow(device);
     prependEvent(device);
+    const recipients = device.recipient_user_ids || [];
+    const currentUser = window.CAD_CURRENT_USER;
+    const isRecipient = currentUser && (recipients.includes(currentUser.id) || (recipients.length === 0 && currentUser.isAdmin));
+    if (!isRecipient) return;
     const template = device.status === "down" ? (networkLabels.device_down_alert || "{name} went offline") : (networkLabels.device_up_alert || "{name} is back online");
     showToast(template.replace("{name}", device.name), device.status);
   };

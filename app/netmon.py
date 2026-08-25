@@ -37,11 +37,15 @@ async def poll_devices_once() -> list[dict]:
                     "INSERT INTO device_status_events (device_id, device_name, status) VALUES (?, ?, ?)",
                     (device["id"], device["name"], new_status),
                 )
+                recipient_ids = [
+                    row["user_id"]
+                    for row in conn.execute("SELECT user_id FROM device_alert_recipients WHERE device_id = ?", (device["id"],))
+                ]
                 changed.append({
                     "id": device["id"],
                     "name": device["name"],
                     "ip_address": device["ip_address"],
                     "status": new_status,
-                    "notify_user_id": device["notify_user_id"],
+                    "recipient_user_ids": recipient_ids,
                 })
     return changed

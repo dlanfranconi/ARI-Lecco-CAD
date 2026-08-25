@@ -188,6 +188,14 @@ def init_db() -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(target_id) REFERENCES iperf_targets(id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS device_alert_recipients (
+                device_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                PRIMARY KEY(device_id, user_id),
+                FOREIGN KEY(device_id) REFERENCES monitored_devices(id) ON DELETE CASCADE,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
             """
         )
         _migrate(conn)
@@ -247,6 +255,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
     for tac in conn.execute("SELECT DISTINCT tactical_callsign FROM users WHERE tactical_callsign != ''"):
         conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tac["tactical_callsign"],))
+
+    # One-time carry-over from the old single-assignee column into the new
+    # many-to-many table, so devices configured before multi-select alerts
+    # existed keep notifying whoever they were already pointed at.
+    for device in conn.execute("SELECT id, notify_user_id FROM monitored_devices WHERE notify_user_id IS NOT NULL"):
+        conn.execute(
+            "INSERT OR IGNORE INTO device_alert_recipients (device_id, user_id) VALUES (?, ?)",
+            (device["id"], device["notify_user_id"]),
+        )
 
 
 def _seed_admin(conn: sqlite3.Connection) -> None:

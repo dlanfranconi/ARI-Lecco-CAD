@@ -1692,12 +1692,22 @@ async def view_archive(archive_id: int, request: Request, _: Any = Depends(requi
 async def network_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
     devices = rows(
         """
-        SELECT monitored_devices.*, users.display_name AS notify_user_name
-        FROM monitored_devices
-        LEFT JOIN users ON users.id = monitored_devices.notify_user_id
-        ORDER BY active DESC, name
+        SELECT * FROM monitored_devices ORDER BY active DESC, name
         """
     )
+    recipient_rows = rows(
+        """
+        SELECT device_alert_recipients.device_id, users.id AS user_id, users.display_name
+        FROM device_alert_recipients
+        INNER JOIN users ON users.id = device_alert_recipients.user_id
+        ORDER BY users.display_name
+        """
+    )
+    recipient_ids_by_device: dict[int, list[int]] = {}
+    recipient_names_by_device: dict[int, list[str]] = {}
+    for item in recipient_rows:
+        recipient_ids_by_device.setdefault(item["device_id"], []).append(item["user_id"])
+        recipient_names_by_device.setdefault(item["device_id"], []).append(item["display_name"])
     events = rows(
         """
         SELECT * FROM device_status_events ORDER BY id DESC LIMIT 30
@@ -1721,6 +1731,8 @@ async def network_page(request: Request, _: Any = Depends(require_user_or_admin)
         targets=targets,
         latest_by_target=latest_by_target,
         users_list=users_list,
+        recipient_ids_by_device=recipient_ids_by_device,
+        recipient_names_by_device=recipient_names_by_device,
     )
 
 
@@ -1728,14 +1740,17 @@ async def network_page(request: Request, _: Any = Depends(require_user_or_admin)
 async def add_monitored_device(
     name: str = Form(...),
     ip_address: str = Form(...),
-    notify_user_id: str = Form(""),
+    notify_user_ids: list[str] = Form([]),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     with connect() as conn:
-        conn.execute(
-            "INSERT INTO monitored_devices (name, ip_address, notify_user_id) VALUES (?, ?, ?)",
-            (name.strip(), ip_address.strip(), int(notify_user_id) if notify_user_id else None),
+        cursor = conn.execute(
+            "INSERT INTO monitored_devices (name, ip_address) VALUES (?, ?)",
+            (name.strip(), ip_address.strip()),
         )
+        device_id = cursor.lastrowid
+        for user_id in {int(uid) for uid in notify_user_ids if uid}:
+            conn.execute("INSERT OR IGNORE INTO device_alert_recipients (device_id, user_id) VALUES (?, ?)", (device_id, user_id))
     return RedirectResponse("/network", status_code=303)
 
 
@@ -1744,14 +1759,17 @@ async def update_monitored_device(
     device_id: int,
     name: str = Form(...),
     ip_address: str = Form(...),
-    notify_user_id: str = Form(""),
+    notify_user_ids: list[str] = Form([]),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     with connect() as conn:
         conn.execute(
-            "UPDATE monitored_devices SET name = ?, ip_address = ?, notify_user_id = ? WHERE id = ?",
-            (name.strip(), ip_address.strip(), int(notify_user_id) if notify_user_id else None, device_id),
+            "UPDATE monitored_devices SET name = ?, ip_address = ? WHERE id = ?",
+            (name.strip(), ip_address.strip(), device_id),
         )
+        conn.execute("DELETE FROM device_alert_recipients WHERE device_id = ?", (device_id,))
+        for user_id in {int(uid) for uid in notify_user_ids if uid}:
+            conn.execute("INSERT OR IGNORE INTO device_alert_recipients (device_id, user_id) VALUES (?, ?)", (device_id, user_id))
     return RedirectResponse("/network", status_code=303)
 
 

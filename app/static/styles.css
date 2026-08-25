@@ -202,6 +202,9 @@ th { color: var(--muted); font-size: 13px; }
 
 
 .setup-table input, .setup-table select { min-width: 130px; }
+.recipient-checks { display: flex; flex-direction: column; gap: 2px; min-width: 140px; max-height: 110px; overflow-y: auto; }
+.recipient-checks label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; white-space: nowrap; }
+.recipient-checks input { width: auto; min-width: 0; }
 .setup-table td { vertical-align: middle; }
 .setup-table button { min-width: 70px; }
 

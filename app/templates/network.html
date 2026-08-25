@@ -23,7 +23,7 @@
           <form method="post" action="/network/devices">
             <td><input name="name" required placeholder="{{ t.device_name }}"></td>
             <td><input name="ip_address" required placeholder="192.168.1.50"></td>
-            <td><select name="notify_user_id"><option value="">{{ t.notify_all_admins }}</option>{% for user in users_list %}<option value="{{ user.id }}">{{ user.display_name }}</option>{% endfor %}</select></td>
+            <td><div class="recipient-checks">{% for user in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ user.id }}"> {{ user.display_name }}</label>{% endfor %}{% if not users_list %}<span class="meta">{{ t.notify_all_admins }}</span>{% endif %}</div></td>
             <td>{{ t.unknown }}</td>
             <td></td>
             <td><button>{{ t.add }}</button></td>
@@ -34,10 +34,11 @@
         {% for device in devices %}
         <tr class="device-row" id="device-{{ device.id }}" data-device-id="{{ device.id }}">
           {% if is_admin %}
+          {% set recipient_ids = recipient_ids_by_device.get(device.id, []) %}
           <form method="post" action="/network/devices/{{ device.id }}">
             <td><input name="name" value="{{ device.name }}" required></td>
             <td><input name="ip_address" value="{{ device.ip_address }}" required></td>
-            <td><select name="notify_user_id"><option value="">{{ t.notify_all_admins }}</option>{% for user in users_list %}<option value="{{ user.id }}" {% if device.notify_user_id == user.id %}selected{% endif %}>{{ user.display_name }}</option>{% endfor %}</select></td>
+            <td><div class="recipient-checks">{% for user in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ user.id }}" {% if user.id in recipient_ids %}checked{% endif %}> {{ user.display_name }}</label>{% endfor %}</div></td>
             <td><span class="device-status status-{{ device.last_status }}">{{ t[device.last_status] if device.last_status in ['up', 'down'] else t.unknown }}</span></td>
             <td class="device-last-checked">{{ format_dt(device.last_checked_at) if device.last_checked_at else '' }}</td>
             <td>{{ t.active if device.active else t.disabled }} <button>{{ t.save }}</button></td>
@@ -49,7 +50,7 @@
           {% else %}
           <td>{{ device.name }}</td>
           <td>{{ device.ip_address }}</td>
-          <td>{{ device.notify_user_name or t.notify_all_admins }}</td>
+          <td>{{ recipient_names_by_device.get(device.id)|join(', ') if recipient_names_by_device.get(device.id) else t.notify_all_admins }}</td>
           <td><span class="device-status status-{{ device.last_status }}">{{ t[device.last_status] if device.last_status in ['up', 'down'] else t.unknown }}</span></td>
           <td class="device-last-checked">{{ format_dt(device.last_checked_at) if device.last_checked_at else '' }}</td>
           {% endif %}
@@ -124,7 +125,7 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script>window.CAD_LABELS = {{ t|tojson }};</script>
+<script>window.CAD_LABELS = {{ t|tojson }}; window.CAD_CURRENT_USER = {id: {{ current_user.id }}, isAdmin: {{ (current_user.role == 'admin')|tojson }}};</script>
 <script src="{{ asset('/static/network.js') }}"></script>
 <script src="{{ asset('/static/speed-test.js') }}"></script>
 {% endblock %}
