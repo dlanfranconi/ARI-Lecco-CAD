@@ -62,7 +62,10 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-android:
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Also builds on WIP pushes (as a downloadable Actions artifact, not a
+    # GitHub Release -- that stays tag-only) so Android-side changes can be
+    # tested before a version is cut.
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/WIP'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
