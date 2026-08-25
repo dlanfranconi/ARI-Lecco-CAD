@@ -1,6 +1,15 @@
 import os
 
 
+def _read_version() -> str:
+    version_path = os.path.join(os.path.dirname(__file__), "..", "VERSION")
+    try:
+        with open(version_path, encoding="utf-8") as f:
+            return f.read().strip() or "0.0.0"
+    except OSError:
+        return "0.0.0"
+
+
 class Settings:
     admin_username: str = os.getenv("CAD_ADMIN_USERNAME", "dispatch")
     admin_password: str = os.getenv("CAD_ADMIN_PASSWORD", "dispatch")
@@ -23,8 +32,8 @@ class Settings:
     network_monitor_poll_seconds: int = int(os.getenv("NETWORK_MONITOR_POLL_SECONDS", "30"))
     iperf_test_seconds: int = int(os.getenv("IPERF_TEST_SECONDS", "5"))
     app_version: str = (
-        "dev" if os.getenv("APP_GIT_SHA", "dev") == "dev"
-        else f"{os.getenv('APP_GIT_REF', 'local')}@{os.getenv('APP_GIT_SHA')[:7]}"
+        f"{_read_version()} (dev)" if os.getenv("APP_GIT_SHA", "dev") == "dev"
+        else f"{_read_version()} ({os.getenv('APP_GIT_REF', 'local')}@{os.getenv('APP_GIT_SHA')[:7]})"
     )
 
 

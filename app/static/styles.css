@@ -25,6 +25,7 @@ a { color: inherit; }
   align-items: center;
   gap: 24px;
   padding: 12px 20px;
+  padding-top: max(12px, env(safe-area-inset-top));
   background: #102a2f;
   color: #fff;
 }
@@ -51,8 +52,8 @@ a { color: inherit; }
 .topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; align-items: center; }
 .topbar nav a { color: #fff; text-decoration: none; }
 .nav-toggle { display: none; }
-.nav-logout-form { margin: 0; }
-.nav-logout-form button { padding: 0; background: none; border: none; color: #fff; font: inherit; cursor: pointer; }
+.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.nav-logout-icon { margin: 0; }
 .content { padding: 20px; max-width: 1500px; margin: 0 auto; }
 .grid { display: grid; gap: 16px; }
 .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -175,8 +176,7 @@ th { color: var(--muted); font-size: 13px; }
   .grid.two, .grid.three { grid-template-columns: 1fr; }
   .span-two { grid-column: auto; }
   .topbar { position: relative; flex-wrap: wrap; }
-  .nav-toggle { display: inline-flex; order: 1; }
-  .topbar .brand { margin-right: auto; }
+  .nav-toggle { display: inline-flex; }
   .topbar nav {
     display: none;
     order: 5;
@@ -193,7 +193,7 @@ th { color: var(--muted); font-size: 13px; }
     z-index: 40;
   }
   .topbar nav.nav-open { display: flex; }
-  .topbar nav a, .nav-logout-form button { padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
+  .topbar nav a { padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
   .clear-form { grid-template-columns: 1fr; }
   .edit-grid, .edit-grid.compact { grid-template-columns: 1fr; }
 }
@@ -215,7 +215,7 @@ th { color: var(--muted); font-size: 13px; }
 .compact-table table { min-width: 560px; }
 .actions-cell { display: flex; gap: 8px; align-items: center; }
 .tac-table input { min-width: 110px; }
-.announcer-topbar { position: fixed; top: 16px; right: 16px; z-index: 20; display: flex; align-items: center; gap: 10px; }
+.announcer-topbar { position: fixed; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); z-index: 20; display: flex; align-items: center; gap: 10px; }
 .announcer-clock { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: #8bd3ce; background: rgba(7,16,18,.72); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; }
 .contrast-toggle { width: 42px; padding: 0; font-size: 24px; background: #dce6ea; color: #071012; }
 .announcer.light-mode { background: #f8fbfb; color: #071012; }
