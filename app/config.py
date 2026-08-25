@@ -31,9 +31,10 @@ class Settings:
     network_monitor_enabled: bool = os.getenv("NETWORK_MONITOR_ENABLED", "true").lower() not in {"0", "false", "no"}
     network_monitor_poll_seconds: int = int(os.getenv("NETWORK_MONITOR_POLL_SECONDS", "30"))
     iperf_test_seconds: int = int(os.getenv("IPERF_TEST_SECONDS", "5"))
-    app_version: str = (
-        f"{_read_version()} (dev)" if os.getenv("APP_GIT_SHA", "dev") == "dev"
-        else f"{_read_version()} ({os.getenv('APP_GIT_REF', 'local')}@{os.getenv('APP_GIT_SHA')[:7]})"
+    app_version: str = _read_version()
+    app_build: str = (
+        "dev" if os.getenv("APP_GIT_SHA", "dev") == "dev"
+        else f"{os.getenv('APP_GIT_REF', 'local')}@{os.getenv('APP_GIT_SHA')[:7]}"
     )
 
 

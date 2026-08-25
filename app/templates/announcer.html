@@ -41,7 +41,7 @@
     </div>
     <button id="history-open" class="history-open-button" type="button">{{ t.older_notices }}</button>
   </main>
-  <footer class="site-footer announcer-footer">{{ t.designed_by }} <span class="app-version">v{{ app_version }}</span></footer>
+  <footer class="site-footer announcer-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }};</script>
   <script src="/static/race-timer.js"></script>
   <script src="/static/announcer.js"></script>

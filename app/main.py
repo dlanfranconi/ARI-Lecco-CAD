@@ -238,6 +238,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     context.setdefault("app_version", settings.app_version)
+    context.setdefault("app_build", settings.app_build)
     return templates.TemplateResponse(request, name, context)
 
 
