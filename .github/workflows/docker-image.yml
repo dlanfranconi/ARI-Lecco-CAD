@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -46,6 +49,10 @@ jobs:
         with:
           context: .
           push: true
+          # arm64 so this image can actually run on a Raspberry Pi (built
+          # via QEMU emulation above, since the runner itself is amd64) --
+          # amd64 stays for local/VM deployments like the Portainer hosts.
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -53,3 +60,31 @@ jobs:
             GIT_REF=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Package pi-setup bundle
+        run: |
+          mkdir -p dist
+          zip -r "dist/ari-lecco-cad-pi-setup-${{ github.ref_name }}.zip" pi-setup
+
+      # Only ever creates the release asset for a tag that's already been
+      # pushed -- this workflow never pushes tags itself, and pushing a
+      # version tag is a manual, explicit step, never automated.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "dist/ari-lecco-cad-pi-setup-${{ github.ref_name }}.zip" \
+            "pi-setup/bootstrap.sh" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
