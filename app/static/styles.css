@@ -67,7 +67,7 @@ a { color: inherit; }
   margin-bottom: 16px;
 }
 .narrow { max-width: 420px; width: 100%; }
-.login { min-height: 80vh; display: grid; place-items: center; }
+.login { min-height: 80vh; display: grid; place-items: center; gap: 14px; }
 h1, h2 { margin: 0 0 14px; }
 label { display: grid; gap: 6px; margin-bottom: 12px; font-weight: 700; }
 input, select, textarea {

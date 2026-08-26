@@ -27,7 +27,6 @@
       border: none; background: #146c75; color: #f8fbfb; cursor: pointer;
     }
     button:disabled { opacity: .6; }
-    button.secondary { background: transparent; border: 1px solid #46666d; color: #b7c7c9; margin-top: 10px; }
     .error { color: #ff8a80; font-size: 13px; margin: -8px 0 16px; min-height: 16px; }
     .hint { color: #6f8a8f; font-size: 12px; margin-top: 18px; }
   </style>
@@ -41,7 +40,6 @@
       <input id="server" name="server" placeholder="ari-cad.local" autocapitalize="off" autocorrect="off" spellcheck="false" required>
       <div class="error" id="error"></div>
       <button id="connect-btn" type="submit">Connect</button>
-      <button id="announcements-btn" type="button" class="secondary">View Announcements (no login)</button>
     </form>
     <p class="hint">Example: <code>ari-cad.local</code> or <code>192.168.1.50</code>. Ask your race dispatch admin if unsure.</p>
   </div>
@@ -51,7 +49,6 @@
     const input = document.getElementById("server");
     const errorEl = document.getElementById("error");
     const button = document.getElementById("connect-btn");
-    const announcementsButton = document.getElementById("announcements-btn");
 
     function normalizeHost(raw) {
       // No port suffix by default — the server listens on 80, so plain
@@ -63,39 +60,33 @@
       return value || null;
     }
 
-    // path: "/" goes into the logged-in app (or lands on /login if there's no
-    // session). "/announcer" is public and login-free -- from here (no
-    // session cookie yet) it always shows the generic speaker/broadcast
-    // board; a station with its own login gets its personal routed view
-    // automatically once signed in, via the same route.
-    async function tryConnect(host, path, activeButton, busyLabel, idleLabel) {
+    // Lands on "/" -- straight into the app with a still-valid session, or a
+    // redirect to /login otherwise. /login itself has its own "View
+    // Announcements" link (public, no login needed) for that case.
+    async function tryConnect(host) {
       errorEl.textContent = "";
-      activeButton.disabled = true;
-      activeButton.textContent = busyLabel;
+      button.disabled = true;
+      button.textContent = "Connecting...";
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         await fetch(`http://${host}/login`, { method: "GET", mode: "no-cors", signal: controller.signal });
         clearTimeout(timeout);
         localStorage.setItem(STORAGE_KEY, host);
-        window.location.href = `http://${host}${path}`;
+        window.location.href = `http://${host}/`;
       } catch (err) {
         errorEl.textContent = "Could not reach that server. Check the name and that you're on the race network.";
-        activeButton.disabled = false;
-        activeButton.textContent = idleLabel;
+        button.disabled = false;
+        button.textContent = "Connect";
       }
     }
 
-    // Auto-connect straight into the app when there's a saved host and a
-    // still-valid session -- the common case, no reason to make a returning
-    // user tap Connect every launch. If there's no valid session, landing on
-    // "/" redirects to /login, which itself now has its own "View
-    // Announcements" link, so that path stays reachable without needing to
-    // interrupt the auto-connect here.
+    // Auto-connect on a saved host -- the common case, no reason to make a
+    // returning user tap Connect every launch.
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       input.value = saved;
-      tryConnect(saved, "/", button, "Connecting...", "Connect");
+      tryConnect(saved);
     }
 
     form.addEventListener("submit", (event) => {
@@ -105,16 +96,7 @@
         errorEl.textContent = "Enter a server name or address.";
         return;
       }
-      tryConnect(host, "/", button, "Connecting...", "Connect");
-    });
-
-    announcementsButton.addEventListener("click", () => {
-      const host = normalizeHost(input.value);
-      if (!host) {
-        errorEl.textContent = "Enter a server name or address.";
-        return;
-      }
-      tryConnect(host, "/announcer", announcementsButton, "Connecting...", "View Announcements (no login)");
+      tryConnect(host);
     });
   </script>
 </body>
