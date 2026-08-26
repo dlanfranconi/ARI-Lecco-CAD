@@ -271,6 +271,7 @@ def notice_payload(item: Any) -> dict[str, object]:
     data["recipient_user_ids"] = [
         r["user_id"] for r in rows("SELECT user_id FROM bulletin_recipients WHERE bulletin_id = ?", (data["id"],))
     ]
+    data["broadcast_all"] = bool(data.get("broadcast_all"))
     return data
 
 
@@ -1126,6 +1127,7 @@ async def notice_submit(
     runner_crono: list[str] = Form([]),
     runner_position: list[str] = Form([]),
     notify_user_ids: list[str] = Form([]),
+    broadcast_all: bool = Form(False),
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -1138,8 +1140,8 @@ async def notice_submit(
                 return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?error=message", status_code=303)
             cur = conn.execute(
                 """
-                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status)
-                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, broadcast_all)
+                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
                 """,
                 (
                     user["display_name"],
@@ -1150,14 +1152,19 @@ async def notice_submit(
                     joined_group_positions(group, runner_position),
                     checkpoint.strip(),
                     joined_group_crono(group, runner_crono, effective_crono),
+                    broadcast_all,
                 ),
             )
             notice_ids.append(cur.lastrowid)
-            for recipient_id in notify_user_ids:
-                conn.execute(
-                    "INSERT OR IGNORE INTO bulletin_recipients (bulletin_id, user_id) VALUES (?, ?)",
-                    (cur.lastrowid, recipient_id),
-                )
+            # broadcast_all takes precedence over any individually-picked
+            # recipients -- the "Send To" list makes them mutually exclusive
+            # client-side, this is just the defensive server-side mirror.
+            if not broadcast_all:
+                for recipient_id in notify_user_ids:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO bulletin_recipients (bulletin_id, user_id) VALUES (?, ?)",
+                        (cur.lastrowid, recipient_id),
+                    )
     for notice_id in notice_ids:
         await broadcast_review_notice(notice_id)
     await broadcast_pending_count()
@@ -1245,9 +1252,10 @@ async def approve_notice(
     message: str = Form(""),
     crono_time: str = Form(""),
     notify_user_ids: list[str] = Form([]),
+    broadcast_all: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids)
+    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids, broadcast_all)
     return RedirectResponse("/notices", status_code=303)
 
 
@@ -1262,6 +1270,7 @@ async def api_approve_notice(notice_id: int, request: Request, admin: Any = Depe
         str(data.get("message", "")).strip() or None,
         str(data.get("crono_time", "")).strip() or None,
         [str(uid) for uid in notify_user_ids] if notify_user_ids is not None else None,
+        data.get("broadcast_all"),
     )
     return {"ok": True, "notice": notice}
 
@@ -1272,13 +1281,20 @@ async def approve_notice_id(
     message: str | None = None,
     crono_time: str | None = None,
     notify_user_ids: list[str] | None = None,
+    broadcast_all: bool | None = None,
 ) -> dict[str, object]:
     with connect() as conn:
         if message is not None or crono_time is not None:
             current = row("SELECT message, crono_time FROM bulletins WHERE id = ?", (notice_id,))
             conn.execute("UPDATE bulletins SET message = ?, crono_time = ? WHERE id = ?", (message if message is not None else current["message"], crono_time if crono_time is not None else current["crono_time"], notice_id))
         conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (approved_by or settings.admin_username, notice_id))
-        if notify_user_ids is not None:
+        if broadcast_all is not None:
+            conn.execute("UPDATE bulletins SET broadcast_all = ? WHERE id = ?", (bool(broadcast_all), notice_id))
+        # broadcast_all takes precedence over individually-picked recipients
+        # (mutually exclusive in the "Send To" UI) -- skip writing recipients
+        # in that case so a stale broadcast_all=0 update elsewhere can't
+        # resurrect an old individual routing underneath it.
+        if notify_user_ids is not None and broadcast_all is not True:
             conn.execute("DELETE FROM bulletin_recipients WHERE bulletin_id = ?", (notice_id,))
             for recipient_id in notify_user_ids:
                 conn.execute(
@@ -1342,17 +1358,22 @@ async def delete_notice_id(notice_id: int, username: str = "", display_name: str
 
 
 def announcer_audience_clause(viewer: Any | None) -> tuple[str, tuple[Any, ...]]:
-    # Logged out: the generic speaker/broadcast board only, exactly like
-    # before. Logged in: your own routed notices, plus broadcasts too if
-    # you're a speaker-group member.
+    # broadcast_all reaches literally everyone regardless of login or
+    # speaker-group membership. Otherwise: logged out sees the generic
+    # speaker/broadcast board only, exactly like before; logged in sees
+    # your own routed notices, plus broadcasts too if you're a speaker-group
+    # member.
     if viewer is None:
-        return "id NOT IN (SELECT bulletin_id FROM bulletin_recipients)", ()
+        return "(broadcast_all = 1 OR id NOT IN (SELECT bulletin_id FROM bulletin_recipients))", ()
     if viewer["in_speaker_group"]:
         return (
-            "(id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?) OR id NOT IN (SELECT bulletin_id FROM bulletin_recipients))",
+            "(broadcast_all = 1 OR id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?) OR id NOT IN (SELECT bulletin_id FROM bulletin_recipients))",
             (viewer["id"],),
         )
-    return "id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?)", (viewer["id"],)
+    return (
+        "(broadcast_all = 1 OR id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?))",
+        (viewer["id"],),
+    )
 
 
 @app.get("/announcer", response_class=HTMLResponse)

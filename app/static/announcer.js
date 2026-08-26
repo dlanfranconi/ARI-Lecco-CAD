@@ -108,6 +108,7 @@ function flashBulletin() {
 }
 
 function isVisibleToViewer(item) {
+  if (item?.broadcast_all) return true;
   const viewer = window.CAD_CURRENT_USER;
   const recipients = item?.recipient_user_ids || [];
   if (!viewer) return recipients.length === 0;

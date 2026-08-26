@@ -260,6 +260,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "checkpoint": "ALTER TABLE bulletins ADD COLUMN checkpoint TEXT DEFAULT ''",
         "crono_time": "ALTER TABLE bulletins ADD COLUMN crono_time TEXT DEFAULT ''",
         "hidden_at": "ALTER TABLE bulletins ADD COLUMN hidden_at TEXT",
+        "broadcast_all": "ALTER TABLE bulletins ADD COLUMN broadcast_all INTEGER NOT NULL DEFAULT 0",
     }.items():
         if column not in bulletin_cols:
             conn.execute(sql)

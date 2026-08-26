@@ -12,7 +12,11 @@
         {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
         {% set recipient_ids = recipient_ids_by_notice.get(item.id, []) %}
         <label>{{ t.notify_recipients }}
-          <div class="recipient-checks">{% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" {% if u.id in recipient_ids %}checked{% endif %}> {{ u.display_name }}</label>{% endfor %}</div>
+          <div class="recipient-checks">
+            <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" {% if not item.broadcast_all and not recipient_ids %}checked{% endif %}> {{ t.send_to_announcer }}</label>
+            <label><input type="checkbox" name="broadcast_all" value="1" class="recipient-special" data-recipient-mode="broadcast" {% if item.broadcast_all %}checked{% endif %}> {{ t.send_to_broadcast_all }}</label>
+            {% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" class="recipient-individual" {% if u.id in recipient_ids %}checked{% endif %}> {{ u.display_name }}</label>{% endfor %}
+          </div>
         </label>
         <button>{{ t.save_and_approve }}</button>
       </form>

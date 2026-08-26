@@ -168,7 +168,9 @@ public class BackgroundMonitorService extends Service {
 
             JSONArray recipients = notice.optJSONArray("recipient_user_ids");
             boolean isRecipient;
-            if (recipients == null || recipients.length() == 0) {
+            if (notice.optBoolean("broadcast_all", false)) {
+                isRecipient = true;
+            } else if (recipients == null || recipients.length() == 0) {
                 isRecipient = inSpeakerGroup;
             } else {
                 isRecipient = false;
