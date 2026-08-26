@@ -28,6 +28,9 @@ a { color: inherit; }
   padding-top: max(12px, env(safe-area-inset-top));
   background: #102a2f;
   color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 .header-timer { display: flex; align-items: center; gap: 8px; }
 .header-clock { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 74px; color: #8bd3ce; }
@@ -67,7 +70,7 @@ a { color: inherit; }
   margin-bottom: 16px;
 }
 .narrow { max-width: 420px; width: 100%; }
-.login { min-height: 80vh; display: grid; place-items: center; gap: 14px; }
+.login { min-height: 80vh; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }
 h1, h2 { margin: 0 0 14px; }
 label { display: grid; gap: 6px; margin-bottom: 12px; font-weight: 700; }
 input, select, textarea {
@@ -194,7 +197,7 @@ th { color: var(--muted); font-size: 13px; }
   .runner-list-row, .compact-log-row, .athlete-row, .announcer .athlete-row { grid-template-columns: 1fr; }
   .grid.two, .grid.three { grid-template-columns: 1fr; }
   .span-two { grid-column: auto; }
-  .topbar { position: relative; flex-wrap: wrap; gap: 8px; }
+  .topbar { flex-wrap: wrap; gap: 8px; }
   #nav-toggle { display: inline-flex; order: 1; }
   .brand { order: 2; }
   .header-timer { order: 4; flex-basis: 100%; justify-content: center; }
