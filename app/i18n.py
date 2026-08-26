@@ -312,7 +312,7 @@ TRANSLATIONS = {
         "notify_recipients": "Invia a",
         "notify_broadcast_hint": "Trasmetti al gruppo speaker",
         "send_to_announcer": "Annunciatore (Gruppo Speaker)",
-        "send_to_broadcast_all": "Trasmetti (Tutte le stazioni)",
+        "send_to_broadcast_all": "Broadcast (Tutte le stazioni)",
         "view_announcements_no_login": "Annunci",
         "submit_notice": "Invia notizia",
         "sent_to_dispatch": "Notizia inviata per revisione.",
