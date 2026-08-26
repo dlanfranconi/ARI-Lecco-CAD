@@ -63,7 +63,12 @@ function initRecipientPicker(form) {
     if (!currentlyExplicit) {
       try {
         const remembered = JSON.parse(localStorage.getItem(RECIPIENT_MEMORY_KEY) || "null");
-        if (remembered) applyRecipientState(form, remembered);
+        // Guard against a stale value from before this mode/stationIds shape
+        // existed (an older build stored a flat array here) -- fall back to
+        // the Announcer default rather than end up with nothing checked.
+        if (remembered && typeof remembered === "object" && !Array.isArray(remembered) && typeof remembered.mode === "string") {
+          applyRecipientState(form, remembered);
+        }
       } catch (_) {
         // Storage unavailable or corrupt; keep the Announcer default.
       }
