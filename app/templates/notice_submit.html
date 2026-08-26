@@ -12,8 +12,8 @@
     <label>{{ t.notice_message }}<textarea id="notice-message" class="notice-message" name="message" rows="6"></textarea></label>
     <label>{{ t.notify_recipients }}
       <div class="recipient-checks">
-        <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" checked> {{ t.send_to_announcer }}</label>
         <label><input type="checkbox" name="broadcast_all" value="1" class="recipient-special" data-recipient-mode="broadcast"> {{ t.send_to_broadcast_all }}</label>
+        <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" checked> {{ t.send_to_announcer }}</label>
         {% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" class="recipient-individual"> {{ u.display_name }}</label>{% endfor %}
       </div>
     </label>
