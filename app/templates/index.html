@@ -2,7 +2,7 @@
 {% block content %}
 {% if is_admin %}
 <section class="grid three">
-  <form method="post" action="/logs" class="panel span-two" data-runner-compose>
+  <form method="post" action="/logs" class="panel span-two" data-runner-compose data-recipients data-recipients-restore>
     <div class="section-title">
       <h1>{{ t.race_log }}</h1>
       <a id="pending-count-pill" class="pill" href="/notices" data-label="{{ t.pending_notices }}"><span id="pending-count">{{ pending_count }}</span> {{ t.pending_notices }}</a>
@@ -41,11 +41,24 @@
       <span>{{ t.hometown }}: <strong class="runner-ref-town"></strong></span>
     </div>
     <label>{{ t.message }}<textarea class="notice-message" name="message" rows="5"></textarea></label>
-    <label class="check"><input type="checkbox" name="forward_bulletin" value="1"> {{ t.forward_notice }}</label>
+    <label class="check"><input type="checkbox" id="forward-bulletin-check" name="forward_bulletin" value="1"> {{ t.forward_notice }}</label>
+    <div id="forward-recipients-modal" class="modal hidden">
+      <div class="modal-panel">
+        <h2>{{ t.notify_recipients }}</h2>
+        <div class="recipient-checks">
+          <label><input type="checkbox" name="broadcast_all" value="1" class="recipient-special" data-recipient-mode="broadcast"> {{ t.send_to_broadcast_all }}</label>
+          <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" checked> {{ t.send_to_announcer }}</label>
+          {% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" class="recipient-individual"> {{ u.display_name }}</label>{% endfor %}
+        </div>
+        <div class="actions">
+          <button type="button" id="forward-recipients-close" class="secondary">{{ t.dismiss }}</button>
+        </div>
+      </div>
+    </div>
     <button>{{ t.save_log }}</button>
   </form>
 
-  <form method="post" action="/notices/direct" class="panel" data-runner-compose>
+  <form method="post" action="/notices/direct" class="panel" data-runner-compose data-recipients data-recipients-restore>
     <h2>{{ t.send_notice }}</h2>
     <div class="grid two">
       <label>{{ t.bib_number }}<input class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>
@@ -62,6 +75,13 @@
       <span>{{ t.hometown }}: <strong class="runner-ref-town"></strong></span>
     </div>
     <label>{{ t.notice_message }}<textarea class="notice-message" name="message" rows="7"></textarea></label>
+    <label>{{ t.notify_recipients }}
+      <div class="recipient-checks">
+        <label><input type="checkbox" name="broadcast_all" value="1" class="recipient-special" data-recipient-mode="broadcast"> {{ t.send_to_broadcast_all }}</label>
+        <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" checked> {{ t.send_to_announcer }}</label>
+        {% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" class="recipient-individual"> {{ u.display_name }}</label>{% endfor %}
+      </div>
+    </label>
     <button>{{ t.post_notice }}</button>
   </form>
 </section>
@@ -95,6 +115,6 @@
 </section>
 {% endblock %}
 {% block scripts %}
-{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/race-log.js') }}"></script>{% endif %}
+{% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/race-log.js') }}"></script><script src="{{ asset('/static/notice-recipients.js') }}"></script>{% endif %}
 <script src="{{ asset('/static/race-log-live.js') }}"></script>
 {% endblock %}

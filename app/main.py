@@ -515,7 +515,17 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
     )
     logs = recent_log_rows()
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
-    return page(request, "index.html", users=users, logs=logs, pending_count=pending_count, user=user, tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"))
+    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name")
+    return page(
+        request,
+        "index.html",
+        users=users,
+        logs=logs,
+        pending_count=pending_count,
+        user=user,
+        tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"),
+        users_list=users_list,
+    )
 
 
 SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days — long-lived so the Android app doesn't need a fresh login every launch.
@@ -589,6 +599,8 @@ async def create_log(
     runner_crono: list[str] = Form([]),
     runner_position: list[str] = Form([]),
     forward_bulletin: str | None = Form(None),
+    notify_user_ids: list[str] = Form([]),
+    broadcast_all: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     user = resolve_operator(user_id, user_lookup)
@@ -610,8 +622,8 @@ async def create_log(
                 cur = conn.execute(
                     """
                     INSERT INTO bulletins
-                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by)
-                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all)
+                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?)
                     """,
                     (
                         label,
@@ -623,10 +635,17 @@ async def create_log(
                         checkpoint.strip(),
                         joined_group_crono(group, runner_crono, effective_crono),
                         admin["username"],
+                        broadcast_all,
                     ),
                 )
                 notice_id = cur.lastrowid
                 notice_ids.append(notice_id)
+                if not broadcast_all:
+                    for recipient_id in notify_user_ids:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO bulletin_recipients (bulletin_id, user_id) VALUES (?, ?)",
+                            (notice_id, recipient_id),
+                        )
             for index, runner in enumerate(group):
                 runner_crono_value = crono_for_runner(index, runner_crono, effective_crono)
                 entry_message = notice_message_for_runner(message.strip(), runner, checkpoint.strip()) if runner.get("bib") else group_message
@@ -737,6 +756,8 @@ async def direct_notice(
     crono_time: str = Form(""),
     runner_crono: list[str] = Form([]),
     runner_position: list[str] = Form([]),
+    notify_user_ids: list[str] = Form([]),
+    broadcast_all: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -750,8 +771,8 @@ async def direct_notice(
             cur = conn.execute(
                 """
                 INSERT INTO bulletins
-                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by)
-                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?)
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all)
+                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?)
                 """,
                 (
                     admin["display_name"],
@@ -763,9 +784,17 @@ async def direct_notice(
                     checkpoint.strip(),
                     joined_group_crono(group, runner_crono, effective_crono),
                     admin["username"],
+                    broadcast_all,
                 ),
             )
-            notice_ids.append(cur.lastrowid)
+            notice_id = cur.lastrowid
+            notice_ids.append(notice_id)
+            if not broadcast_all:
+                for recipient_id in notify_user_ids:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO bulletin_recipients (bulletin_id, user_id) VALUES (?, ?)",
+                        (notice_id, recipient_id),
+                    )
     for notice_id in notice_ids:
         notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
         if notice:
@@ -778,7 +807,7 @@ async def direct_notice(
 
 @app.post("/bulletins/direct")
 async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], runner_position=[], admin=admin)
+    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], runner_position=[], notify_user_ids=[], broadcast_all=False, admin=admin)
 
 
 @app.get("/setup", response_class=HTMLResponse)

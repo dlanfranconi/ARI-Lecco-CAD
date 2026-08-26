@@ -142,6 +142,24 @@ function initRecipientPicker(form) {
   });
 }
 
+// "Forward as approved notice" on the race-log entry form has its own
+// recipient picker tucked into a popup, only relevant once that checkbox
+// is actually checked -- rather than permanently taking up space in an
+// already-busy form.
+function initForwardRecipientsModal() {
+  const checkbox = document.getElementById("forward-bulletin-check");
+  const modal = document.getElementById("forward-recipients-modal");
+  if (!checkbox || !modal) return;
+  checkbox.addEventListener("change", () => {
+    modal.classList.toggle("hidden", !checkbox.checked);
+  });
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) modal.classList.add("hidden");
+  });
+  document.getElementById("forward-recipients-close")?.addEventListener("click", () => modal.classList.add("hidden"));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("form[data-recipients]").forEach(initRecipientPicker);
+  initForwardRecipientsModal();
 });
