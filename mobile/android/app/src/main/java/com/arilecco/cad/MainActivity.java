@@ -1,9 +1,13 @@
 package com.arilecco.cad;
 
+import android.app.DownloadManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.webkit.CookieManager;
+import android.webkit.URLUtil;
 import android.webkit.WebView;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
@@ -25,6 +29,33 @@ public class MainActivity extends BridgeActivity {
         // safe-area-inset CSS alone (the WebView doesn't always report those
         // insets correctly without this).
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+
+        // Stock WebView has no idea what to do with a navigation that
+        // resolves to a file download (CSV/GeoJSON exports, race archives)
+        // -- without this listener it just silently does nothing, no error,
+        // no file, no feedback. Hand those off to the system DownloadManager
+        // instead, forwarding the session cookie so the authenticated
+        // request actually succeeds.
+        WebView downloadWebView = getBridge() != null ? getBridge().getWebView() : null;
+        if (downloadWebView != null) {
+            downloadWebView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                    String cookie = CookieManager.getInstance().getCookie(url);
+                    if (cookie != null) request.addRequestHeader("Cookie", cookie);
+                    request.addRequestHeader("User-Agent", userAgent);
+                    String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                    request.setMimeType(mimeType);
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    DownloadManager downloadManager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    downloadManager.enqueue(request);
+                    Toast.makeText(MainActivity.this, "Downloading " + filename, Toast.LENGTH_SHORT).show();
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Download failed", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
 
         // Overriding the deprecated Activity.onBackPressed() is unreliable on
         // modern Android: with predictive back (API 33+, which this app's
