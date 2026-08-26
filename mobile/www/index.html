@@ -86,12 +86,17 @@
       }
     }
 
-    // Pre-fill but don't auto-navigate -- this screen is also how you reach
-    // "View Announcements," so it needs to actually stay visible instead of
-    // immediately jumping to "/" (and from there to /login) the moment a
-    // host is remembered from a previous connect.
+    // Auto-connect straight into the app when there's a saved host and a
+    // still-valid session -- the common case, no reason to make a returning
+    // user tap Connect every launch. If there's no valid session, landing on
+    // "/" redirects to /login, which itself now has its own "View
+    // Announcements" link, so that path stays reachable without needing to
+    // interrupt the auto-connect here.
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) input.value = saved;
+    if (saved) {
+      input.value = saved;
+      tryConnect(saved, "/", button, "Connecting...", "Connect");
+    }
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
