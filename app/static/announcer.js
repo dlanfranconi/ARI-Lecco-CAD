@@ -144,18 +144,19 @@ function upsertNotice(item) {
   renderNoticeAt(0);
   if (isNew && !alertsMuted() && shouldActivelyAlert(item)) {
     flashBulletin();
-    // Exactly one of these fires, not both: the in-page beep only makes
-    // sense while this page is actually visible (document.hidden false),
-    // and once it's not, that's exactly when a real push (via
-    // window.AndroidNotify, a plain WebView JS interface MainActivity
-    // registers on every page regardless of origin -- window.Capacitor
-    // and its plugins are only injected on the bundled connect screen,
-    // not on the remote dispatch server this page is actually loaded
-    // from) is the only way to actually reach the user.
-    if (document.hidden) {
-      window.AndroidNotify?.postAlert(labels.new_announcement || "New announcement", item.message || "");
-    } else {
+    if (!document.hidden) {
       playNotificationSound();
+    } else if (!item.broadcast_all && !(item.recipient_user_ids || []).length) {
+      // Hidden (backgrounded or about to be): normally the native
+      // BackgroundMonitorService takes over from here and pushes
+      // broadcast/specific notices reliably on its own -- calling
+      // window.AndroidNotify too would just double the notification.
+      // Speaker/Announcer notices are the one case it never covers
+      // (deliberately, since that's passive-only for a logged-in
+      // viewer, and the real speaker board isn't meant to be
+      // backgrounded) -- for those this is the only path, covering the
+      // few seconds before Android freezes this page's JS entirely.
+      window.AndroidNotify?.postAlert(labels.new_announcement || "New announcement", item.message || "");
     }
   }
 }
