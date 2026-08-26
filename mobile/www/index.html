@@ -86,11 +86,12 @@
       }
     }
 
+    // Pre-fill but don't auto-navigate -- this screen is also how you reach
+    // "View Announcements," so it needs to actually stay visible instead of
+    // immediately jumping to "/" (and from there to /login) the moment a
+    // host is remembered from a previous connect.
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      input.value = saved;
-      tryConnect(saved, "/", button, "Connecting...", "Connect");
-    }
+    if (saved) input.value = saved;
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
