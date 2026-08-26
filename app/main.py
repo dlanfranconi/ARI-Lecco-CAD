@@ -210,6 +210,11 @@ def require_login(request: Request) -> Any:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
     if user["must_change_password"] and request.url.path not in {"/change-password", "/logout"}:
         raise HTTPException(status_code=303, headers={"Location": "/change-password"})
+    # Viewer accounts see only their own /announcer page -- redirect them
+    # off of every other logged-in route rather than a 403, since this is
+    # the intended, expected experience for that role, not an error.
+    if user["role"] == "viewer" and request.url.path not in {"/announcer", "/annunciatore", "/logout", "/change-password"}:
+        raise HTTPException(status_code=303, headers={"Location": "/announcer"})
     return user
 
 
@@ -515,7 +520,9 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
     )
     logs = recent_log_rows()
     pending_count = row("SELECT COUNT(*) AS count FROM bulletins WHERE status = 'pending'")["count"]
-    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name")
+    # Excludes the logged-in user themselves -- routing a notice to your own
+    # station doesn't make sense from the "Send To" picker.
+    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 AND id != ? ORDER BY display_name", (user["id"],))
     return page(
         request,
         "index.html",
@@ -535,7 +542,7 @@ SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days — long-lived so the Andr
 async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
     user = current_user(request)
     if user:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/announcer" if user["role"] == "viewer" else "/", status_code=303)
     return page(request, "login.html", error="")
 
 
@@ -544,7 +551,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     user = row("SELECT * FROM users WHERE username = ? AND active = 1", (username,))
     if not user or not verify_password(password, user["password_hash"]):
         return page(request, "login.html", error="Invalid username or password.")
-    response = RedirectResponse("/", status_code=303)
+    response = RedirectResponse("/announcer" if user["role"] == "viewer" else "/", status_code=303)
     response.set_cookie(COOKIE_NAME, make_session(username), max_age=SESSION_COOKIE_MAX_AGE, httponly=True, samesite="lax")
     return response
 
@@ -935,7 +942,7 @@ async def add_user(
 ) -> RedirectResponse:
     clean_username = username.strip() or None
     password_hash = hash_password(password) if password else ""
-    role = role if role in {"admin", "user"} else "user"
+    role = role if role in {"admin", "user", "viewer"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
@@ -993,7 +1000,7 @@ async def update_user(
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     clean_username = username.strip() or None
-    role = role if role in {"admin", "user"} else "user"
+    role = role if role in {"admin", "user", "viewer"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
@@ -1116,7 +1123,7 @@ async def notices(request: Request, user: Any = Depends(require_notice_view)) ->
     recipient_ids_by_notice: dict[int, list[int]] = {}
     for item in recipient_rows:
         recipient_ids_by_notice.setdefault(item["bulletin_id"], []).append(item["user_id"])
-    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name")
+    users_list = rows("SELECT id, display_name FROM users WHERE active = 1 AND id != ? ORDER BY display_name", (user["id"],))
     return page(
         request,
         "notices.html",
@@ -1134,12 +1141,12 @@ async def bulletins_alias() -> RedirectResponse:
 
 @app.get("/submit-notification", response_class=HTMLResponse)
 @app.get("/invia-notizia", response_class=HTMLResponse)
-async def notice_submit_page(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
+async def notice_submit_page(request: Request, user: Any = Depends(require_user_or_admin)) -> HTMLResponse:
     return page(
         request,
         "notice_submit.html",
         tactical_callsigns=rows("SELECT * FROM tactical_callsigns WHERE active = 1 ORDER BY name"),
-        users_list=rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name"),
+        users_list=rows("SELECT id, display_name FROM users WHERE active = 1 AND id != ? ORDER BY display_name", (user["id"],)),
     )
 
 

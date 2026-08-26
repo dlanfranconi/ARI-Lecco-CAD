@@ -100,7 +100,7 @@
             <td><input name="dstar_callsign"></td>
             <td><input name="username"></td>
             <td><input name="password" type="password"></td>
-            <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option></select></td>
+            <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="viewer">{{ t.viewer_role }}</option></select></td>
             <td><input type="checkbox" name="in_speaker_group" checked></td>
             <td>{{ t.active }}</td>
             <td><button>{{ t.add }}</button></td>
@@ -118,7 +118,7 @@
             <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
             <td><input name="username" value="{{ user.username or '' }}"></td>
             <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
-            <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option></select></td>
+            <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>{{ t.viewer_role }}</option></select></td>
             <td><input type="checkbox" name="in_speaker_group" {% if user.in_speaker_group %}checked{% endif %}></td>
             <td>{{ t.active if user.active else t.disabled }}</td>
             <td><button>{{ t.save }}</button></td>

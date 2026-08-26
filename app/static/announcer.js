@@ -144,21 +144,19 @@ function upsertNotice(item) {
   renderNoticeAt(0);
   if (isNew && !alertsMuted() && shouldActivelyAlert(item)) {
     flashBulletin();
-    playNotificationSound();
-    // A Web Audio/HTML5 <audio> beep in a WebView always plays over
-    // Android's media volume stream -- there's no way from JS to route it
-    // through the notification stream instead. window.AndroidNotify is a
-    // plain WebView JS interface (registered by MainActivity on every page
-    // regardless of origin -- window.Capacitor and its plugins are only
-    // injected on the bundled connect screen, not on the remote dispatch
-    // server this page is actually loaded from) that posts a real Android
-    // notification alongside the beep, so there's an actual push and a
-    // sound that does obey the notification volume slider. Tradeoff: that
-    // native notification uses the channel's own default sound, not
-    // whichever preset/custom sound is configured below -- Android
-    // notification sounds must be bundled app resources, not a
-    // synthesized tone or a server-hosted upload.
-    window.AndroidNotify?.postAlert(labels.new_announcement || "New announcement", item.message || "");
+    // Exactly one of these fires, not both: the in-page beep only makes
+    // sense while this page is actually visible (document.hidden false),
+    // and once it's not, that's exactly when a real push (via
+    // window.AndroidNotify, a plain WebView JS interface MainActivity
+    // registers on every page regardless of origin -- window.Capacitor
+    // and its plugins are only injected on the bundled connect screen,
+    // not on the remote dispatch server this page is actually loaded
+    // from) is the only way to actually reach the user.
+    if (document.hidden) {
+      window.AndroidNotify?.postAlert(labels.new_announcement || "New announcement", item.message || "");
+    } else {
+      playNotificationSound();
+    }
   }
 }
 
