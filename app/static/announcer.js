@@ -145,7 +145,16 @@ function upsertNotice(item) {
   if (isNew && !alertsMuted() && shouldActivelyAlert(item)) {
     flashBulletin();
     playNotificationSound();
-    window.CAD_NATIVE_NOTIFY?.(labels.new_announcement || "New announcement", item.message || "");
+    // A Web Audio/HTML5 <audio> beep in a WebView always plays over
+    // Android's media volume stream -- there's no way from JS to route it
+    // through the notification stream instead. This posts a real Android
+    // notification alongside it so there's an actual push + a sound that
+    // does obey the notification volume slider (the tradeoff: that native
+    // notification uses the channel's own default sound, not whichever
+    // preset/custom sound is chosen below -- Android notification sounds
+    // must be bundled app resources, not a synthesized tone or a
+    // server-hosted upload).
+    window.CAD_NATIVE_ALERT?.(labels.new_announcement || "New announcement", item.message || "");
   }
 }
 
