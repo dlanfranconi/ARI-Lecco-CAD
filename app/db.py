@@ -224,6 +224,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         if column not in user_cols:
             conn.execute(sql)
 
+    # The dedicated "announcer" login role was removed -- anyone viewing
+    # /announcer without logging in is the speaker now, full stop. Any
+    # account still holding that legacy role value just becomes a regular
+    # user rather than losing its login entirely.
+    conn.execute("UPDATE users SET role = 'user' WHERE role = 'announcer'")
+
     tac_cols = {item[1] for item in conn.execute("PRAGMA table_info(tactical_callsigns)")}
     if "location_preposition" not in tac_cols:
         conn.execute("ALTER TABLE tactical_callsigns ADD COLUMN location_preposition TEXT DEFAULT ''")
@@ -261,6 +267,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "crono_time": "ALTER TABLE bulletins ADD COLUMN crono_time TEXT DEFAULT ''",
         "hidden_at": "ALTER TABLE bulletins ADD COLUMN hidden_at TEXT",
         "broadcast_all": "ALTER TABLE bulletins ADD COLUMN broadcast_all INTEGER NOT NULL DEFAULT 0",
+        "submitted_by_user_id": "ALTER TABLE bulletins ADD COLUMN submitted_by_user_id INTEGER",
+        "approved_by_user_id": "ALTER TABLE bulletins ADD COLUMN approved_by_user_id INTEGER",
     }.items():
         if column not in bulletin_cols:
             conn.execute(sql)

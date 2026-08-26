@@ -229,7 +229,7 @@ def require_user_or_admin(request: Request) -> Any:
 
 def require_notice_view(request: Request) -> Any:
     user = require_login(request)
-    if user["role"] not in {"admin", "user", "announcer"}:
+    if user["role"] not in {"admin", "user"}:
         raise HTTPException(status_code=403, detail="Notice access required")
     return user
 
@@ -322,7 +322,7 @@ def resolve_operator(user_id: str, user_lookup: str) -> Any | None:
         SELECT users.*, aprs_stations.callsign AS aprs_callsign
         FROM users
         LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-        WHERE users.active = 1 AND users.role != 'announcer'
+        WHERE users.active = 1
     """)
     lookup = user_lookup.strip().lower()
     for candidate in candidates:
@@ -509,7 +509,7 @@ async def index(request: Request, user: Any = Depends(require_user_or_admin)) ->
         SELECT users.*, aprs_stations.callsign AS aprs_callsign
         FROM users
         LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-        WHERE users.active = 1 AND users.role != 'announcer'
+        WHERE users.active = 1
         ORDER BY tactical_callsign, display_name
         """
     )
@@ -535,7 +535,7 @@ SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days — long-lived so the Andr
 async def login_page(request: Request) -> HTMLResponse | RedirectResponse:
     user = current_user(request)
     if user:
-        return RedirectResponse("/announcer" if user["role"] == "announcer" else "/", status_code=303)
+        return RedirectResponse("/", status_code=303)
     return page(request, "login.html", error="")
 
 
@@ -544,8 +544,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     user = row("SELECT * FROM users WHERE username = ? AND active = 1", (username,))
     if not user or not verify_password(password, user["password_hash"]):
         return page(request, "login.html", error="Invalid username or password.")
-    target = "/announcer" if user["role"] == "announcer" else "/"
-    response = RedirectResponse(target, status_code=303)
+    response = RedirectResponse("/", status_code=303)
     response.set_cookie(COOKIE_NAME, make_session(username), max_age=SESSION_COOKIE_MAX_AGE, httponly=True, samesite="lax")
     return response
 
@@ -582,8 +581,7 @@ async def change_password(
             "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
             (hash_password(new_password), user["id"]),
         )
-    target = "/announcer" if user["role"] == "announcer" else "/"
-    return RedirectResponse(target, status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/logs")
@@ -622,8 +620,8 @@ async def create_log(
                 cur = conn.execute(
                     """
                     INSERT INTO bulletins
-                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all)
-                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?)
+                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, submitted_by_user_id, approved_by_user_id)
+                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?)
                     """,
                     (
                         label,
@@ -636,6 +634,8 @@ async def create_log(
                         joined_group_crono(group, runner_crono, effective_crono),
                         admin["username"],
                         broadcast_all,
+                        admin["id"],
+                        admin["id"],
                     ),
                 )
                 notice_id = cur.lastrowid
@@ -771,8 +771,8 @@ async def direct_notice(
             cur = conn.execute(
                 """
                 INSERT INTO bulletins
-                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all)
-                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?)
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, submitted_by_user_id, approved_by_user_id)
+                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?)
                 """,
                 (
                     admin["display_name"],
@@ -785,6 +785,8 @@ async def direct_notice(
                     joined_group_crono(group, runner_crono, effective_crono),
                     admin["username"],
                     broadcast_all,
+                    admin["id"],
+                    admin["id"],
                 ),
             )
             notice_id = cur.lastrowid
@@ -933,7 +935,7 @@ async def add_user(
 ) -> RedirectResponse:
     clean_username = username.strip() or None
     password_hash = hash_password(password) if password else ""
-    role = role if role in {"admin", "user", "announcer"} else "user"
+    role = role if role in {"admin", "user"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
@@ -991,7 +993,7 @@ async def update_user(
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     clean_username = username.strip() or None
-    role = role if role in {"admin", "user", "announcer"} else "user"
+    role = role if role in {"admin", "user"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
@@ -1169,8 +1171,8 @@ async def notice_submit(
                 return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?error=message", status_code=303)
             cur = conn.execute(
                 """
-                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, broadcast_all)
-                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, broadcast_all, submitted_by_user_id)
+                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
                 """,
                 (
                     user["display_name"],
@@ -1182,6 +1184,7 @@ async def notice_submit(
                     checkpoint.strip(),
                     joined_group_crono(group, runner_crono, effective_crono),
                     broadcast_all,
+                    user["id"],
                 ),
             )
             notice_ids.append(cur.lastrowid)
@@ -1284,7 +1287,7 @@ async def approve_notice(
     broadcast_all: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids, broadcast_all)
+    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids, broadcast_all, admin["id"])
     return RedirectResponse("/notices", status_code=303)
 
 
@@ -1300,6 +1303,7 @@ async def api_approve_notice(notice_id: int, request: Request, admin: Any = Depe
         str(data.get("crono_time", "")).strip() or None,
         [str(uid) for uid in notify_user_ids] if notify_user_ids is not None else None,
         data.get("broadcast_all"),
+        admin["id"],
     )
     return {"ok": True, "notice": notice}
 
@@ -1311,12 +1315,13 @@ async def approve_notice_id(
     crono_time: str | None = None,
     notify_user_ids: list[str] | None = None,
     broadcast_all: bool | None = None,
+    approved_by_user_id: int | None = None,
 ) -> dict[str, object]:
     with connect() as conn:
         if message is not None or crono_time is not None:
             current = row("SELECT message, crono_time FROM bulletins WHERE id = ?", (notice_id,))
             conn.execute("UPDATE bulletins SET message = ?, crono_time = ? WHERE id = ?", (message if message is not None else current["message"], crono_time if crono_time is not None else current["crono_time"], notice_id))
-        conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?", (approved_by or settings.admin_username, notice_id))
+        conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ?, approved_by_user_id = ? WHERE id = ?", (approved_by or settings.admin_username, approved_by_user_id, notice_id))
         if broadcast_all is not None:
             conn.execute("UPDATE bulletins SET broadcast_all = ? WHERE id = ?", (bool(broadcast_all), notice_id))
         # broadcast_all takes precedence over individually-picked recipients

@@ -166,12 +166,22 @@ public class BackgroundMonitorService extends Service {
             JSONObject notice = payload.optJSONObject("notice");
             if (notice == null) return;
 
+            // Never push to whoever sent or approved this particular notice.
+            int submittedBy = notice.isNull("submitted_by_user_id") ? -1 : notice.optInt("submitted_by_user_id", -1);
+            int approvedBy = notice.isNull("approved_by_user_id") ? -1 : notice.optInt("approved_by_user_id", -1);
+            if (userId == submittedBy || userId == approvedBy) return;
+
             JSONArray recipients = notice.optJSONArray("recipient_user_ids");
             boolean isRecipient;
             if (notice.optBoolean("broadcast_all", false)) {
                 isRecipient = true;
             } else if (recipients == null || recipients.length() == 0) {
-                isRecipient = inSpeakerGroup;
+                // Speaker/Announcer-only notice (no explicit recipients, not a
+                // broadcast) -- passive-only for every logged-in device, same
+                // as the web announcer page. Only the actual no-login speaker
+                // board gets active treatment, and that's never this
+                // background push path.
+                isRecipient = false;
             } else {
                 isRecipient = false;
                 for (int i = 0; i < recipients.length(); i++) {

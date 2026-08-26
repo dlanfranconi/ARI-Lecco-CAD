@@ -115,6 +115,22 @@ function isVisibleToViewer(item) {
   return recipients.includes(viewer.id) || (recipients.length === 0 && viewer.inSpeakerGroup);
 }
 
+// Being visible on this viewer's feed doesn't always mean this viewer
+// should get the active sound+flash treatment. Broadcast and
+// specifically-addressed notices alert everyone in their audience (minus
+// whoever sent or approved that particular notice). Speaker/Announcer
+// notices (no explicit recipients, not a broadcast) only alert the actual
+// public/no-login speaker board -- any logged-in viewer just sees it show
+// up passively (still updates the on-screen bulletin and archive, no
+// sound/flash) since that's not the physical announcer device.
+function shouldActivelyAlert(item) {
+  const viewer = window.CAD_CURRENT_USER;
+  if (viewer && (viewer.id === item.submitted_by_user_id || viewer.id === item.approved_by_user_id)) return false;
+  if (item.broadcast_all) return true;
+  if ((item.recipient_user_ids || []).length) return true;
+  return !viewer;
+}
+
 function alertsMuted() {
   return localStorage.getItem("announcer-push-muted") === "1";
 }
@@ -126,7 +142,7 @@ function upsertNotice(item) {
   notices.unshift(item);
   currentIndex = 0;
   renderNoticeAt(0);
-  if (isNew && !alertsMuted()) {
+  if (isNew && !alertsMuted() && shouldActivelyAlert(item)) {
     flashBulletin();
     playNotificationSound();
     window.CAD_NATIVE_NOTIFY?.(labels.new_announcement || "New announcement", item.message || "");

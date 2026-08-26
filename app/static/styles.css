@@ -124,6 +124,18 @@ th { color: var(--muted); font-size: 13px; }
 .network-toast.status-down { background: #c0392b; }
 .network-toast.status-up { background: #1f8a4c; }
 @keyframes toast-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.notice-toasts { position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 60; display: grid; gap: 8px; max-width: min(360px, calc(100vw - 32px)); }
+.notice-toast {
+  display: block;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+  animation: toast-in .2s ease-out;
+}
 .speedtest-results { display: flex; gap: 32px; margin-top: 20px; flex-wrap: wrap; }
 .speedtest-metric { display: grid; gap: 4px; }
 .speedtest-label { color: var(--muted); font-size: 13px; text-transform: uppercase; }
