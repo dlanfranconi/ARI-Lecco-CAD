@@ -169,7 +169,11 @@ th { color: var(--muted); font-size: 13px; }
 .error { color: var(--danger); font-weight: 700; }
 .success { color: var(--accent-2); font-weight: 700; }
 .warning { color: var(--warning); font-weight: 700; }
-#map { height: 62vh; min-height: 420px; border-radius: 8px; border: 1px solid var(--line); }
+/* Leaflet's own panes/controls go up to z-index 1000; without this the
+   sticky topbar (z-index 30) sits in the same stacking context and gets
+   drawn under them once they overlap. z-index:0 (with the position:relative
+   Leaflet already sets) confines all of that to inside #map. */
+#map { height: 62vh; min-height: 420px; border-radius: 8px; border: 1px solid var(--line); position: relative; z-index: 0; }
 .clear-form { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
 .edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .edit-grid.compact { grid-template-columns: 1fr 1fr auto; }
@@ -207,7 +211,12 @@ th { color: var(--muted); font-size: 13px; }
 
 @media (max-width: 860px) {
   .runner-list-row, .compact-log-row, .athlete-row, .announcer .athlete-row { grid-template-columns: 1fr; }
-  .grid.two, .grid.three { grid-template-columns: 1fr; }
+  /* A bare 1fr track keeps an implicit min-width of the content's
+     min-content size, so a wide child (e.g. the Tactical Callsigns table
+     in setup.html) can still force the whole grid -- and the page --
+     wider than the viewport. minmax(0, 1fr) lets the track actually
+     shrink; .table-wrap's own overflow-x:auto handles any wide content. */
+  .grid.two, .grid.three { grid-template-columns: minmax(0, 1fr); }
   .span-two { grid-column: auto; }
   .topbar { flex-wrap: wrap; gap: 8px; }
   #nav-toggle { display: inline-flex; order: 1; }
