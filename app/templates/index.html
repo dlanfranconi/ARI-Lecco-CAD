@@ -10,11 +10,14 @@
     {% if request.query_params.get("log_error") == "operator" %}<p class="error">{{ t.select_operator_error }}</p>{% endif %}
     {% if request.query_params.get("log_error") == "message" %}<p class="error">{{ t.message_required_error }}</p>{% endif %}
     <label>{{ t.user_assignment }}
-      <input class="operator-combobox" name="user_lookup" list="operator-options" autocomplete="off" required>
-      <input type="hidden" name="user_id" class="operator-id">
-      <datalist id="operator-options">
-        {% for user in users %}<option data-id="{{ user.id }}" value="{{ operator_option_label(user) }}"></option>{% endfor %}
-      </datalist>
+      <div class="combobox">
+        <input class="operator-combobox" name="user_lookup" autocomplete="off" required>
+        <input type="hidden" name="user_id" class="operator-id">
+        <ul class="combobox-suggestions hidden" id="operator-suggestions"></ul>
+        <datalist id="operator-options">
+          {% for user in users %}<option data-id="{{ user.id }}" value="{{ operator_option_label(user) }}"></option>{% endfor %}
+        </datalist>
+      </div>
     </label>
     <div class="compact-log-row">
       <label>{{ t.status }}
