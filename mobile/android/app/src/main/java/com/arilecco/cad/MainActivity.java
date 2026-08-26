@@ -38,6 +38,12 @@ public class MainActivity extends BridgeActivity {
         // request actually succeeds.
         WebView downloadWebView = getBridge() != null ? getBridge().getWebView() : null;
         if (downloadWebView != null) {
+            // window.Capacitor (and its plugins, e.g. LocalNotifications) is
+            // only injected on the bundled connect screen's own origin, not
+            // on the remote dispatch server the WebView actually navigates
+            // to -- so pages served from there need this plain interface
+            // instead to post a real Android notification from JS.
+            downloadWebView.addJavascriptInterface(new NotificationBridge(this), "AndroidNotify");
             downloadWebView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
                 try {
                     DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));

@@ -147,14 +147,18 @@ function upsertNotice(item) {
     playNotificationSound();
     // A Web Audio/HTML5 <audio> beep in a WebView always plays over
     // Android's media volume stream -- there's no way from JS to route it
-    // through the notification stream instead. This posts a real Android
-    // notification alongside it so there's an actual push + a sound that
-    // does obey the notification volume slider (the tradeoff: that native
-    // notification uses the channel's own default sound, not whichever
-    // preset/custom sound is chosen below -- Android notification sounds
-    // must be bundled app resources, not a synthesized tone or a
-    // server-hosted upload).
-    window.CAD_NATIVE_ALERT?.(labels.new_announcement || "New announcement", item.message || "");
+    // through the notification stream instead. window.AndroidNotify is a
+    // plain WebView JS interface (registered by MainActivity on every page
+    // regardless of origin -- window.Capacitor and its plugins are only
+    // injected on the bundled connect screen, not on the remote dispatch
+    // server this page is actually loaded from) that posts a real Android
+    // notification alongside the beep, so there's an actual push and a
+    // sound that does obey the notification volume slider. Tradeoff: that
+    // native notification uses the channel's own default sound, not
+    // whichever preset/custom sound is configured below -- Android
+    // notification sounds must be bundled app resources, not a
+    // synthesized tone or a server-hosted upload.
+    window.AndroidNotify?.postAlert(labels.new_announcement || "New announcement", item.message || "");
   }
 }
 
