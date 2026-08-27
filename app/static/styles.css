@@ -311,8 +311,8 @@ th { color: var(--muted); font-size: 13px; }
 .timer-display { font-size: 42px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
 .notice-edit-form { display: grid; gap: 10px; }
 .notice-edit-form textarea { min-height: 110px; }
-.announcer-controls { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 22px; }
-.announcer-controls button { width: 54px; height: 44px; padding: 0; font-size: 30px; line-height: 1; }
+.announcer-controls { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; margin-top: 22px; }
+.announcer-controls button { width: 70px; height: 38px; padding: 0; font-size: 24px; line-height: 1; }
 .history-open-button { margin-top: 22px; }
 .notice-history-list { max-height: 60vh; overflow-y: auto; text-align: left; }
 .notice-history-list article { display: block; width: 100%; background: none; border: none; border-top: 1px solid rgba(255,255,255,.14); text-align: left; cursor: pointer; font: inherit; color: inherit; }

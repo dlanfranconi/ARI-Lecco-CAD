@@ -192,14 +192,14 @@ document.getElementById("older-notice")?.addEventListener("click", showOlder);
 document.getElementById("newer-notice")?.addEventListener("click", showNewer);
 document.getElementById("history-open")?.addEventListener("click", showHistoryModal);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowLeft") showOlder();
-  if (event.key === "ArrowRight") showNewer();
+  if (event.key === "ArrowDown") showOlder();
+  if (event.key === "ArrowUp") showNewer();
 });
 document.addEventListener("click", (event) => {
   if (event.target.closest("button, .announcer-clock, .modal-panel")) return;
   if (event.target.closest(".modal")) return;
-  if (event.clientX < window.innerWidth / 2) showOlder();
-  else showNewer();
+  if (event.clientY < window.innerHeight / 2) showNewer();
+  else showOlder();
 });
 
 if (notices.length) renderNoticeAt(0);
