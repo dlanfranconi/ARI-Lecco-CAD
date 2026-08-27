@@ -228,6 +228,12 @@ document.addEventListener("click", (event) => {
   accountToggle.setAttribute("aria-expanded", "false");
 });
 
+const changeServerButton = document.getElementById("change-server-button");
+if (changeServerButton && window.AndroidNotify?.changeServer) {
+  changeServerButton.hidden = false;
+  changeServerButton.addEventListener("click", () => window.AndroidNotify.changeServer());
+}
+
 const SOUND_PRESETS = {
   none: null,
   soft: [{ freq: 660, duration: 0.18 }],

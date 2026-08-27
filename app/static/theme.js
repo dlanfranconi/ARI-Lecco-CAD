@@ -35,3 +35,12 @@ document.addEventListener("click", (event) => {
   accountPanel.classList.remove("open");
   accountToggle.setAttribute("aria-expanded", "false");
 });
+
+// window.AndroidNotify only exists inside the Android app's WebView (added
+// via addJavascriptInterface) -- a plain browser session has no local
+// connect screen to go back to, so this stays hidden there.
+const changeServerButton = document.getElementById("change-server-button");
+if (changeServerButton && window.AndroidNotify?.changeServer) {
+  changeServerButton.hidden = false;
+  changeServerButton.addEventListener("click", () => window.AndroidNotify.changeServer());
+}

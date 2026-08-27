@@ -44,7 +44,7 @@ public class MainActivity extends BridgeActivity {
             // on the remote dispatch server the WebView actually navigates
             // to -- so pages served from there need this plain interface
             // instead to post a real Android notification from JS.
-            downloadWebView.addJavascriptInterface(new NotificationBridge(this), "AndroidNotify");
+            downloadWebView.addJavascriptInterface(new NotificationBridge(this, downloadWebView), "AndroidNotify");
             downloadWebView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
                 try {
                     DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));

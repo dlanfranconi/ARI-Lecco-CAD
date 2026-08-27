@@ -82,11 +82,17 @@
     }
 
     // Auto-connect on a saved host -- the common case, no reason to make a
-    // returning user tap Connect every launch.
+    // returning user tap Connect every launch. The account menu's "Change
+    // Server" action (inside the app) sends us here with ?change=1 instead
+    // of clearing the saved host itself -- it can't reach this page's
+    // localStorage from the remote server's origin -- so skip auto-connect
+    // here and let the user edit or replace the prefilled value.
+    const skipAutoConnect = new URLSearchParams(window.location.search).get("change") === "1";
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       input.value = saved;
-      tryConnect(saved);
+      if (!skipAutoConnect) tryConnect(saved);
+      else input.select();
     }
 
     form.addEventListener("submit", (event) => {

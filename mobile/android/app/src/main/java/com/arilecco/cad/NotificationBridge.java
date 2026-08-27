@@ -8,28 +8,27 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import androidx.core.app.NotificationCompat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 // Exposed to the WebView as window.AndroidNotify so the page's own JS can
-// post a real Android notification while the app is in the foreground.
-// Capacitor's own JS bridge (window.Capacitor) is only injected on the
-// bundled connect screen's origin, not on the remote dispatch server this
-// WebView actually spends its time on, so plugins like LocalNotifications
-// are silently unavailable there -- this is a plain WebView JS interface
-// instead, which works regardless of the page's origin. Used specifically
-// so the /announcer page's active-alert sound has a real notification
-// alongside it: a Web Audio/HTML5 <audio> beep always plays over Android's
-// media volume stream with no way to route it through the notification
-// stream from JS, but a genuine posted notification does.
+// reach a few native capabilities regardless of what origin it's currently
+// showing. Capacitor's own JS bridge (window.Capacitor) is only injected on
+// the bundled connect screen's origin, not on the remote dispatch server
+// this WebView actually spends its time on, so plugins like
+// LocalNotifications are silently unavailable there -- this plain WebView
+// JS interface works regardless of the page's origin instead.
 public class NotificationBridge {
     private static final String ALERT_CHANNEL_ID = "background_alerts";
     private static final AtomicInteger nextId = new AtomicInteger(200001);
 
     private final Context context;
+    private final WebView webView;
 
-    public NotificationBridge(Context context) {
+    public NotificationBridge(Context context, WebView webView) {
         this.context = context.getApplicationContext();
+        this.webView = webView;
     }
 
     @JavascriptInterface
@@ -61,5 +60,17 @@ public class NotificationBridge {
                 .build();
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         manager.notify(id, notification);
+    }
+
+    // The connect screen's own "remembered host" logic lives in localStorage
+    // under the bundled https://localhost origin -- once the WebView has
+    // navigated to the remote dispatch server, page JS there has no access
+    // to that storage to clear it, so a plain reload of localhost would just
+    // silently auto-reconnect right back to the same host. The ?change=1
+    // flag tells mobile/www/index.html to skip that auto-connect and let the
+    // user edit/replace the saved host instead.
+    @JavascriptInterface
+    public void changeServer() {
+        webView.post(() -> webView.loadUrl("https://localhost/index.html?change=1"));
     }
 }
