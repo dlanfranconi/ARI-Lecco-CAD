@@ -7,11 +7,10 @@
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
     <label>{{ t.username }}<input name="username" autofocus required></label>
     <label>{{ t.password }}<input name="password" type="password" required></label>
-    <button>{{ t.login }}</button>
+    <div class="login-actions">
+      <button type="submit">{{ t.login }}</button>
+      <a href="/announcer" class="button">{{ t.view_announcements_no_login }}</a>
+    </div>
   </form>
-  <div class="panel narrow login-announcer-panel">
-    <h1>{{ t.view_announcements_no_login }}</h1>
-    <a href="/announcer" class="button">{{ t.view_announcements_no_login }}</a>
-  </div>
 </section>
 {% endblock %}

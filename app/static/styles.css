@@ -90,8 +90,8 @@ a { color: inherit; }
 }
 .narrow { max-width: 420px; width: 100%; }
 .login { min-height: 80vh; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }
-.login-announcer-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; }
-.login-announcer-panel h1 { margin: 0; }
+.login-actions { display: flex; gap: 8px; }
+.login-actions > * { flex: 1; }
 h1, h2 { margin: 0 0 14px; }
 label { display: grid; gap: 6px; margin-bottom: 12px; font-weight: 700; }
 input, select, textarea {
