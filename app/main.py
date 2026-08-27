@@ -198,9 +198,9 @@ def format_dt(value: str | None) -> str:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     parsed = parsed.astimezone(current_timezone())
-    if current_language() == "it":
-        return parsed.strftime("%d/%m/%Y %H:%M")
-    return parsed.strftime("%B %d, %Y %H:%M")
+    if current_language() == "en":
+        return parsed.strftime("%B %d, %Y %H:%M")
+    return parsed.strftime("%d/%m/%Y %H:%M")
 
 
 def current_user(request: Request) -> Any | None:
@@ -351,7 +351,7 @@ def checkpoint_preposition(checkpoint: str) -> str:
     tac = row("SELECT location_preposition FROM tactical_callsigns WHERE name = ?", (checkpoint,))
     if tac and tac["location_preposition"]:
         return tac["location_preposition"]
-    return "a" if current_language() == "it" else "to"
+    return TRANSLATIONS[current_language()]["default_preposition"]
 
 
 def compose_runner_notice(runner_bib: str, runner_name: str, checkpoint: str) -> str:
@@ -1630,7 +1630,7 @@ def download_redirect(archive_id: int | None, filename: str) -> RedirectResponse
 
 @app.post("/clear-race")
 async def clear_race(action: str = Form(""), confirm: str = Form(""), archive_filename: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
-    expected = "CANCELLA" if current_language() == "it" else "CANCEL"
+    expected = TRANSLATIONS[current_language()]["clear_confirm_word"]
     if confirm != expected:
         return RedirectResponse(f"/setup?clear_error=1&expected={expected}", status_code=303)
     with connect() as conn:

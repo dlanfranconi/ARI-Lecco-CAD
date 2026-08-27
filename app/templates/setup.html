@@ -7,6 +7,9 @@
       <select name="language">
         <option value="en" {% if lang == 'en' %}selected{% endif %}>{{ t.english }}</option>
         <option value="it" {% if lang == 'it' %}selected{% endif %}>{{ t.italian }}</option>
+        <option value="es" {% if lang == 'es' %}selected{% endif %}>{{ t.spanish }}</option>
+        <option value="fr" {% if lang == 'fr' %}selected{% endif %}>{{ t.french }}</option>
+        <option value="de" {% if lang == 'de' %}selected{% endif %}>{{ t.german }}</option>
       </select>
     </label>
     <h2>{{ t.time_settings }}</h2>
