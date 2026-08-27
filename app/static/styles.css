@@ -9,17 +9,19 @@
   --accent-2: #0f766e;
   --danger: #b42318;
   --warning: #8a5a00;
+  --topbar-bg: #102a2f;
 }
 
 /* Color scheme picker (Configuration page) -- only the accent colors
-   change; --bg/--panel/--text etc. stay tied to the separate dark/light
-   toggle so the two controls don't interact. "teal" is the :root default
-   above and needs no override block of its own. */
-:root[data-color-scheme="ocean"] { --accent: #1d5fa8; --accent-2: #154880; }
-:root[data-color-scheme="violet"] { --accent: #6d4aa8; --accent-2: #55397f; }
-:root[data-color-scheme="forest"] { --accent: #2f7d4f; --accent-2: #235f3c; }
-:root[data-color-scheme="amber"] { --accent: #b8720f; --accent-2: #8f590c; }
-:root[data-color-scheme="slate"] { --accent: #45566b; --accent-2: #333f4f; }
+   (and the fixed topbar's background) change; --bg/--panel/--text etc.
+   stay tied to the separate dark/light toggle so the two controls don't
+   interact. "teal" is the :root default above and needs no override
+   block of its own. */
+:root[data-color-scheme="ocean"] { --accent: #1d5fa8; --accent-2: #154880; --topbar-bg: #0d1f36; }
+:root[data-color-scheme="violet"] { --accent: #6d4aa8; --accent-2: #55397f; --topbar-bg: #221934; }
+:root[data-color-scheme="forest"] { --accent: #2f7d4f; --accent-2: #235f3c; --topbar-bg: #12271c; }
+:root[data-color-scheme="amber"] { --accent: #b8720f; --accent-2: #8f590c; --topbar-bg: #2a1c08; }
+:root[data-color-scheme="slate"] { --accent: #45566b; --accent-2: #333f4f; --topbar-bg: #1b2129; }
 
 * { box-sizing: border-box; }
 body {
@@ -36,7 +38,7 @@ a { color: inherit; }
   gap: 24px;
   padding: 12px 20px;
   padding-top: max(12px, env(safe-area-inset-top));
-  background: #102a2f;
+  background: var(--topbar-bg);
   color: #fff;
   position: sticky;
   top: 0;
@@ -263,7 +265,7 @@ th { color: var(--muted); font-size: 13px; }
     flex-direction: column;
     align-items: stretch;
     gap: 2px;
-    background: #102a2f;
+    background: var(--topbar-bg);
     padding: 8px 12px 14px;
     box-shadow: 0 12px 24px rgba(0,0,0,.3);
     z-index: 40;
