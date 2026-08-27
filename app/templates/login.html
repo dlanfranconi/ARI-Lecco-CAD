@@ -9,6 +9,9 @@
     <label>{{ t.password }}<input name="password" type="password" required></label>
     <button>{{ t.login }}</button>
   </form>
-  <a href="/announcer" class="button">{{ t.view_announcements_no_login }}</a>
+  <div class="panel narrow login-announcer-panel">
+    <h1>{{ t.view_announcements_no_login }}</h1>
+    <a href="/announcer" class="button">{{ t.view_announcements_no_login }}</a>
+  </div>
 </section>
 {% endblock %}
