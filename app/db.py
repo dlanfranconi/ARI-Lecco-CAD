@@ -308,3 +308,16 @@ def rows(sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
 def row(sql: str, params: tuple[Any, ...] = ()) -> sqlite3.Row | None:
     with connect() as conn:
         return conn.execute(sql, params).fetchone()
+
+
+def setting(key: str, default: str = "") -> str:
+    item = row("SELECT value FROM app_settings WHERE key = ?", (key,))
+    return item["value"] if item else default
+
+
+def save_setting(key: str, value: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )

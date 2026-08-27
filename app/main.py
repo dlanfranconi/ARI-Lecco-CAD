@@ -17,15 +17,26 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .aprs import poll_aprs_once
+from .aprs import current_aprsfi_api_key, poll_aprs_once
 from .auth import COOKIE_NAME, hash_password, make_session, read_session, verify_password
 from .config import settings
-from .db import connect, init_db, row, rows
+from .db import connect, init_db, row, rows, save_setting, setting
 from .i18n import TRANSLATIONS, normalize_language
 from . import iperf, mdns, netmon, tls
 
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
+
+# Uploaded logos/notification sound live under /data (the persistent
+# volume) rather than inside app/static -- the latter is part of the
+# image/container's own writable layer and was silently wiped on every
+# redeploy. Mounted at the same URL prefix the app has always used
+# (/static/uploads/...) so no other code needed to change, and registered
+# before the general /static mount so it takes precedence for that one
+# subpath (Starlette checks mounts in registration order).
+UPLOAD_DIR = Path(settings.database_path).parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
@@ -122,11 +133,19 @@ async def start_https_server() -> asyncio.subprocess.Process:
     )
 
 
+def current_aprs_poll_seconds() -> int:
+    raw = setting("aprs_poll_seconds", str(settings.aprs_poll_seconds))
+    try:
+        return int(raw)
+    except ValueError:
+        return settings.aprs_poll_seconds
+
+
 async def aprs_loop() -> None:
     while True:
         with suppress(Exception):
             await poll_aprs_once()
-        await asyncio.sleep(max(settings.aprs_poll_seconds, 30))
+        await asyncio.sleep(max(current_aprs_poll_seconds(), 30))
 
 
 async def network_monitor_loop() -> None:
@@ -143,19 +162,6 @@ async def broadcast_device_status(device: dict) -> None:
     enriched = {**device, "created_at_display": format_dt(now), "checked_at_display": format_dt(now)}
     payload = json.dumps({"type": "device_status", "device": enriched, "labels": TRANSLATIONS[current_language()]})
     await _broadcast(network_clients, payload)
-
-
-def setting(key: str, default: str = "") -> str:
-    item = row("SELECT value FROM app_settings WHERE key = ?", (key,))
-    return item["value"] if item else default
-
-
-def save_setting(key: str, value: str) -> None:
-    with connect() as conn:
-        conn.execute(
-            "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (key, value),
-        )
 
 
 def current_timezone_name() -> str:
@@ -260,8 +266,12 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("app_locale", setting("app_locale", settings.app_locale))
     context.setdefault("ntp_server", setting("ntp_server", settings.ntp_server))
     context.setdefault("logo_url", setting("logo_url", ""))
+    context.setdefault("logo2_url", setting("logo2_url", ""))
     context.setdefault("notification_sound_url", setting("notification_sound_url", ""))
     context.setdefault("athlete_name_display", setting("athlete_name_display", "full"))
+    context.setdefault("color_scheme", setting("color_scheme", "teal"))
+    context.setdefault("aprsfi_api_key", current_aprsfi_api_key())
+    context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     context.setdefault("app_version", settings.app_version)
@@ -843,6 +853,9 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
     return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
 
 
+COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
+
+
 @app.post("/setup/settings")
 async def update_settings(
     language: str = Form("en"),
@@ -850,6 +863,9 @@ async def update_settings(
     app_locale: str = Form("it_IT.UTF-8"),
     ntp_server: str = Form("pool.ntp.org"),
     athlete_name_display: str = Form("full"),
+    color_scheme: str = Form("teal"),
+    aprsfi_api_key: str = Form(""),
+    aprs_poll_seconds: str = Form("60"),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     save_setting("language", normalize_language(language))
@@ -857,11 +873,14 @@ async def update_settings(
     save_setting("app_locale", app_locale.strip() or settings.app_locale)
     save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
     save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
+    save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
+    save_setting("aprsfi_api_key", aprsfi_api_key.strip())
+    poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
+    save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
     return RedirectResponse("/setup", status_code=303)
 
 
-@app.post("/setup/logo")
-async def upload_logo(logo: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def _upload_logo(logo: UploadFile, stem: str, setting_key: str) -> RedirectResponse:
     content_type = (logo.content_type or "").lower()
     suffix = ".png" if content_type == "image/png" else ".jpg" if content_type in {"image/jpeg", "image/jpg"} else ""
     if not suffix:
@@ -869,23 +888,41 @@ async def upload_logo(logo: UploadFile = File(...), _: Any = Depends(require_adm
     data = await logo.read()
     if not data:
         return RedirectResponse("/setup", status_code=303)
-    upload_dir = Path("app/static/uploads")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    for old in upload_dir.glob("logo.*"):
+    upload_dir = UPLOAD_DIR
+    for old in upload_dir.glob(f"{stem}.*"):
         old.unlink(missing_ok=True)
-    target = upload_dir / f"logo{suffix}"
+    target = upload_dir / f"{stem}{suffix}"
     target.write_bytes(data)
-    save_setting("logo_url", f"/static/uploads/{target.name}")
+    save_setting(setting_key, f"/static/uploads/{target.name}")
     return RedirectResponse("/setup", status_code=303)
+
+
+def _delete_logo(stem: str, setting_key: str) -> RedirectResponse:
+    upload_dir = UPLOAD_DIR
+    for old in upload_dir.glob(f"{stem}.*"):
+        old.unlink(missing_ok=True)
+    save_setting(setting_key, "")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/logo")
+async def upload_logo(logo: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    return await _upload_logo(logo, "logo", "logo_url")
 
 
 @app.post("/setup/logo/delete")
 async def delete_logo(_: Any = Depends(require_admin)) -> RedirectResponse:
-    upload_dir = Path("app/static/uploads")
-    for old in upload_dir.glob("logo.*"):
-        old.unlink(missing_ok=True)
-    save_setting("logo_url", "")
-    return RedirectResponse("/setup", status_code=303)
+    return _delete_logo("logo", "logo_url")
+
+
+@app.post("/setup/logo2")
+async def upload_logo2(logo: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    return await _upload_logo(logo, "logo2", "logo2_url")
+
+
+@app.post("/setup/logo2/delete")
+async def delete_logo2(_: Any = Depends(require_admin)) -> RedirectResponse:
+    return _delete_logo("logo2", "logo2_url")
 
 
 @app.post("/setup/notification-sound")
@@ -897,8 +934,7 @@ async def upload_notification_sound(sound: UploadFile = File(...), _: Any = Depe
     data = await sound.read()
     if not data:
         return RedirectResponse("/setup", status_code=303)
-    upload_dir = Path("app/static/uploads")
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    upload_dir = UPLOAD_DIR
     for old in upload_dir.glob("notification-sound.*"):
         old.unlink(missing_ok=True)
     target = upload_dir / f"notification-sound{suffix}"
@@ -909,7 +945,7 @@ async def upload_notification_sound(sound: UploadFile = File(...), _: Any = Depe
 
 @app.post("/setup/notification-sound/delete")
 async def delete_notification_sound(_: Any = Depends(require_admin)) -> RedirectResponse:
-    upload_dir = Path("app/static/uploads")
+    upload_dir = UPLOAD_DIR
     for old in upload_dir.glob("notification-sound.*"):
         old.unlink(missing_ok=True)
     save_setting("notification_sound_url", "")
@@ -1082,7 +1118,7 @@ def _float_or_none(value: object) -> float | None:
 
 @app.get("/map", response_class=HTMLResponse)
 async def aprs_map(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
-    return page(request, "map.html", aprs_enabled=bool(settings.aprsfi_api_key))
+    return page(request, "map.html", aprs_enabled=bool(current_aprsfi_api_key()))
 
 
 @app.get("/api/map")

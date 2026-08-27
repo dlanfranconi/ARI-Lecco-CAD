@@ -1,4 +1,6 @@
 import os
+import secrets
+from pathlib import Path
 
 
 def _read_version() -> str:
@@ -10,10 +12,42 @@ def _read_version() -> str:
         return "0.0.0"
 
 
+# Placeholder values that mean "nobody actually set this" -- both the
+# in-code fallback and docker-compose.yml's own unset-env-var default, kept
+# here rather than a real secret so a forgotten override doesn't silently
+# leave every session signed with a value anyone can read in this repo.
+_UNSET_SESSION_SECRETS = {"", "dev-only-change-me", "replace-with-a-long-random-string"}
+
+
+def _resolve_session_secret() -> str:
+    env_value = os.getenv("SESSION_SECRET", "").strip()
+    if env_value not in _UNSET_SESSION_SECRETS:
+        return env_value
+    # No real secret was configured -- generate one and persist it next to
+    # the database (same volume, so it survives restarts/redeploys) instead
+    # of requiring a manual step. This is what makes a from-scratch headless
+    # Pi boot end up with a real per-install secret with no operator input.
+    data_dir = Path(os.getenv("DATABASE_PATH", "/data/cad.sqlite3")).parent
+    secret_path = data_dir / ".session_secret"
+    try:
+        existing = secret_path.read_text(encoding="utf-8").strip()
+        if existing:
+            return existing
+    except OSError:
+        pass
+    generated = secrets.token_urlsafe(32)
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        secret_path.write_text(generated, encoding="utf-8")
+    except OSError:
+        pass
+    return generated
+
+
 class Settings:
     admin_username: str = os.getenv("CAD_ADMIN_USERNAME", "dispatch")
     admin_password: str = os.getenv("CAD_ADMIN_PASSWORD", "dispatch")
-    session_secret: str = os.getenv("SESSION_SECRET", "dev-only-change-me")
+    session_secret: str = _resolve_session_secret()
     aprsfi_api_key: str = os.getenv("APRSFI_API_KEY", "")
     aprs_poll_seconds: int = int(os.getenv("APRS_POLL_SECONDS", "60"))
     database_path: str = os.getenv("DATABASE_PATH", "/data/cad.sqlite3")

@@ -1,11 +1,19 @@
 import httpx
 
 from .config import settings
-from .db import connect, rows
+from .db import connect, rows, setting
+
+
+def current_aprsfi_api_key() -> str:
+    # DB setting (from the Configuration page) takes precedence once set;
+    # the env var only matters as the initial value before anyone's saved
+    # one there -- see api_key handling in main.py's update_settings().
+    return setting("aprsfi_api_key", settings.aprsfi_api_key)
 
 
 async def poll_aprs_once() -> int:
-    if not settings.aprsfi_api_key:
+    api_key = current_aprsfi_api_key()
+    if not api_key:
         return 0
 
     stations = rows("SELECT id, callsign FROM aprs_stations WHERE active = 1 ORDER BY callsign")
@@ -17,7 +25,7 @@ async def poll_aprs_once() -> int:
     params = {
         "name": names,
         "what": "loc",
-        "apikey": settings.aprsfi_api_key,
+        "apikey": api_key,
         "format": "json",
     }
 

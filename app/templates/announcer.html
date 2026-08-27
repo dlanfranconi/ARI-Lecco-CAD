@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang|default('en') }}">
+<html lang="{{ lang|default('en') }}" data-color-scheme="{{ color_scheme|default('teal') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -33,6 +33,7 @@
     {% endif %}
   </div>
   {% if logo_url %}<div class="announcer-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+  {% if logo2_url %}<div class="announcer-logo announcer-logo-secondary"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
   <main>
     <div class="announcer-label">{{ t.current_notice }}</div>
     <div id="bulletin" class="teleprompter">{% if latest %}{{ latest.message }}{% else %}{{ t.no_notice }}{% endif %}</div>

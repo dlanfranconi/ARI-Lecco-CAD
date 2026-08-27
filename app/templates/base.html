@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang|default('en') }}">
+<html lang="{{ lang|default('en') }}" data-color-scheme="{{ color_scheme|default('teal') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -64,7 +64,12 @@
     </div>
   </header>
   {% endif %}
-  {% if logo_url %}<div class="page-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+  {% if logo_url or logo2_url %}
+  <div class="page-logo">
+    {% if logo_url %}<img src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}
+    {% if logo2_url %}<img src="{{ logo2_url }}" alt="{{ t.logo_alt }}">{% endif %}
+  </div>
+  {% endif %}
   <main class="content">{% block content %}{% endblock %}</main>
   <footer class="site-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
   {% if dispatch_user %}

@@ -19,6 +19,20 @@
         <option value="first" {% if athlete_name_display == 'first' %}selected{% endif %}>{{ t.first_name_only }}</option>
       </select>
     </label>
+    <h2>{{ t.appearance }}</h2>
+    <label>{{ t.color_scheme }}
+      <select name="color_scheme">
+        <option value="teal" {% if color_scheme == 'teal' %}selected{% endif %}>{{ t.color_scheme_teal }}</option>
+        <option value="ocean" {% if color_scheme == 'ocean' %}selected{% endif %}>{{ t.color_scheme_ocean }}</option>
+        <option value="violet" {% if color_scheme == 'violet' %}selected{% endif %}>{{ t.color_scheme_violet }}</option>
+        <option value="forest" {% if color_scheme == 'forest' %}selected{% endif %}>{{ t.color_scheme_forest }}</option>
+        <option value="amber" {% if color_scheme == 'amber' %}selected{% endif %}>{{ t.color_scheme_amber }}</option>
+        <option value="slate" {% if color_scheme == 'slate' %}selected{% endif %}>{{ t.color_scheme_slate }}</option>
+      </select>
+    </label>
+    <h2>{{ t.aprs_settings }}</h2>
+    <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
+    <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
     <button>{{ t.save_settings }}</button>
   </form>
 
@@ -27,6 +41,13 @@
     {% if logo_url %}<div class="logo-preview"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
     <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
     {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
+  </section>
+
+  <section class="panel">
+    <h1>{{ t.event_logo }}</h1>
+    {% if logo2_url %}<div class="logo-preview"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+    <form method="post" action="/setup/logo2" enctype="multipart/form-data"><label>{{ t.event_logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_event_logo }}</button></form>
+    {% if logo2_url %}<form method="post" action="/setup/logo2/delete"><button class="danger">{{ t.remove_event_logo }}</button></form>{% endif %}
   </section>
 
   <section class="panel">

@@ -11,7 +11,14 @@ services:
     environment:
       CAD_ADMIN_USERNAME: ${CAD_ADMIN_USERNAME:-dispatch}
       CAD_ADMIN_PASSWORD: ${CAD_ADMIN_PASSWORD:-dispatch}
-      SESSION_SECRET: ${SESSION_SECRET:-replace-with-a-long-random-string}
+      # Leave unset -- the app generates a real one on first boot and
+      # persists it in the data volume. Only set this if you specifically
+      # want a fixed, shared secret (e.g. multiple app instances behind a
+      # load balancer that all need to read each other's session cookies).
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      # Optional: aprs.fi API key and poll interval can also be set here,
+      # but it's easier (and required for a headless Pi setup) to configure
+      # both from the Configuration page instead once the app is running.
       APRSFI_API_KEY: ${APRSFI_API_KEY:-}
       APRS_POLL_SECONDS: ${APRS_POLL_SECONDS:-60}
       DATABASE_PATH: /data/cad.sqlite3

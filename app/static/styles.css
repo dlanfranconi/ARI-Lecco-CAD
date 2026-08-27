@@ -11,6 +11,16 @@
   --warning: #8a5a00;
 }
 
+/* Color scheme picker (Configuration page) -- only the accent colors
+   change; --bg/--panel/--text etc. stay tied to the separate dark/light
+   toggle so the two controls don't interact. "teal" is the :root default
+   above and needs no override block of its own. */
+:root[data-color-scheme="ocean"] { --accent: #1d5fa8; --accent-2: #154880; }
+:root[data-color-scheme="violet"] { --accent: #6d4aa8; --accent-2: #55397f; }
+:root[data-color-scheme="forest"] { --accent: #2f7d4f; --accent-2: #235f3c; }
+:root[data-color-scheme="amber"] { --accent: #b8720f; --accent-2: #8f590c; }
+:root[data-color-scheme="slate"] { --accent: #45566b; --accent-2: #333f4f; }
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -315,13 +325,18 @@ th { color: var(--muted); font-size: 13px; }
 .sound-settings-panel label.checkbox-row { display: flex; align-items: center; gap: 8px; }
 .sound-settings-panel .actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-.page-logo { max-width: 1500px; margin: 14px auto 0; padding: 0 20px; }
+.page-logo { max-width: 1500px; margin: 14px auto 0; padding: 0 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
 .page-logo img { display: block; max-height: 112px; max-width: min(390px, 70vw); object-fit: contain; }
 .logo-preview img { display: block; max-height: 132px; max-width: 340px; object-fit: contain; margin-bottom: 12px; }
 .site-footer { padding: 18px 20px 24px; text-align: center; color: var(--muted); font-size: 12px; }
 .app-version { opacity: .6; font-variant-numeric: tabular-nums; }
 .announcer-logo { position: fixed; top: 16px; left: 16px; z-index: 20; }
 .announcer-logo img { display: block; max-width: 320px; max-height: 126px; object-fit: contain; }
+/* Second logo (e.g. the event/race organization, vs. the club logo above)
+   goes in the opposite bottom corner rather than mirroring top-right --
+   that corner is already taken by .announcer-topbar's clock/sound/contrast/
+   account controls. */
+.announcer-logo-secondary { top: auto; left: auto; bottom: 16px; right: 16px; }
 .announcer-footer { position: fixed; left: 0; right: 0; bottom: 8px; color: #789195; }
 .announcer .athlete-row { grid-template-columns: 112px minmax(180px, 1fr) minmax(150px, .8fr) 185px; }
 .announcer.light-mode .announcer-footer { color: #546970; }

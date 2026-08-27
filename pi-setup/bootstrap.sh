@@ -1,8 +1,8 @@
 #!/bin/sh
 # Turns a stock Raspberry Pi OS install into a running ARI Lecco CAD server.
 # Safe to re-run: installing Docker again is a no-op, and the compose/env
-# files are only written the first time so a re-run won't clobber a
-# SESSION_SECRET that's already in use.
+# files are only written the first time so a re-run won't touch a config
+# that's already in use.
 #
 # Usage:
 #   curl -fsSL https://github.com/dlanfranconi/ARI-Lecco-CAD/releases/latest/download/bootstrap.sh | sudo sh
@@ -30,13 +30,18 @@ mkdir -p "$INSTALL_DIR/data"
 cd "$INSTALL_DIR"
 
 if [ ! -f .env ]; then
-  echo "==> Generating .env with a random session secret"
-  SESSION_SECRET="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32)"
+  echo "==> Generating .env"
+  # SESSION_SECRET and APRSFI_API_KEY are both left blank on purpose: the
+  # app generates and persists its own session secret on first boot, and
+  # the aprs.fi key (plus poll interval) is meant to be entered from the
+  # Configuration page once the server is up, not baked into this file --
+  # this is what a from-scratch headless Pi ends up shipping with no
+  # operator-specific secrets at all.
   cat > .env <<EOF
 CAD_IMAGE_TAG=${IMAGE_TAG}
 CAD_ADMIN_USERNAME=dispatch
 CAD_ADMIN_PASSWORD=dispatch
-SESSION_SECRET=${SESSION_SECRET}
+SESSION_SECRET=
 APRSFI_API_KEY=
 APRS_POLL_SECONDS=60
 MDNS_HOSTNAME=ari-cad
