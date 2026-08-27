@@ -141,7 +141,7 @@ async def network_monitor_loop() -> None:
 async def broadcast_device_status(device: dict) -> None:
     now = local_now().isoformat()
     enriched = {**device, "created_at_display": format_dt(now), "checked_at_display": format_dt(now)}
-    payload = json.dumps({"type": "device_status", "device": enriched})
+    payload = json.dumps({"type": "device_status", "device": enriched, "labels": TRANSLATIONS[current_language()]})
     await _broadcast(network_clients, payload)
 
 
@@ -1427,7 +1427,7 @@ async def announcer(request: Request) -> HTMLResponse:
     latest = dict(latest_row) if latest_row else None
     notices = [notice_payload(item) for item in notice_rows]
     viewer_context = {"id": viewer["id"], "isAdmin": False, "inSpeakerGroup": bool(viewer["in_speaker_group"])} if viewer else None
-    return page(request, "announcer.html", latest=latest, notices=notices, viewer_user=viewer_context)
+    return page(request, "announcer.html", latest=latest, notices=notices, viewer_user=viewer_context, viewer_display_name=viewer["display_name"] if viewer else None)
 
 
 @app.get("/api/notices/latest")
@@ -1480,7 +1480,7 @@ async def broadcast_approved_bulletin(notice_id: int) -> None:
     if not notice:
         return
     notice_data = notice_payload(notice)
-    payload = json.dumps({"type": "notice", "notice": notice_data, "bulletin": notice_data})
+    payload = json.dumps({"type": "notice", "notice": notice_data, "bulletin": notice_data, "labels": TRANSLATIONS[current_language()]})
     await _broadcast(bulletin_clients, payload)
 
 

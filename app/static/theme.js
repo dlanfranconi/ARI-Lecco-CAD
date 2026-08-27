@@ -22,3 +22,16 @@ document.addEventListener("click", (event) => {
 topbarNav?.querySelectorAll("a").forEach((link) => {
   link.addEventListener("click", () => topbarNav.classList.remove("nav-open"));
 });
+
+const accountToggle = document.getElementById("account-toggle");
+const accountPanel = document.getElementById("account-panel");
+accountToggle?.addEventListener("click", () => {
+  const open = accountPanel.classList.toggle("open");
+  accountToggle.setAttribute("aria-expanded", String(open));
+});
+document.addEventListener("click", (event) => {
+  if (!accountPanel?.classList.contains("open")) return;
+  if (accountPanel.contains(event.target) || accountToggle.contains(event.target)) return;
+  accountPanel.classList.remove("open");
+  accountToggle.setAttribute("aria-expanded", "false");
+});

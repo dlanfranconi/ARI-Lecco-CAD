@@ -3,6 +3,7 @@ package com.arilecco.cad;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
@@ -45,6 +46,8 @@ public class BackgroundMonitorService extends Service {
     private WebSocket reviewSocket;
     private WebSocket networkSocket;
     private WebSocket announcerSocket;
+    private String host;
+    private String scheme;
 
     @Override
     public void onCreate() {
@@ -78,6 +81,8 @@ public class BackgroundMonitorService extends Service {
 
     private void connect(String host, String scheme, int userId, boolean isAdmin, boolean inSpeakerGroup, boolean pushMuted) {
         closeSockets();
+        this.host = host;
+        this.scheme = scheme;
         String wsScheme = "https".equals(scheme) ? "wss" : "ws";
 
         reviewSocket = client.newWebSocket(
@@ -115,14 +120,15 @@ public class BackgroundMonitorService extends Service {
         if (!isAdmin) return;
         try {
             JSONObject payload = new JSONObject(text);
+            JSONObject labels = payload.optJSONObject("labels");
             String type = payload.optString("type");
             if ("pending_notice".equals(type) || "pending_bulletin".equals(type)) {
                 JSONObject notice = payload.optJSONObject("notice");
                 if (notice == null) notice = payload.optJSONObject("bulletin");
                 String body = notice != null ? notice.optString("message", "") : "";
-                notify("New notice pending review", body);
+                notify(label(labels, "new_notice", "New notice pending review"), body, "/notices");
             } else if ("race_timer_changed".equals(type)) {
-                notify("Race timer updated", "");
+                notify(label(labels, "race_timer_update", "Race timer updated"), "", "/notices");
             }
         } catch (Exception ignored) {
             // Malformed/unexpected payload; skip rather than crash the service.
@@ -135,6 +141,7 @@ public class BackgroundMonitorService extends Service {
             if (!"device_status".equals(payload.optString("type"))) return;
             JSONObject device = payload.optJSONObject("device");
             if (device == null) return;
+            JSONObject labels = payload.optJSONObject("labels");
 
             JSONArray recipients = device.optJSONArray("recipient_user_ids");
             boolean isRecipient = false;
@@ -153,7 +160,9 @@ public class BackgroundMonitorService extends Service {
             String status = device.optString("status");
             String name = device.optString("name");
             boolean down = "down".equals(status);
-            notify(down ? "Device offline" : "Device back online", name);
+            String template = label(labels, down ? "device_down_alert" : "device_up_alert", down ? "{name} went offline" : "{name} is back online");
+            String title = label(labels, "network_alert_title", "Network Alert!!!");
+            notify(title, template.replace("{name}", name), "/network");
         } catch (Exception ignored) {
             // Malformed/unexpected payload; skip rather than crash the service.
         }
@@ -165,6 +174,7 @@ public class BackgroundMonitorService extends Service {
             if (!"notice".equals(payload.optString("type"))) return;
             JSONObject notice = payload.optJSONObject("notice");
             if (notice == null) return;
+            JSONObject labels = payload.optJSONObject("labels");
 
             // Never push to whoever sent or approved this particular notice.
             int submittedBy = notice.isNull("submitted_by_user_id") ? -1 : notice.optInt("submitted_by_user_id", -1);
@@ -193,22 +203,44 @@ public class BackgroundMonitorService extends Service {
             }
             if (!isRecipient) return;
 
-            notify("New announcement", notice.optString("message", ""));
+            notify(label(labels, "new_announcement", "New announcement"), notice.optString("message", ""), "/announcer");
         } catch (Exception ignored) {
             // Malformed/unexpected payload; skip rather than crash the service.
         }
     }
 
-    private void notify(String title, String body) {
+    // Payloads carry the server's own translation table under "labels" (see
+    // broadcast_device_status/broadcast_approved_bulletin/broadcast_review_notice
+    // in app/main.py) so these notification titles follow the dispatch
+    // server's configured language rather than being hardcoded to English.
+    private String label(JSONObject labels, String key, String fallback) {
+        return labels != null ? labels.optString(key, fallback) : fallback;
+    }
+
+    private void notify(String title, String body, String deepLinkPath) {
         Notification notification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
+                .setContentIntent(deepLinkIntent(deepLinkPath))
                 .build();
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.notify(nextAlertId.getAndIncrement(), notification);
+    }
+
+    private PendingIntent deepLinkIntent(String path) {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (host != null && scheme != null) {
+            intent.putExtra(MainActivity.EXTRA_DEEP_LINK_PATH, scheme + "://" + host + path);
+        }
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        // requestCode must be unique per notification, otherwise Android reuses
+        // the first PendingIntent's extras for every notification afterwards.
+        return PendingIntent.getActivity(this, nextAlertId.get(), intent, flags);
     }
 
     @Nullable

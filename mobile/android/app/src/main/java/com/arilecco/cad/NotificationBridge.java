@@ -3,7 +3,9 @@ package com.arilecco.cad;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
 import androidx.core.app.NotificationCompat;
@@ -39,14 +41,25 @@ public class NotificationBridge {
                         ALERT_CHANNEL_ID, "Alerts", NotificationManager.IMPORTANCE_HIGH));
             }
         }
+        // The WebView is already sitting on /announcer -- this only ever fires
+        // from that page, right before it's backgrounded -- so tapping just
+        // needs to bring the activity back to front, no deep link required.
+        Intent launchIntent = new Intent(context, MainActivity.class);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        int id = nextId.getAndIncrement();
+        PendingIntent contentIntent = PendingIntent.getActivity(context, id, launchIntent, flags);
+
         Notification notification = new NotificationCompat.Builder(context, ALERT_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
+                .setContentIntent(contentIntent)
                 .build();
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        manager.notify(nextId.getAndIncrement(), notification);
+        manager.notify(id, notification);
     }
 }

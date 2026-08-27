@@ -15,6 +15,7 @@ import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    public static final String EXTRA_DEEP_LINK_PATH = "deep_link_url";
     private static final long EXIT_WINDOW_MS = 2000;
     private long lastBackPressTime = 0;
 
@@ -102,6 +103,30 @@ public class MainActivity extends BridgeActivity {
                 }
             }
         });
+
+        handleDeepLinkIntent(getIntent());
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleDeepLinkIntent(intent);
+    }
+
+    // Tapping a notification (BackgroundMonitorService.notify / NotificationBridge.postAlert)
+    // launches MainActivity via singleTask, which routes here instead of a
+    // fresh onCreate whenever the activity/WebView are already alive --
+    // exactly the common case, since those notifications only fire while
+    // backgrounded, not after the process has been killed.
+    private void handleDeepLinkIntent(Intent intent) {
+        if (intent == null) return;
+        String url = intent.getStringExtra(EXTRA_DEEP_LINK_PATH);
+        if (url == null) return;
+        intent.removeExtra(EXTRA_DEEP_LINK_PATH);
+        WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+        if (webView == null || !isConnectedToServer()) return;
+        webView.loadUrl(url);
     }
 
     private boolean isConnectedToServer() {

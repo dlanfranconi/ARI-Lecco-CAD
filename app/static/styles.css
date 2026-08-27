@@ -56,7 +56,26 @@ a { color: inherit; }
 .topbar nav a { color: #fff; text-decoration: none; }
 #nav-toggle { display: none; }
 .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; order: 3; }
-.nav-logout-icon { margin: 0; }
+.account-menu { position: relative; }
+.account-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+  z-index: 40;
+}
+.account-panel.open { display: flex; }
+.account-panel-name { padding: 8px 10px 10px; font-weight: 700; border-bottom: 1px solid var(--line); margin-bottom: 4px; word-break: break-word; }
+.account-panel a, .account-panel button { width: 100%; justify-content: flex-start; }
 .content { padding: 20px; max-width: 1500px; margin: 0 auto; }
 .grid { display: grid; gap: 16px; }
 .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
