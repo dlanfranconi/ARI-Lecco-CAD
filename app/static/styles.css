@@ -336,7 +336,7 @@ th { color: var(--muted); font-size: 13px; }
 .logo-preview img { display: block; max-height: 132px; max-width: 340px; object-fit: contain; margin-bottom: 12px; }
 .site-footer { padding: 18px 20px 24px; text-align: center; color: var(--muted); font-size: 12px; }
 .app-version { opacity: .6; font-variant-numeric: tabular-nums; }
-.announcer-logo { position: fixed; top: 16px; left: 16px; z-index: 20; }
+.announcer-logo { position: fixed; top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); z-index: 20; }
 .announcer-logo img { display: block; max-width: 320px; max-height: 126px; object-fit: contain; }
 /* Second logo (e.g. the event/race organization, vs. the club logo above)
    goes in the opposite bottom corner rather than mirroring top-right --
