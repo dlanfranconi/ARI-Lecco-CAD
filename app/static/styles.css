@@ -302,18 +302,16 @@ th { color: var(--muted); font-size: 13px; }
 /* #account-toggle's .ghost style (white icon, transparent bg) assumes it
    always sits on the announcer's dark background -- true by default, but
    not once .light-mode flips the page to a near-white background, where
-   a white-on-white icon disappears entirely. Match it to the same
-   light/dark card styling already used for the sound/contrast buttons
-   and the history modal, instead of leaving it tied to the unrelated
-   --panel/--text vars the non-announcer pages use for their own toggle. */
-.announcer #account-toggle { background: rgba(7,16,18,.72); color: #f8fbfb; border-color: rgba(255,255,255,.22); }
+   a white-on-white icon disappears entirely. Give it the same fixed
+   light-grey chip as the sound/contrast buttons next to it in both
+   modes, instead of leaving it on .ghost's dark-background-only style. */
+.announcer #account-toggle { background: #dce6ea; color: #071012; border-color: rgba(0,0,0,.18); }
 .announcer #account-panel { background: #0c1d21; color: #f8fbfb; border-color: rgba(255,255,255,.18); }
 .announcer.light-mode { background: #f8fbfb; color: #071012; }
 .announcer.light-mode .announcer-clock { background: rgba(248,251,251,.88); color: #146c75; border-color: rgba(0,0,0,.18); }
 .announcer.light-mode .announcer-label { color: #146c75; }
 .announcer.light-mode .announcer-time { color: #41525a; }
 .announcer.light-mode .runner-details { color: #173b40; }
-.announcer.light-mode #account-toggle { background: #dce6ea; color: #071012; border-color: rgba(0,0,0,.18); }
 .announcer.light-mode #account-panel { background: #fff; color: #071012; border-color: var(--line); }
 
 .timer-panel { display: grid; gap: 14px; align-content: start; }
