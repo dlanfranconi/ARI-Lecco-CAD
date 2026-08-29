@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import signal
 import sys
 from pathlib import Path
 from urllib.parse import urlencode
@@ -893,12 +894,27 @@ async def update_settings(
     save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
     save_setting("app_locale", app_locale.strip() or settings.app_locale)
     save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
-    save_setting("mdns_hostname", normalize_hostname(mdns_hostname))
+    previous_hostname = current_mdns_hostname()
+    new_hostname = normalize_hostname(mdns_hostname)
+    save_setting("mdns_hostname", new_hostname)
     save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
     save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
     save_setting("aprsfi_api_key", aprsfi_api_key.strip())
     poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
     save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
+    if new_hostname != previous_hostname:
+        # mDNS registration and the self-signed cert's CN are both bound
+        # once at process startup, not re-read per request, so the new
+        # hostname only takes effect after a restart. Docker's
+        # restart:unless-stopped policy brings the container straight back
+        # up, so triggering that here (after this response is on the wire)
+        # is simpler and more reliable than trying to re-register mDNS and
+        # regenerate the cert live. Assumes this request landed on the
+        # primary process, not the optional HTTPS child (see
+        # settings.is_https_child) -- true for every deployment so far,
+        # since HTTPS_ENABLED defaults off.
+        asyncio.get_event_loop().call_later(1.5, lambda: os.kill(os.getpid(), signal.SIGTERM))
+        return RedirectResponse("/setup?hostname_restart=1", status_code=303)
     return RedirectResponse("/setup", status_code=303)
 
 

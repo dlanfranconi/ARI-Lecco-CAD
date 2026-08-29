@@ -23,6 +23,7 @@
       </select>
     </label>
     <h2>{{ t.network_settings }}</h2>
+    {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
     <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
     <p class="meta">{{ t.hostname_hint }}</p>
     <h2>{{ t.appearance }}</h2>
