@@ -4,6 +4,8 @@ import io
 import json
 import logging
 import os
+import re
+import signal
 import sys
 from pathlib import Path
 from urllib.parse import urlencode
@@ -77,15 +79,15 @@ async def startup() -> None:
         app.state.netmon_task = asyncio.create_task(network_monitor_loop())
     if settings.mdns_enabled:
         try:
-            app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(settings.mdns_hostname, settings.port)
+            app.state.mdns_zeroconf, app.state.mdns_info = await mdns.register(current_mdns_hostname(), settings.port)
         except Exception:
             # mDNS is a nicety, not required — covers both no multicast on
             # this network (OSError, e.g. restricted Docker networking) and
             # a name collision with another device already advertising the
-            # same MDNS_HOSTNAME on the LAN (zeroconf's NonUniqueNameException).
+            # same hostname on the LAN (zeroconf's NonUniqueNameException).
             # Either way the app should still come up; just without mDNS.
             logging.getLogger("uvicorn.error").warning(
-                "mDNS registration failed for hostname '%s' — continuing without it", settings.mdns_hostname, exc_info=True
+                "mDNS registration failed for hostname '%s' — continuing without it", current_mdns_hostname(), exc_info=True
             )
             app.state.mdns_zeroconf = None
     if settings.https_enabled:
@@ -121,7 +123,7 @@ async def start_https_server() -> asyncio.subprocess.Process:
     # not pinned down after fairly extensive isolation testing). Two
     # independent OS processes is the standard way to serve two ports anyway,
     # and sidesteps whatever that interaction was entirely.
-    cert_path, key_path = tls.ensure_self_signed_cert(settings.cert_dir, settings.mdns_hostname)
+    cert_path, key_path = tls.ensure_self_signed_cert(settings.cert_dir, current_mdns_hostname())
     env = {**os.environ, "ARI_CAD_HTTPS_CHILD": "1", "PORT": str(settings.https_port)}
     return await asyncio.create_subprocess_exec(
         sys.executable, "-m", "uvicorn", "app.main:app",
@@ -139,6 +141,24 @@ def current_aprs_poll_seconds() -> int:
         return int(raw)
     except ValueError:
         return settings.aprs_poll_seconds
+
+
+def normalize_hostname(value: str) -> str:
+    # mDNS/DNS labels only allow letters, digits, and hyphens, and can't
+    # start or end with one -- collapse anything else so a stray space or
+    # symbol here can't produce a hostname that fails to register or that
+    # breaks the self-signed cert's "<hostname>.local" subject.
+    slug = re.sub(r"[^a-z0-9-]+", "-", value.strip().lower()).strip("-")
+    return slug[:63] or settings.mdns_hostname
+
+
+def current_mdns_hostname() -> str:
+    # DB setting (from the Configuration page) takes precedence once set;
+    # the env var only matters as the initial value before anyone's saved
+    # one there. Only read at process startup (mDNS registration and the
+    # HTTPS child's self-signed cert are both set up once, not per-request),
+    # so a change here takes effect on the next container restart.
+    return setting("mdns_hostname", settings.mdns_hostname)
 
 
 async def aprs_loop() -> None:
@@ -272,6 +292,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("color_scheme", setting("color_scheme", "teal"))
     context.setdefault("aprsfi_api_key", current_aprsfi_api_key())
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
+    context.setdefault("mdns_hostname", current_mdns_hostname())
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     context.setdefault("app_version", settings.app_version)
@@ -866,17 +887,34 @@ async def update_settings(
     color_scheme: str = Form("teal"),
     aprsfi_api_key: str = Form(""),
     aprs_poll_seconds: str = Form("60"),
+    mdns_hostname: str = Form(""),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     save_setting("language", normalize_language(language))
     save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
     save_setting("app_locale", app_locale.strip() or settings.app_locale)
     save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
+    previous_hostname = current_mdns_hostname()
+    new_hostname = normalize_hostname(mdns_hostname)
+    save_setting("mdns_hostname", new_hostname)
     save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
     save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
     save_setting("aprsfi_api_key", aprsfi_api_key.strip())
     poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
     save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
+    if new_hostname != previous_hostname:
+        # mDNS registration and the self-signed cert's CN are both bound
+        # once at process startup, not re-read per request, so the new
+        # hostname only takes effect after a restart. Docker's
+        # restart:unless-stopped policy brings the container straight back
+        # up, so triggering that here (after this response is on the wire)
+        # is simpler and more reliable than trying to re-register mDNS and
+        # regenerate the cert live. Assumes this request landed on the
+        # primary process, not the optional HTTPS child (see
+        # settings.is_https_child) -- true for every deployment so far,
+        # since HTTPS_ENABLED defaults off.
+        asyncio.get_event_loop().call_later(1.5, lambda: os.kill(os.getpid(), signal.SIGTERM))
+        return RedirectResponse("/setup?hostname_restart=1", status_code=303)
     return RedirectResponse("/setup", status_code=303)
 
 

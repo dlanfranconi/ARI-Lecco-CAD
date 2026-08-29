@@ -63,7 +63,8 @@ a { color: inherit; }
 .announcer .athlete-row strong { color: #f8fbfb; }
 .announcer.light-mode .athlete-row { color: #173b40; }
 .announcer.light-mode .athlete-row strong { color: #071012; }
-.brand { font-weight: 700; text-decoration: none; }
+.brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; text-decoration: none; }
+.topbar-logo { height: 32px; width: auto; max-width: 90px; object-fit: contain; display: block; }
 .topbar nav { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; align-items: center; }
 .topbar nav a { color: #fff; text-decoration: none; }
 #nav-toggle { display: none; }
@@ -254,6 +255,7 @@ th { color: var(--muted); font-size: 13px; }
   .topbar { flex-wrap: wrap; gap: 8px; }
   #nav-toggle { display: inline-flex; order: 1; }
   .brand { order: 2; }
+  .topbar-logo { height: 24px; max-width: 64px; }
   .header-timer { order: 4; flex-basis: 100%; justify-content: center; }
   .topbar nav {
     display: none;
@@ -336,12 +338,6 @@ th { color: var(--muted); font-size: 13px; }
 .sound-settings-panel label.checkbox-row { display: flex; align-items: center; gap: 8px; }
 .sound-settings-panel .actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-.page-logo { max-width: 1500px; margin: 14px auto 0; padding: 0 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
-.page-logo img { display: block; max-height: 112px; max-width: min(390px, 70vw); object-fit: contain; }
-@media (max-width: 860px) {
-  .page-logo { gap: 10px; margin-top: 10px; padding: 0 14px; }
-  .page-logo img { max-height: 52px; max-width: min(140px, 34vw); }
-}
 .logo-preview img { display: block; max-height: 132px; max-width: 340px; object-fit: contain; margin-bottom: 12px; }
 .site-footer { padding: 18px 20px 24px; text-align: center; color: var(--muted); font-size: 12px; }
 .app-version { opacity: .6; font-variant-numeric: tabular-nums; }

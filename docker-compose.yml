@@ -3,7 +3,7 @@ services:
     build: .
     container_name: ari-lecco-cad
     restart: unless-stopped
-    # Host networking so mDNS (ari-cad.local) can reach the LAN — multicast
+    # Host networking so mDNS (cad-server.local) can reach the LAN — multicast
     # doesn't cross Docker's default bridge network. Requires a Linux Docker
     # host and the PORT below free on it. Set MDNS_ENABLED=false and switch
     # back to a `ports:` mapping if you don't want this.
@@ -22,8 +22,11 @@ services:
       APRSFI_API_KEY: ${APRSFI_API_KEY:-}
       APRS_POLL_SECONDS: ${APRS_POLL_SECONDS:-60}
       DATABASE_PATH: /data/cad.sqlite3
-      MDNS_HOSTNAME: ${MDNS_HOSTNAME:-ari-cad}
-      # 80 so the app is reachable with no port in the URL (http://ari-cad.local).
+      # Optional: also configurable (and easier, for a headless Pi) from the
+      # Configuration page once the app is running -- this is just the
+      # initial value before anyone's set one there.
+      MDNS_HOSTNAME: ${MDNS_HOSTNAME:-cad-server}
+      # 80 so the app is reachable with no port in the URL (http://cad-server.local).
       # The container runs as root, so binding to this privileged port is fine.
       # Change if something else on the host already uses 80.
       PORT: ${PORT:-80}

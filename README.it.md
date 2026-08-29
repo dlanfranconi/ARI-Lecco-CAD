@@ -17,7 +17,7 @@ Applicazione web interna di dispacciamento assistito (CAD) per gare ed eventi ra
 - Monitoraggio dispositivi di rete con stato online/offline in tempo reale e avvisi (pagina Rete)
 - Test qualita del collegamento con iperf3 tra il server e le postazioni radio remote
 - Test di velocita da telefono/dispositivo verso il server di dispacciamento, direttamente dalla pagina Rete
-- Individuazione del server sulla rete locale via mDNS (`ari-cad.local`) — niente piu ricerca manuale dell'IP
+- Individuazione del server sulla rete locale via mDNS (`cad-server.local`) — niente piu ricerca manuale dell'IP
 - HTTPS opzionale con certificato autofirmato generato automaticamente
 - App Android (vedi "App mobile" piu sotto) con selezione server sicura offline, accesso persistente e pulsante Indietro nativo che si comporta come un'app, non come un browser
 - Numero di versione mostrato nel piede pagina, per capire a colpo d'occhio quale build sta effettivamente eseguendo un dispositivo
@@ -57,7 +57,7 @@ services:
     image: ghcr.io/dlanfranconi/ari-lecco-cad:latest
     container_name: ari-lecco-cad
     restart: unless-stopped
-    # Rete host cosi mDNS (ari-cad.local) raggiunge la LAN. Solo host Docker
+    # Rete host cosi mDNS (cad-server.local) raggiunge la LAN. Solo host Docker
     # Linux; richiede la porta 80 libera sull'host. Vedi "Individuazione server (mDNS)" piu sotto.
     network_mode: host
     environment:
@@ -71,7 +71,7 @@ services:
       LANG: it_IT.UTF-8
       NTP_SERVER: pool.ntp.org
       DATABASE_PATH: /data/cad.sqlite3
-      MDNS_HOSTNAME: ari-cad
+      MDNS_HOSTNAME: cad-server
       PORT: 80
     volumes:
       - ari-lecco-cad-data:/data
@@ -99,10 +99,10 @@ Ogni piede pagina mostra una stringa di versione, per esempio `vmain@a1b2c3d` (b
 
 ## Individuazione server (mDNS)
 
-Il server si annuncia sulla rete locale come `ari-cad.local` (via mDNS/Bonjour) cosi gli utenti possono digitare un nome invece di cercare un IP a ogni gara — e questo che il campo "nome server" dell'app mobile risolve. Configura con:
+Il server si annuncia sulla rete locale come `cad-server.local` (via mDNS/Bonjour) cosi gli utenti possono digitare un nome invece di cercare un IP a ogni gara — e questo che il campo "nome server" dell'app mobile risolve. Configura con:
 
 ```bash
-MDNS_HOSTNAME=ari-cad   # produce ari-cad.local
+MDNS_HOSTNAME=cad-server   # produce cad-server.local
 MDNS_ENABLED=true       # imposta a false per disabilitare
 ```
 
@@ -168,7 +168,7 @@ Imposta le variabili d'ambiente in Portainer oppure copia `.env.example` in `.en
 
 ### Rete host (richiesta per mDNS) — cosa aspettarsi
 
-`docker-compose.yml` usa `network_mode: host`, ed e questo che fa funzionare `ari-cad.local` sulla rete locale. Cambia anche il modo in cui il container ottiene la sua porta, in modi che possono sorprendere se non li aspetti:
+`docker-compose.yml` usa `network_mode: host`, ed e questo che fa funzionare `cad-server.local` sulla rete locale. Cambia anche il modo in cui il container ottiene la sua porta, in modi che possono sorprendere se non li aspetti:
 
 - **Non c'e una mappatura "Published Ports".** Con `network_mode: host` il container comunica direttamente sulla rete dell'host stesso — Portainer non mostrera un campo porte per esso, ed e corretto, non un bug. Non aggiungere di nuovo una voce `ports:`; viene ignorata (e puo mascherare conflitti reali) con la rete host.
 - **La porta 80 (o quella impostata in `PORT`) deve essere completamente libera sull'host stesso** prima che il container si avvii — non "libera dentro Docker", libera sulla macchina reale. Qualsiasi cosa gia in ascolto su quella porta (incluso un vecchio container di questa stessa app non completamente fermato) fara fallire il nuovo container immediatamente con:
@@ -198,7 +198,7 @@ Questo significa quasi sempre che qualcosa e gia collegato alla porta su cui sta
 
 ### Non vuoi la rete host?
 
-Se sei su Docker Desktop, non ti serve `ari-cad.local`, o vuoi semplicemente la configurazione piu semplice/sicura: elimina la riga `network_mode: host` dal tuo stack e aggiungi invece una normale mappatura di porta:
+Se sei su Docker Desktop, non ti serve `cad-server.local`, o vuoi semplicemente la configurazione piu semplice/sicura: elimina la riga `network_mode: host` dal tuo stack e aggiungi invece una normale mappatura di porta:
 
 ```yaml
     # network_mode: host   <- rimuovi questa riga
@@ -206,7 +206,7 @@ Se sei su Docker Desktop, non ti serve `ari-cad.local`, o vuoi semplicemente la 
       - "80:80"             <- aggiungi questa invece
 ```
 
-Tutto funziona allo stesso modo tranne l'individuazione mDNS — gli utenti dovranno digitare l'indirizzo IP reale del server nell'app invece di `ari-cad.local`. Docker gestisce completamente la porta in questo modo, quindi il problema "address already in use" descritto sopra non si presenta (Docker ti dira chiaramente se la porta e occupata, invece che il container prova silenziosamente a collegarsi a tutta la rete dell'host).
+Tutto funziona allo stesso modo tranne l'individuazione mDNS — gli utenti dovranno digitare l'indirizzo IP reale del server nell'app invece di `cad-server.local`. Docker gestisce completamente la porta in questo modo, quindi il problema "address already in use" descritto sopra non si presenta (Docker ti dira chiaramente se la porta e occupata, invece che il container prova silenziosamente a collegarsi a tutta la rete dell'host).
 
 ## Raspberry Pi
 
@@ -218,10 +218,10 @@ Ogni [GitHub Release](https://github.com/dlanfranconi/ARI-Lecco-CAD/releases) in
 
 1. Scarica il file `.img.xz` dalla release e flashalo su una scheda microSD con [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom" → scegli il file) o `balenaEtcher` — non usare la finestra di personalizzazione OS di Imager, l'immagine ha gia tutto configurato.
 2. Inserisci la scheda, collega il Pi alla rete con un **cavo Ethernet** (l'immagine non ha credenziali Wi-Fi precaricate), e accendilo.
-3. Attendi 3-5 minuti per il primo avvio (l'installazione di Docker e il download dell'immagine richiedono la maggior parte di questo tempo). Poi apri `http://ari-cad.local` da qualsiasi dispositivo sulla stessa rete.
+3. Attendi 3-5 minuti per il primo avvio (l'installazione di Docker e il download dell'immagine richiedono la maggior parte di questo tempo). Poi apri `http://cad-server.local` da qualsiasi dispositivo sulla stessa rete.
 4. Accedi con `dispatch` / `dispatch` — ti verra chiesto di cambiare subito la password.
 
-L'accesso al sistema operativo del Pi stesso (console o SSH, es. `ssh pi@ari-cad.local`) usa di default `pi` / `arilecco` e **richiede anch'esso il cambio password al primo accesso**, indipendentemente dal login dell'app. Cambiala la prima volta che ti colleghi davvero via SSH.
+L'accesso al sistema operativo del Pi stesso (console o SSH, es. `ssh pi@cad-server.local`) usa di default `pi` / `arilecco` e **richiede anch'esso il cambio password al primo accesso**, indipendentemente dal login dell'app. Cambiala la prima volta che ti colleghi davvero via SSH.
 
 Per usare il Wi-Fi al posto dell'Ethernet, o per cambiare il nome host mDNS predefinito prima del primo avvio, inserisci la scheda flashata in un PC e modifica `user-data` / `network-config` nella piccola partizione di boot (testo semplice, formato [cloud-init](https://cloudinit.readthedocs.io/)) prima di accendere il Pi.
 
@@ -278,7 +278,7 @@ L'APK di debug viene scritto in `mobile/android/app/build/outputs/apk/debug/app-
 
 ### Come si collega
 
-Al primo avvio, l'app chiede un nome server o IP — digita il nome mDNS (`ari-cad.local`) o l'indirizzo IP del server; nessuna porta necessaria se il server e sulla porta predefinita 80. Verifica la raggiungibilita, poi passa alle pagine del server live, come farebbe un browser. L'accesso resta valido per 30 giorni (un vero cookie di sessione, non credenziali salvate), quindi in genere ci si autentica una sola volta per installazione.
+Al primo avvio, l'app chiede un nome server o IP — digita il nome mDNS (`cad-server.local`) o l'indirizzo IP del server; nessuna porta necessaria se il server e sulla porta predefinita 80. Verifica la raggiungibilita, poi passa alle pagine del server live, come farebbe un browser. L'accesso resta valido per 30 giorni (un vero cookie di sessione, non credenziali salvate), quindi in genere ci si autentica una sola volta per installazione.
 
 ### Comportamenti specifici dell'app
 

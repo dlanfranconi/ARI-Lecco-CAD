@@ -17,7 +17,7 @@ Internal web-based computer aided dispatch app for race and event operations.
 - Network device monitoring with live up/down status and alerts (Network page)
 - iperf3 link-quality testing between the server and remote radio sites
 - Phone/device speed test against the dispatch server, right from the Network page
-- Server discovery on the LAN via mDNS (`ari-cad.local`) — no IP hunting
+- Server discovery on the LAN via mDNS (`cad-server.local`) — no IP hunting
 - Optional HTTPS with an auto-generated self-signed certificate
 - Android app (see "Mobile App" below) with offline-safe server picker, persistent login, and a native back button that behaves like an app instead of a browser
 - Build version shown in the page footer, so you can tell at a glance which build a device is actually running
@@ -58,7 +58,7 @@ services:
     image: ghcr.io/dlanfranconi/ari-lecco-cad:latest
     container_name: ari-lecco-cad
     restart: unless-stopped
-    # Host networking so mDNS (ari-cad.local) can reach the LAN. Linux Docker
+    # Host networking so mDNS (cad-server.local) can reach the LAN. Linux Docker
     # host only; needs port 80 free on the host. See "Server Discovery (mDNS)" below.
     network_mode: host
     environment:
@@ -72,7 +72,7 @@ services:
       LANG: it_IT.UTF-8
       NTP_SERVER: pool.ntp.org
       DATABASE_PATH: /data/cad.sqlite3
-      MDNS_HOSTNAME: ari-cad
+      MDNS_HOSTNAME: cad-server
       PORT: 80
     volumes:
       - ari-lecco-cad-data:/data
@@ -98,14 +98,16 @@ Every page footer shows a version string, e.g. `vmain@a1b2c3d` (branch + short c
 
 ## Server Discovery (mDNS)
 
-The server advertises itself on the LAN as `ari-cad.local` (via mDNS/Bonjour) so users can type a name instead of hunting for an IP each race — this is what the mobile app's "server name" field resolves. Configure with:
+The server advertises itself on the LAN as `cad-server.local` (via mDNS/Bonjour) so users can type a name instead of hunting for an IP each race — this is what the mobile app's "server name" field resolves. Set the hostname from the Configuration page in the app (takes effect after the container restarts), or via an environment variable before the app is running:
 
 ```bash
-MDNS_HOSTNAME=ari-cad   # results in ari-cad.local
-MDNS_ENABLED=true       # set to false to disable
+MDNS_HOSTNAME=cad-server   # results in cad-server.local
+MDNS_ENABLED=true          # set to false to disable
 ```
 
-Requires `network_mode: host` in Docker (set above) since mDNS multicast doesn't cross Docker's default bridge network — under bridge networking the app still starts normally, but nothing on the LAN will see the advertisement. If two CAD servers run on the same network, give them different `MDNS_HOSTNAME` values.
+A hostname set from the Configuration page takes precedence over the environment variable once saved.
+
+Requires `network_mode: host` in Docker (set above) since mDNS multicast doesn't cross Docker's default bridge network — under bridge networking the app still starts normally, but nothing on the LAN will see the advertisement. If two CAD servers run on the same network, give them different hostnames.
 
 ## Network Tools (Network page)
 
@@ -167,7 +169,7 @@ Set environment variables in Portainer or copy `.env.example` to `.env`.
 
 ### Host networking (required for mDNS) — what to expect
 
-`docker-compose.yml` uses `network_mode: host`, which is what makes `ari-cad.local` work on the LAN. It also changes how the container gets its port, in ways that trip people up if you don't know to expect them:
+`docker-compose.yml` uses `network_mode: host`, which is what makes `cad-server.local` work on the LAN. It also changes how the container gets its port, in ways that trip people up if you don't know to expect them:
 
 - **There is no "Published Ports" mapping.** With `network_mode: host` the container talks directly on the host's own network — Portainer will not show a ports field for it, and that's correct, not a bug. Don't add a `ports:` entry back in; it's ignored (and can mask real conflicts) under host networking.
 - **Port 80 (or whatever `PORT` is set to) must be completely free on the host itself** before the container starts — not "free inside Docker," free on the actual machine. Anything already listening on that port (including an old copy of this same container that didn't fully stop, or another web service on the host) will make the new one fail immediately with:
@@ -197,7 +199,7 @@ This almost always means something is already bound to the port you're deploying
 
 ### Don't want host networking?
 
-If you're on Docker Desktop, don't need `ari-cad.local`, or just want the simpler/safer setup: delete the `network_mode: host` line from your stack and add back a normal port mapping instead:
+If you're on Docker Desktop, don't need `cad-server.local`, or just want the simpler/safer setup: delete the `network_mode: host` line from your stack and add back a normal port mapping instead:
 
 ```yaml
     # network_mode: host   <- remove this line
@@ -205,7 +207,7 @@ If you're on Docker Desktop, don't need `ari-cad.local`, or just want the simple
       - "80:80"             <- add this instead
 ```
 
-Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `ari-cad.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if the port is taken, rather than the container silently trying to bind the whole host's network).
+Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `cad-server.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if the port is taken, rather than the container silently trying to bind the whole host's network).
 
 ## Raspberry Pi
 
@@ -217,10 +219,10 @@ Every [GitHub Release](https://github.com/dlanfranconi/ARI-Lecco-CAD/releases) i
 
 1. Download the `.img.xz` from the release and flash it to a microSD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom" → pick the file) or `balenaEtcher` — don't use Imager's OS customization dialog, the image already has everything set.
 2. Insert the card, connect the Pi to your network with an **Ethernet cable** (the image doesn't have Wi-Fi credentials preloaded), and power it on.
-3. Wait 3–5 minutes for first boot (installing Docker and pulling the image takes most of that). Then open `http://ari-cad.local` from any device on the same network.
+3. Wait 3–5 minutes for first boot (installing Docker and pulling the image takes most of that). Then open `http://cad-server.local` from any device on the same network.
 4. Log in with `dispatch` / `dispatch` — you'll be required to change the password immediately.
 
-The Pi's own OS login (console or SSH, e.g. `ssh pi@ari-cad.local`) defaults to `pi` / `arilecco` and **also forces a password change on first login**, independent of the app's own login. Change it the first time you actually SSH in.
+The Pi's own OS login (console or SSH, e.g. `ssh pi@cad-server.local`) defaults to `pi` / `arilecco` and **also forces a password change on first login**, independent of the app's own login. Change it the first time you actually SSH in.
 
 To add Wi-Fi instead of Ethernet, or to change the default mDNS hostname before first boot, insert the flashed card into a PC and edit `user-data` / `network-config` on the small boot partition (plain text, [cloud-init](https://cloudinit.readthedocs.io/) format) before powering on the Pi.
 
@@ -236,11 +238,15 @@ This installs Docker, generates a random session secret, and starts the CAD cont
 
 ## APRS.fi
 
-Set an APRS.fi API key:
+The aprs.fi API (Application Programming Interface) allows application developers to query the aprs.fi database from their own web applications. To use the API you need to sign up for a user account on aprs.fi — your API key can be found in the account settings ([My Account](https://aprs.fi/account/)).
+
+Set the key from the Configuration page in the app (recommended, including for a headless Pi setup), or via an environment variable before the app is running:
 
 ```bash
 APRSFI_API_KEY=your-key-here
 ```
+
+A key set from the Configuration page takes precedence over the environment variable once saved.
 
 You do not need the full station list at build time. Add stations in the setup page before each race, then assign a station to each user/operator as needed.
 
@@ -277,7 +283,7 @@ The debug APK is written to `mobile/android/app/build/outputs/apk/debug/app-debu
 
 ### How it connects
 
-On first launch, the app asks for a server name or IP — type the mDNS name (`ari-cad.local`) or the server's IP address; no port needed if the server's on the default port 80. It checks reachability, then hands off into the live server's own pages, same as a browser would. Login persists for 30 days (a real session cookie, not stored credentials), so you generally only log in once per install.
+On first launch, the app asks for a server name or IP — type the mDNS name (`cad-server.local`) or the server's IP address; no port needed if the server's on the default port 80. It checks reachability, then hands off into the live server's own pages, same as a browser would. Login persists for 30 days (a real session cookie, not stored credentials), so you generally only log in once per install.
 
 ### Behavior specific to the app
 
