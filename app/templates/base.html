@@ -18,7 +18,7 @@
   {% if dispatch_user %}
   <header class="topbar">
     <button id="nav-toggle" class="nav-toggle ghost icon-button" type="button" aria-label="{{ t.menu }}" aria-expanded="false">☰</button>
-    <a class="brand" href="/notices">{{ t.app_title }}</a>
+    <a class="brand" href="/notices">{% if logo_url %}<img class="topbar-logo" src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}<span>{{ t.app_title }}</span></a>
     <nav id="topbar-nav">
       {% if current_user.role in ['admin', 'user'] %}
       <a href="/">{{ t.race_log }}</a>
@@ -49,6 +49,7 @@
     </div>
     {% endif %}
     <div class="header-actions">
+      {% if logo2_url %}<img class="topbar-logo topbar-logo-secondary" src="{{ logo2_url }}" alt="{{ t.logo_alt }}">{% endif %}
       <button id="theme-toggle" class="ghost icon-button" type="button" aria-label="Toggle contrast">☾</button>
       <div class="account-menu">
         <button id="account-toggle" class="ghost icon-button" type="button" aria-label="{{ t.account }}" aria-expanded="false">
@@ -63,12 +64,6 @@
       </div>
     </div>
   </header>
-  {% endif %}
-  {% if logo_url or logo2_url %}
-  <div class="page-logo">
-    {% if logo_url %}<img src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}
-    {% if logo2_url %}<img src="{{ logo2_url }}" alt="{{ t.logo_alt }}">{% endif %}
-  </div>
   {% endif %}
   <main class="content">{% block content %}{% endblock %}</main>
   <footer class="site-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>

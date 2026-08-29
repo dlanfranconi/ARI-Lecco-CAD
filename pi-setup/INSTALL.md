@@ -8,10 +8,10 @@ Every [GitHub Release](https://github.com/dlanfranconi/ARI-Lecco-CAD/releases) i
 
 1. Download the `.img.xz` and flash it with [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom" -> pick the file) or `balenaEtcher`. Skip Imager's OS customization dialog entirely -- the image already has everything set, and running that dialog would just overwrite it.
 2. Insert the card, connect the Pi to your network over **Ethernet** (the image has no Wi-Fi credentials preloaded), and power it on.
-3. Wait 3-5 minutes for first boot -- installing Docker and pulling the CAD image takes most of that. Then open `http://ari-cad.local` from any device on the same network.
+3. Wait 3-5 minutes for first boot -- installing Docker and pulling the CAD image takes most of that. Then open `http://cad-server.local` from any device on the same network.
 4. Log in with `dispatch` / `dispatch` -- the app forces a password change immediately.
 
-The Pi's own OS login (console or SSH, `ssh pi@ari-cad.local`) defaults to `pi` / `arilecco` and also forces a password change on first login, independent of the app. Change it the first time you actually SSH in.
+The Pi's own OS login (console or SSH, `ssh pi@cad-server.local`) defaults to `pi` / `arilecco` and also forces a password change on first login, independent of the app. Change it the first time you actually SSH in.
 
 To use Wi-Fi instead of Ethernet, or change the default mDNS hostname before first boot: insert the freshly-flashed card into a PC and edit `user-data` / `network-config` on the small boot partition (plain text, cloud-init format) before powering on the Pi.
 
@@ -30,7 +30,7 @@ Use this if you already have Raspberry Pi OS installed and reachable over SSH --
 
 ## After it's running
 
-- Open `http://ari-cad.local` (or the Pi's IP address) from any device on the same network.
+- Open `http://cad-server.local` (or the Pi's IP address) from any device on the same network.
 - Default login is `dispatch` / `dispatch` -- change the password from Configuration before using it for anything real.
 - Everything (`docker-compose.yml`, `.env`, and the persistent data volume) lives under `/opt/ari-lecco-cad` on the Pi.
 

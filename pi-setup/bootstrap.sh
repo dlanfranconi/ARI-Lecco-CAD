@@ -44,7 +44,7 @@ CAD_ADMIN_PASSWORD=dispatch
 SESSION_SECRET=
 APRSFI_API_KEY=
 APRS_POLL_SECONDS=60
-MDNS_HOSTNAME=ari-cad
+MDNS_HOSTNAME=cad-server
 PORT=80
 HTTPS_ENABLED=false
 HTTPS_PORT=443
@@ -62,7 +62,7 @@ services:
     image: ghcr.io/dlanfranconi/ari-lecco-cad:${CAD_IMAGE_TAG:-latest}
     container_name: ari-lecco-cad
     restart: unless-stopped
-    # Host networking so mDNS (ari-cad.local) can reach the LAN.
+    # Host networking so mDNS (cad-server.local) can reach the LAN.
     network_mode: host
     env_file: .env
     volumes:
@@ -82,6 +82,6 @@ docker compose up -d
 
 echo ""
 echo "==> Done. The CAD server should be reachable shortly at:"
-echo "      http://ari-cad.local   (or http://<this-pi's-ip>)"
+echo "      http://cad-server.local   (or http://<this-pi's-ip>)"
 echo ""
 echo "    Default login: dispatch / dispatch -- change the password in Configuration before real use."

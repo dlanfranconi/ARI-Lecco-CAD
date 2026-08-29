@@ -22,6 +22,9 @@
         <option value="first" {% if athlete_name_display == 'first' %}selected{% endif %}>{{ t.first_name_only }}</option>
       </select>
     </label>
+    <h2>{{ t.network_settings }}</h2>
+    <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
+    <p class="meta">{{ t.hostname_hint }}</p>
     <h2>{{ t.appearance }}</h2>
     <label>{{ t.color_scheme }}
       <select name="color_scheme">
@@ -34,6 +37,7 @@
       </select>
     </label>
     <h2>{{ t.aprs_settings }}</h2>
+    <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
     <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
     <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
     <button>{{ t.save_settings }}</button>
