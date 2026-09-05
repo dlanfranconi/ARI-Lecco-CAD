@@ -209,6 +209,63 @@ If you're on Docker Desktop, don't need `cad-server.local`, or just want the sim
 
 Everything works the same except mDNS discovery — users will need to type the server's actual IP address into the app instead of `cad-server.local`. Docker fully manages the port for you this way, so the "address already in use" failure mode above doesn't happen (Docker will just tell you clearly if the port is taken, rather than the container silently trying to bind the whole host's network).
 
+## Headless Server (Docker Compose CLI, no Portainer)
+
+For a Linux server with no GUI and no Portainer installed — just SSH and a terminal — this is the manual equivalent of the Portainer stack above, using the prebuilt image instead of building from source.
+
+### 1. Install Docker
+
+You need Docker Engine and the Compose plugin (that's what provides the `docker compose` command used throughout this doc — not the older standalone `docker-compose` tool). Docker's own convenience script covers most distros:
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+```
+
+See the [official install docs](https://docs.docker.com/engine/install/) for distro-specific instructions, or if you'd rather not pipe a script into `sh`. Verify with:
+
+```bash
+docker compose version
+```
+
+If that fails but `docker --version` works, your install didn't include the Compose plugin — see the [Compose install docs](https://docs.docker.com/compose/install/linux/) to add it.
+
+### 2. Set up the stack
+
+```bash
+mkdir ari-lecco-cad && cd ari-lecco-cad
+curl -fsSLO https://raw.githubusercontent.com/dlanfranconi/ARI-Lecco-CAD/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/dlanfranconi/ARI-Lecco-CAD/main/.env.example
+cp .env.example .env
+```
+
+The `docker-compose.yml` you just downloaded builds from source (`build: .`), which needs the full repo, not just that one file. On a headless server you almost always want the prebuilt image instead — edit the file and replace `build: .` with:
+
+```yaml
+    image: ghcr.io/dlanfranconi/ari-lecco-cad:latest
+```
+
+(see "Prebuilt Docker Image" above for the `:wip` and per-commit tags). Edit `.env` for your admin password and session secret, then bring it up:
+
+```bash
+docker compose up -d
+```
+
+### 3. Day-to-day
+
+```bash
+docker compose logs -f       # tail logs
+docker compose pull          # fetch a newer image
+docker compose up -d         # recreate the container with it
+docker compose down          # stop and remove the container (the data volume is untouched)
+```
+
+### Port advertisement: host mode vs. bridge mode
+
+Same underlying rules as the Portainer section above — it's the same `docker-compose.yml` either way, the only difference is you're running `docker compose` yourself instead of Portainer running it for you:
+
+- **Host mode** (the shipped default, `network_mode: host`): there is no `ports:` mapping at all — the container binds straight to the host's own network interfaces, on whatever `PORT` is set to (80 by default). "Advertising" the port here just means making sure it's free on the host and that any host firewall (`ufw`, `firewalld`) or cloud security group allows inbound traffic on it; Docker itself does no port publishing in this mode. This is required for mDNS (`cad-server.local`) to work.
+- **Bridge/default mode** (after deleting `network_mode: host` and adding a `ports:` entry, per "Don't want host networking?" above): the mapping is `"HOST_PORT:CONTAINER_PORT"`. The container-side number must match `PORT` in your environment, since that's the only port the app listens on inside the container — e.g. `PORT=8420` needs `"8420:8420"`, not `"80:8420"`. The host-side number is what you open on the firewall/router and what users type in the URL. mDNS discovery does not work in this mode; users connect via the server's actual IP address instead of `cad-server.local`.
+
 ## Raspberry Pi
 
 The easiest way to run a dedicated CAD server is a Raspberry Pi (3B+ or newer, 64-bit) — cheap, low-power, and easy to carry to a race site. Two ways to set one up, from easiest to most flexible:

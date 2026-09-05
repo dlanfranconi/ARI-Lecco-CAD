@@ -208,6 +208,63 @@ Se sei su Docker Desktop, non ti serve `cad-server.local`, o vuoi semplicemente 
 
 Tutto funziona allo stesso modo tranne l'individuazione mDNS — gli utenti dovranno digitare l'indirizzo IP reale del server nell'app invece di `cad-server.local`. Docker gestisce completamente la porta in questo modo, quindi il problema "address already in use" descritto sopra non si presenta (Docker ti dira chiaramente se la porta e occupata, invece che il container prova silenziosamente a collegarsi a tutta la rete dell'host).
 
+## Server headless (Docker Compose da riga di comando, senza Portainer)
+
+Per un server Linux senza interfaccia grafica e senza Portainer installato — solo SSH e un terminale — questo e l'equivalente manuale dello stack Portainer sopra, usando l'immagine pronta all'uso invece di compilare dal sorgente.
+
+### 1. Installa Docker
+
+Ti servono Docker Engine e il plugin Compose (e questo che fornisce il comando `docker compose` usato in tutto questo documento — non il vecchio strumento standalone `docker-compose`). Lo script di comodo di Docker copre la maggior parte delle distribuzioni:
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+```
+
+Vedi la [documentazione ufficiale di installazione](https://docs.docker.com/engine/install/) per istruzioni specifiche per la tua distribuzione, o se preferisci non passare uno script a `sh` con una pipe. Verifica con:
+
+```bash
+docker compose version
+```
+
+Se questo fallisce ma `docker --version` funziona, la tua installazione non include il plugin Compose — vedi la [documentazione di installazione di Compose](https://docs.docker.com/compose/install/linux/) per aggiungerlo.
+
+### 2. Prepara lo stack
+
+```bash
+mkdir ari-lecco-cad && cd ari-lecco-cad
+curl -fsSLO https://raw.githubusercontent.com/dlanfranconi/ARI-Lecco-CAD/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/dlanfranconi/ARI-Lecco-CAD/main/.env.example
+cp .env.example .env
+```
+
+Il `docker-compose.yml` appena scaricato compila dal sorgente (`build: .`), il che richiede l'intero repository, non solo quel file. Su un server headless quasi sempre conviene usare invece l'immagine pronta all'uso — modifica il file e sostituisci `build: .` con:
+
+```yaml
+    image: ghcr.io/dlanfranconi/ari-lecco-cad:latest
+```
+
+(vedi "Immagine Docker pronta all'uso" sopra per il tag `:wip` e i tag per singolo commit). Modifica `.env` con la password admin e il session secret, poi avvia:
+
+```bash
+docker compose up -d
+```
+
+### 3. Uso quotidiano
+
+```bash
+docker compose logs -f       # segui i log
+docker compose pull          # scarica un'immagine piu recente
+docker compose up -d         # ricrea il container con quella
+docker compose down          # ferma e rimuove il container (il volume dati non viene toccato)
+```
+
+### Esposizione della porta: modalita host vs. modalita bridge
+
+Stesse regole di fondo della sezione Portainer sopra — e lo stesso `docker-compose.yml` in entrambi i casi, l'unica differenza e che esegui `docker compose` tu stesso invece di farlo fare a Portainer:
+
+- **Modalita host** (il default fornito, `network_mode: host`): non c'e nessuna mappatura `ports:` — il container si collega direttamente alle interfacce di rete dell'host, sulla porta impostata in `PORT` (80 di default). "Esporre" la porta qui significa solo assicurarsi che sia libera sull'host e che qualsiasi firewall dell'host (`ufw`, `firewalld`) o security group del provider cloud consenta il traffico in ingresso su di essa; Docker stesso non pubblica alcuna porta in questa modalita. Questo e necessario perche mDNS (`cad-server.local`) funzioni.
+- **Modalita bridge/predefinita** (dopo aver eliminato `network_mode: host` e aggiunto una voce `ports:`, come in "Non vuoi la rete host?" sopra): la mappatura e `"PORTA_HOST:PORTA_CONTAINER"`. Il numero lato container deve corrispondere a `PORT` nel tuo ambiente, dato che e l'unica porta su cui l'app resta in ascolto dentro il container — per esempio `PORT=8420` richiede `"8420:8420"`, non `"80:8420"`. Il numero lato host e quello da aprire sul firewall/router ed e quello che gli utenti digitano nell'URL. L'individuazione mDNS non funziona in questa modalita; gli utenti si collegano tramite l'indirizzo IP reale del server invece di `cad-server.local`.
+
 ## Raspberry Pi
 
 Il modo piu semplice per gestire un server CAD dedicato e un Raspberry Pi (3B+ o piu recente, 64-bit) — economico, a basso consumo, e facile da portare sul luogo della gara. Due modi per configurarne uno, dal piu semplice al piu flessibile:
