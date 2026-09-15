@@ -184,6 +184,18 @@ def current_mdns_hostname() -> str:
     return setting("mdns_hostname", settings.mdns_hostname)
 
 
+def current_public_url() -> str:
+    # An externally-reachable HTTPS address (e.g. a Cloudflare Tunnel
+    # hostname), entirely separate from mdns_hostname -- that one's for
+    # finding the box on the LAN, this one's for anything that needs a
+    # stable public origin (browser push subscriptions, a QR code/link for
+    # phones to add the site to their home screen). Deliberately just a
+    # DB setting with no env-var fallback: unlike the LAN hostname this
+    # has no sane default, and re-pointing it to a new domain later is a
+    # plain settings change, not a rebuild.
+    return setting("public_url", "")
+
+
 async def aprs_loop() -> None:
     while True:
         with suppress(Exception):
@@ -316,6 +328,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("aprsfi_api_key", current_aprsfi_api_key())
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("mdns_hostname", current_mdns_hostname())
+    context.setdefault("public_url", current_public_url())
     context.setdefault("race_mode", race_mode_enabled())
     context.setdefault("app_mode", "race" if race_mode_enabled() else "cad")
     context.setdefault("network_monitor_poll_seconds", current_network_monitor_poll_seconds())
@@ -914,50 +927,71 @@ COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
 
 @app.post("/setup/settings")
 async def update_settings(
-    language: str = Form("en"),
-    app_timezone: str = Form("Europe/Rome"),
-    app_locale: str = Form("it_IT.UTF-8"),
-    ntp_server: str = Form("pool.ntp.org"),
-    athlete_name_display: str = Form("full"),
-    color_scheme: str = Form("teal"),
-    aprsfi_api_key: str = Form(""),
-    aprs_poll_seconds: str = Form("60"),
-    mdns_hostname: str = Form(""),
-    app_mode: str = Form("race"),
-    network_monitor_poll_seconds: str = Form("30"),
-    network_monitor_alert_after_seconds: str = Form("0"),
+    # Every field is optional and only written when actually present in the
+    # submitted form -- Setup splits these across several independent
+    # panels/forms (General, Network, APRS) so saving one doesn't reset the
+    # others back to their hardcoded defaults just because that panel's
+    # <form> never included those fields.
+    language: str | None = Form(None),
+    app_timezone: str | None = Form(None),
+    app_locale: str | None = Form(None),
+    ntp_server: str | None = Form(None),
+    athlete_name_display: str | None = Form(None),
+    color_scheme: str | None = Form(None),
+    app_mode: str | None = Form(None),
+    aprsfi_api_key: str | None = Form(None),
+    aprs_poll_seconds: str | None = Form(None),
+    mdns_hostname: str | None = Form(None),
+    public_url: str | None = Form(None),
+    network_monitor_poll_seconds: str | None = Form(None),
+    network_monitor_alert_after_seconds: str | None = Form(None),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    save_setting("language", normalize_language(language))
-    save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
-    save_setting("app_locale", app_locale.strip() or settings.app_locale)
-    save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
-    previous_hostname = current_mdns_hostname()
-    new_hostname = normalize_hostname(mdns_hostname)
-    save_setting("mdns_hostname", new_hostname)
-    save_setting("app_mode", "cad" if app_mode == "cad" else "race")
-    save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
-    save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
-    save_setting("aprsfi_api_key", aprsfi_api_key.strip())
-    poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
-    save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
-    netmon_poll = int(network_monitor_poll_seconds) if network_monitor_poll_seconds.strip().isdigit() else settings.network_monitor_poll_seconds
-    save_setting("network_monitor_poll_seconds", str(max(netmon_poll, 10)))
-    netmon_alert_after = int(network_monitor_alert_after_seconds) if network_monitor_alert_after_seconds.strip().isdigit() else 0
-    save_setting("network_monitor_alert_after_seconds", str(max(netmon_alert_after, 0)))
-    if new_hostname != previous_hostname:
-        # mDNS registration and the self-signed cert's CN are both bound
-        # once at process startup, not re-read per request, so the new
-        # hostname only takes effect after a restart. Docker's
-        # restart:unless-stopped policy brings the container straight back
-        # up, so triggering that here (after this response is on the wire)
-        # is simpler and more reliable than trying to re-register mDNS and
-        # regenerate the cert live. Assumes this request landed on the
-        # primary process, not the optional HTTPS child (see
-        # settings.is_https_child) -- true for every deployment so far,
-        # since HTTPS_ENABLED defaults off.
-        asyncio.get_event_loop().call_later(1.5, lambda: os.kill(os.getpid(), signal.SIGTERM))
-        return RedirectResponse("/setup?hostname_restart=1", status_code=303)
+    if language is not None:
+        save_setting("language", normalize_language(language))
+    if app_timezone is not None:
+        save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
+    if app_locale is not None:
+        save_setting("app_locale", app_locale.strip() or settings.app_locale)
+    if ntp_server is not None:
+        save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
+    if athlete_name_display is not None:
+        save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
+    if color_scheme is not None:
+        save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
+    if app_mode is not None:
+        save_setting("app_mode", "cad" if app_mode == "cad" else "race")
+    if aprsfi_api_key is not None:
+        save_setting("aprsfi_api_key", aprsfi_api_key.strip())
+    if aprs_poll_seconds is not None:
+        poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
+        save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
+    if public_url is not None:
+        save_setting("public_url", public_url.strip().rstrip("/"))
+    if network_monitor_poll_seconds is not None:
+        netmon_poll = int(network_monitor_poll_seconds) if network_monitor_poll_seconds.strip().isdigit() else settings.network_monitor_poll_seconds
+        save_setting("network_monitor_poll_seconds", str(max(netmon_poll, 10)))
+    if network_monitor_alert_after_seconds is not None:
+        netmon_alert_after = int(network_monitor_alert_after_seconds) if network_monitor_alert_after_seconds.strip().isdigit() else 0
+        save_setting("network_monitor_alert_after_seconds", str(max(netmon_alert_after, 0)))
+
+    if mdns_hostname is not None:
+        previous_hostname = current_mdns_hostname()
+        new_hostname = normalize_hostname(mdns_hostname)
+        save_setting("mdns_hostname", new_hostname)
+        if new_hostname != previous_hostname:
+            # mDNS registration and the self-signed cert's CN are both bound
+            # once at process startup, not re-read per request, so the new
+            # hostname only takes effect after a restart. Docker's
+            # restart:unless-stopped policy brings the container straight
+            # back up, so triggering that here (after this response is on
+            # the wire) is simpler and more reliable than trying to
+            # re-register mDNS and regenerate the cert live. Assumes this
+            # request landed on the primary process, not the optional
+            # HTTPS child (see settings.is_https_child) -- true for every
+            # deployment so far, since HTTPS_ENABLED defaults off.
+            asyncio.get_event_loop().call_later(1.5, lambda: os.kill(os.getpid(), signal.SIGTERM))
+            return RedirectResponse("/setup?hostname_restart=1", status_code=303)
     return RedirectResponse("/setup", status_code=303)
 
 

@@ -29,13 +29,6 @@
       </select>
     </label>
     <p class="meta">{{ t.app_mode_hint }}</p>
-    <h2>{{ t.network_settings }}</h2>
-    {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
-    <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
-    <p class="meta">{{ t.hostname_hint }}</p>
-    <label>{{ t.network_monitor_poll_seconds }}<input name="network_monitor_poll_seconds" type="number" min="10" step="1" value="{{ network_monitor_poll_seconds }}"></label>
-    <label>{{ t.network_monitor_alert_after_seconds }}<input name="network_monitor_alert_after_seconds" type="number" min="0" step="1" value="{{ network_monitor_alert_after_seconds }}"></label>
-    <p class="meta">{{ t.network_monitor_alert_after_hint }}</p>
     <h2>{{ t.appearance }}</h2>
     <label>{{ t.color_scheme }}
       <select name="color_scheme">
@@ -47,14 +40,23 @@
         <option value="slate" {% if color_scheme == 'slate' %}selected{% endif %}>{{ t.color_scheme_slate }}</option>
       </select>
     </label>
-    <h2>{{ t.aprs_settings }}</h2>
-    <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
-    <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
-    <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
     <button>{{ t.save_settings }}</button>
   </form>
 
   <div class="stack">
+    <form method="post" action="/setup/settings" class="panel">
+      <h2>{{ t.network_settings }}</h2>
+      {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
+      <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
+      <p class="meta">{{ t.hostname_hint }}</p>
+      <label>{{ t.public_url }}<input name="public_url" value="{{ public_url }}" placeholder="https://ari-lecco-cad.example.net"></label>
+      <p class="meta">{{ t.public_url_hint }}</p>
+      <label>{{ t.network_monitor_poll_seconds }}<input name="network_monitor_poll_seconds" type="number" min="10" step="1" value="{{ network_monitor_poll_seconds }}"></label>
+      <label>{{ t.network_monitor_alert_after_seconds }}<input name="network_monitor_alert_after_seconds" type="number" min="0" step="1" value="{{ network_monitor_alert_after_seconds }}"></label>
+      <p class="meta">{{ t.network_monitor_alert_after_hint }}</p>
+      <button>{{ t.save_settings }}</button>
+    </form>
+
     <section class="panel compact-panel">
       <h1>{{ t.logo }}</h1>
       {% if logo_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
@@ -71,6 +73,14 @@
   </div>
 
   <div class="stack">
+    <form method="post" action="/setup/settings" class="panel">
+      <h2>{{ t.aprs_settings }}</h2>
+      <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
+      <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
+      <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
+      <button>{{ t.save_settings }}</button>
+    </form>
+
     <section class="panel compact-panel">
       <h1>{{ t.event_logo }}</h1>
       {% if logo2_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
