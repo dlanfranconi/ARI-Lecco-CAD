@@ -18,7 +18,7 @@
   {% if dispatch_user %}
   <header class="topbar">
     <button id="nav-toggle" class="nav-toggle ghost icon-button" type="button" aria-label="{{ t.menu }}" aria-expanded="false">☰</button>
-    <a class="brand" href="/notices">{% if logo_url %}<img class="topbar-logo" src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}<span>{{ t.app_title }}</span></a>
+    <a class="brand" href="{% if current_user.role in ['admin', 'user'] %}/{% else %}/notices{% endif %}">{% if logo_url %}<img class="topbar-logo" src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}<span>{{ t.app_title }}</span></a>
     <nav id="topbar-nav">
       {% if current_user.role in ['admin', 'user'] %}
       <a href="/">{{ t.race_log }}</a>
@@ -74,7 +74,7 @@
   </script>
   <script src="{{ asset('/static/notice-toast.js') }}"></script>
   {% endif %}
-  {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/review-alert.js') }}"></script>{% endif %}
+  {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }}; window.CAD_USERS_LIST = {{ users_list|tojson }};</script><script src="{{ asset('/static/review-alert.js') }}"></script>{% endif %}
   <script src="{{ asset('/static/theme.js') }}"></script>
   <script src="{{ asset('/static/pwa.js') }}"></script>
   <script src="{{ asset('/static/native-notify.js') }}"></script>

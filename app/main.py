@@ -293,6 +293,14 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("aprsfi_api_key", current_aprsfi_api_key())
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("mdns_hostname", current_mdns_hostname())
+    context.setdefault(
+        "users_list",
+        rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name") if user and user["role"] == "admin" else [],
+    )
+    # Normalize to plain dicts regardless of who set it above -- callers pass
+    # raw sqlite3.Row lists, which base.html's `users_list|tojson` (for the
+    # global pending-notice review popup) can't serialize directly.
+    context["users_list"] = [dict(u) for u in context["users_list"]]
     context.setdefault("announcer_url", TRANSLATIONS[lang]["announcer_url"])
     context.setdefault("submit_notice_url", TRANSLATIONS[lang]["submit_notice_url"])
     context.setdefault("app_version", settings.app_version)

@@ -247,6 +247,20 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+// Browsers create a fresh AudioContext in "suspended" state until a real
+// user gesture happens on the page -- on an unattended announcer display
+// (left open for hours, nobody ever taps it) it can silently stay
+// suspended forever, so playNotificationSound()'s oscillators schedule
+// without ever making sound and no error is raised anywhere. Resume it on
+// every attempt, and opportunistically on the first tap/keypress too so a
+// single incidental interaction (loading the page, an admin tapping the
+// nav) unlocks it for the rest of the session.
+function unlockAudioContext() {
+  const ctx = getAudioCtx();
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+}
+["pointerdown", "keydown", "touchstart"].forEach((evt) => document.addEventListener(evt, unlockAudioContext, { passive: true }));
+
 let customAudio = null;
 function playCustomSound(volume) {
   const url = window.CAD_NOTIFICATION_SOUND_URL;
@@ -262,7 +276,7 @@ function playCustomSound(volume) {
 function soundPrefs() {
   return {
     preset: localStorage.getItem("announcer-sound-preset") || "chime",
-    volume: Number(localStorage.getItem("announcer-sound-volume") ?? 0.6)
+    volume: Number(localStorage.getItem("announcer-sound-volume") ?? 1)
   };
 }
 
@@ -291,6 +305,7 @@ function playNotificationSound() {
   if (!tones) return;
   try {
     const ctx = getAudioCtx();
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
     const now = ctx.currentTime;
     tones.forEach((tone) => playTone(ctx, now, tone, volume));
   } catch (_) {
