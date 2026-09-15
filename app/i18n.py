@@ -484,7 +484,7 @@ TRANSLATIONS = {
         "sound_soft": "Leggero",
         "sound_chime": "Campanello",
         "sound_alert": "Allarme",
-        "sound_bell": "Campanello",
+        "sound_bell": "Campana",
         "sound_mellow": "Morbido",
         "sound_digital": "Digitale",
         "sound_marimba": "Marimba",
