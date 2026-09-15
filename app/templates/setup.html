@@ -22,10 +22,20 @@
         <option value="first" {% if athlete_name_display == 'first' %}selected{% endif %}>{{ t.first_name_only }}</option>
       </select>
     </label>
+    <label>{{ t.app_mode }}
+      <select name="app_mode">
+        <option value="race" {% if app_mode == 'race' %}selected{% endif %}>{{ t.app_mode_race }}</option>
+        <option value="cad" {% if app_mode == 'cad' %}selected{% endif %}>{{ t.app_mode_cad }}</option>
+      </select>
+    </label>
+    <p class="meta">{{ t.app_mode_hint }}</p>
     <h2>{{ t.network_settings }}</h2>
     {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
     <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
     <p class="meta">{{ t.hostname_hint }}</p>
+    <label>{{ t.network_monitor_poll_seconds }}<input name="network_monitor_poll_seconds" type="number" min="10" step="1" value="{{ network_monitor_poll_seconds }}"></label>
+    <label>{{ t.network_monitor_alert_after_seconds }}<input name="network_monitor_alert_after_seconds" type="number" min="0" step="1" value="{{ network_monitor_alert_after_seconds }}"></label>
+    <p class="meta">{{ t.network_monitor_alert_after_hint }}</p>
     <h2>{{ t.appearance }}</h2>
     <label>{{ t.color_scheme }}
       <select name="color_scheme">
@@ -44,70 +54,74 @@
     <button>{{ t.save_settings }}</button>
   </form>
 
-  <section class="panel">
-    <h1>{{ t.logo }}</h1>
-    {% if logo_url %}<div class="logo-preview"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
-    <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
-    {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
-  </section>
+  <div class="stack">
+    <section class="panel compact-panel">
+      <h1>{{ t.logo }}</h1>
+      {% if logo_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+      <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
+      {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
+    </section>
 
-  <section class="panel">
-    <h1>{{ t.event_logo }}</h1>
-    {% if logo2_url %}<div class="logo-preview"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
-    <form method="post" action="/setup/logo2" enctype="multipart/form-data"><label>{{ t.event_logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_event_logo }}</button></form>
-    {% if logo2_url %}<form method="post" action="/setup/logo2/delete"><button class="danger">{{ t.remove_event_logo }}</button></form>{% endif %}
-  </section>
+    <form method="post" action="/setup/race" class="panel">
+      <h1>{{ t.race_name }}</h1>
+      <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
+      <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
+      <button>{{ t.start_new_race }}</button>
+    </form>
+  </div>
 
-  <section class="panel">
-    <h1>{{ t.notification_sound }}</h1>
-    {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
-    <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
-    {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
-  </section>
+  <div class="stack">
+    <section class="panel compact-panel">
+      <h1>{{ t.event_logo }}</h1>
+      {% if logo2_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+      <form method="post" action="/setup/logo2" enctype="multipart/form-data"><label>{{ t.event_logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_event_logo }}</button></form>
+      {% if logo2_url %}<form method="post" action="/setup/logo2/delete"><button class="danger">{{ t.remove_event_logo }}</button></form>{% endif %}
+    </section>
 
-  <form method="post" action="/setup/race" class="panel">
-    <h1>{{ t.race_name }}</h1>
-    <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
-    <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
-    <button>{{ t.start_new_race }}</button>
-  </form>
+    <section class="panel">
+      <h1>{{ t.notification_sound }}</h1>
+      {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
+      <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
+      {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
+    </section>
+  </div>
+</section>
 
-  <section class="panel">
-    <h1>{{ t.tactical_callsigns }}</h1>
-    <label>{{ t.tactical_callsign }}
-      <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
-    </label>
-    <div class="table-wrap compact-table">
-      <table class="setup-table tac-table">
-        <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
-        <tbody>
-          <tr>
-            <form method="post" action="/setup/tactical-callsigns">
-              <td><input name="name" required></td>
-              <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
-              <td>{{ t.active }}</td>
-              <td><button>{{ t.add }}</button></td>
-              <td></td>
-            </form>
-          </tr>
-          {% for tac in tactical_callsigns %}
-          <tr class="tac-row" id="tac-{{ tac.id }}">
-            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
-              <td><input name="name" value="{{ tac.name }}" required></td>
-              <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
-              <td>{{ t.active if tac.active else t.disabled }}</td>
-              <td><button>{{ t.save }}</button></td>
-            </form>
-            <td class="actions-cell">
-              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
-              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+<section class="panel">
+  <h1>{{ t.tactical_callsigns }}</h1>
+  <label>{{ t.tactical_callsign }}
+    <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
+  </label>
+  <div class="table-wrap compact-table">
+    <table class="setup-table tac-table">
+      <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <form method="post" action="/setup/tactical-callsigns">
+            <td><input name="name" required></td>
+            <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
+            <td>{{ t.active }}</td>
+            <td><button>{{ t.add }}</button></td>
+            <td></td>
+          </form>
+        </tr>
+        {% for tac in tactical_callsigns %}
+        <tr class="tac-row" id="tac-{{ tac.id }}">
+          <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
+            <td><input name="name" value="{{ tac.name }}" required></td>
+            <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
+            <td>{{ t.active if tac.active else t.disabled }}</td>
+            <td><button>{{ t.save }}</button></td>
+          </form>
+          <td class="actions-cell">
+            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
+            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="panel">
@@ -179,10 +193,30 @@
     <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="all"><label>{{ t.clear_all }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label><button class="danger">{{ t.clear_all }}</button></form>
   </section>
   <section class="panel">
+    <h2>{{ t.full_backup }}</h2>
+    <p class="meta">{{ t.full_backup_hint }}</p>
+    {% if request.query_params.get("backup_restored") %}<p class="success">{{ t.backup_restored }}</p>{% endif %}
+    {% if request.query_params.get("backup_error") == "confirm" %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
+    {% if request.query_params.get("backup_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
+    <div class="actions"><a class="button secondary" href="/export/backup.json">{{ t.download_full_backup }}</a></div>
+    <form method="post" action="/setup/backup/restore" enctype="multipart/form-data" class="clear-form">
+      <label>{{ t.restore_full_backup }}<input type="file" name="file" accept=".json" required></label>
+      <label>{{ t.type_clear }}<input name="confirm" placeholder="{{ t.type_clear }}"></label>
+      <button class="danger">{{ t.restore_full_backup }}</button>
+    </form>
+  </section>
+</section>
+
+<section class="grid two">
+  {% if race_mode %}
+  <section class="panel">
     <h2>{{ t.runner_import }}</h2>
     {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
     {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
     <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
+  </section>
+  {% endif %}
+  <section class="panel">
     <h2>{{ t.archive }}</h2>
     <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
     <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
@@ -190,6 +224,7 @@
 </section>
 
 
+{% if race_mode %}
 <section class="panel">
   <h2>{{ t.athletes }}</h2>
   <label>{{ t.select_athlete_to_edit }}
@@ -235,6 +270,7 @@
     </table>
   </div>
 </section>
+{% endif %}
 
 {% endblock %}
 {% block scripts %}<script src="{{ asset('/static/setup.js') }}"></script>{% endblock %}

@@ -143,6 +143,29 @@ def current_aprs_poll_seconds() -> int:
         return settings.aprs_poll_seconds
 
 
+def race_mode_enabled() -> bool:
+    # CAD mode drops every bib/athlete-specific field so the app works as a
+    # plain dispatch log outside of a timed race. Defaults to race mode so
+    # existing installs (which have always assumed a race) see no change.
+    return setting("app_mode", "race") != "cad"
+
+
+def current_network_monitor_poll_seconds() -> int:
+    raw = setting("network_monitor_poll_seconds", str(settings.network_monitor_poll_seconds))
+    try:
+        return max(int(raw), 10)
+    except ValueError:
+        return settings.network_monitor_poll_seconds
+
+
+def current_network_monitor_alert_after_seconds() -> int:
+    raw = setting("network_monitor_alert_after_seconds", "0")
+    try:
+        return max(int(raw), 0)
+    except ValueError:
+        return 0
+
+
 def normalize_hostname(value: str) -> str:
     # mDNS/DNS labels only allow letters, digits, and hyphens, and can't
     # start or end with one -- collapse anything else so a stray space or
@@ -171,10 +194,10 @@ async def aprs_loop() -> None:
 async def network_monitor_loop() -> None:
     while True:
         with suppress(Exception):
-            changed = await netmon.poll_devices_once()
+            changed = await netmon.poll_devices_once(current_network_monitor_alert_after_seconds())
             for device in changed:
                 await broadcast_device_status(device)
-        await asyncio.sleep(max(settings.network_monitor_poll_seconds, 10))
+        await asyncio.sleep(current_network_monitor_poll_seconds())
 
 
 async def broadcast_device_status(device: dict) -> None:
@@ -293,6 +316,10 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("aprsfi_api_key", current_aprsfi_api_key())
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("mdns_hostname", current_mdns_hostname())
+    context.setdefault("race_mode", race_mode_enabled())
+    context.setdefault("app_mode", "race" if race_mode_enabled() else "cad")
+    context.setdefault("network_monitor_poll_seconds", current_network_monitor_poll_seconds())
+    context.setdefault("network_monitor_alert_after_seconds", current_network_monitor_alert_after_seconds())
     context.setdefault(
         "users_list",
         rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name") if user and user["role"] == "admin" else [],
@@ -896,6 +923,9 @@ async def update_settings(
     aprsfi_api_key: str = Form(""),
     aprs_poll_seconds: str = Form("60"),
     mdns_hostname: str = Form(""),
+    app_mode: str = Form("race"),
+    network_monitor_poll_seconds: str = Form("30"),
+    network_monitor_alert_after_seconds: str = Form("0"),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     save_setting("language", normalize_language(language))
@@ -905,11 +935,16 @@ async def update_settings(
     previous_hostname = current_mdns_hostname()
     new_hostname = normalize_hostname(mdns_hostname)
     save_setting("mdns_hostname", new_hostname)
+    save_setting("app_mode", "cad" if app_mode == "cad" else "race")
     save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
     save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
     save_setting("aprsfi_api_key", aprsfi_api_key.strip())
     poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
     save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
+    netmon_poll = int(network_monitor_poll_seconds) if network_monitor_poll_seconds.strip().isdigit() else settings.network_monitor_poll_seconds
+    save_setting("network_monitor_poll_seconds", str(max(netmon_poll, 10)))
+    netmon_alert_after = int(network_monitor_alert_after_seconds) if network_monitor_alert_after_seconds.strip().isdigit() else 0
+    save_setting("network_monitor_alert_after_seconds", str(max(netmon_alert_after, 0)))
     if new_hostname != previous_hostname:
         # mDNS registration and the self-signed cert's CN are both bound
         # once at process startup, not re-read per request, so the new
@@ -1628,6 +1663,52 @@ async def export_aprs_geojson(_: Any = Depends(require_admin)) -> StreamingRespo
 @app.get("/export/dstar.geojson")
 async def export_dstar_geojson(_: Any = Depends(require_admin)) -> StreamingResponse:
     return geojson_response("dstar_waypoints.geojson", rows("SELECT *, 'D-STAR' AS source FROM dstar_positions ORDER BY callsign, id"))
+
+
+BACKUP_TABLES = ["users", "tactical_callsigns", "runners", "monitored_devices", "device_alert_recipients", "iperf_targets"]
+
+
+@app.get("/export/backup.json")
+async def export_full_backup(_: Any = Depends(require_admin)) -> StreamingResponse:
+    # A configuration backup, not a race-data backup: users, stations,
+    # athletes, monitored devices and settings, so a fresh server can be
+    # set up the same way -- deliberately excludes log_entries/bulletins/
+    # device_status_events/archives, which "Esportazioni"/"Archivio" above
+    # already cover for a specific race's operational history.
+    data = {
+        "version": 1,
+        "exported_at": local_now().isoformat(),
+        "app_version": settings.app_version,
+        "app_settings": {r["key"]: r["value"] for r in rows("SELECT key, value FROM app_settings")},
+        **{table: [dict(r) for r in rows(f"SELECT * FROM {table}")] for table in BACKUP_TABLES},
+    }
+    filename = f"cad-backup-{local_now().strftime('%Y%m%d-%H%M%S')}.json"
+    return StreamingResponse(io.StringIO(json.dumps(data, indent=2)), media_type="application/json", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@app.post("/setup/backup/restore")
+async def restore_full_backup(file: UploadFile = File(...), confirm: str = Form(""), _: Any = Depends(require_admin)) -> RedirectResponse:
+    expected = TRANSLATIONS[current_language()]["clear_confirm_word"]
+    if confirm.strip().upper() != expected.upper():
+        return RedirectResponse("/setup?backup_error=confirm", status_code=303)
+    try:
+        data = json.loads((await file.read()).decode("utf-8-sig"))
+    except (ValueError, UnicodeDecodeError):
+        return RedirectResponse("/setup?backup_error=decode", status_code=303)
+    with connect() as conn:
+        for table in reversed(BACKUP_TABLES):
+            conn.execute(f"DELETE FROM {table}")
+        for table in BACKUP_TABLES:
+            for record in data.get(table, []):
+                columns = list(record.keys())
+                placeholders = ", ".join("?" for _ in columns)
+                conn.execute(
+                    f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
+                    [record[col] for col in columns],
+                )
+        for key, value in data.get("app_settings", {}).items():
+            conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+    return RedirectResponse("/setup?backup_restored=1", status_code=303)
 
 
 def geojson_response(filename: str, data: list[Any]) -> StreamingResponse:

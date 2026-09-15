@@ -273,6 +273,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
         if column not in bulletin_cols:
             conn.execute(sql)
 
+    device_cols = {item[1] for item in conn.execute("PRAGMA table_info(monitored_devices)")}
+    if "alert_sent" not in device_cols:
+        conn.execute("ALTER TABLE monitored_devices ADD COLUMN alert_sent INTEGER NOT NULL DEFAULT 0")
+
     for tac in conn.execute("SELECT DISTINCT tactical_callsign FROM users WHERE tactical_callsign != ''"):
         conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tac["tactical_callsign"],))
 

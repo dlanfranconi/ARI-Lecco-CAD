@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="grid two">
+<section class="{% if race_mode %}grid two{% endif %}">
   <form method="post" action="{{ submit_notice_url }}" class="panel" data-runner-compose data-recipients data-recipients-restore>
     <h1>{{ t.submit_notice }}</h1>
     {% if request.query_params.get("sent") %}<p class="success">{{ t.sent_to_dispatch }}</p>{% endif %}
     {% if request.query_params.get("error") == "message" %}<p class="error">{{ t.message_required_error }}</p>{% endif %}
-    <label>{{ t.bib_number }}<input id="runner-bib" class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>
+    {% if race_mode %}<label>{{ t.bib_number }}<input id="runner-bib" class="runner-bib" name="runner_bib" placeholder="{{ t.multiple_bibs_hint }}"></label>{% endif %}
     <label>{{ t.checkpoint }}
       <select id="checkpoint" class="checkpoint" name="checkpoint"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" data-preposition="{{ tac.location_preposition }}">{{ tac.name }}</option>{% endfor %}</select>
     </label>
@@ -19,6 +19,7 @@
     </label>
     <button>{{ t.send_notice }}</button>
   </form>
+  {% if race_mode %}
   <section class="panel">
     <h2>{{ t.runner_reference }}</h2>
     <div class="card">
@@ -27,6 +28,7 @@
       <p><strong>{{ t.hometown }}:</strong> <span id="runner-ref-town" class="runner-ref-town"></span></p>
     </div>
   </section>
+  {% endif %}
 </section>
 {% endblock %}
 {% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/notice-recipients.js') }}"></script>{% endblock %}
