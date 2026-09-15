@@ -234,11 +234,25 @@ if (changeServerButton && window.AndroidNotify?.changeServer) {
   changeServerButton.addEventListener("click", () => window.AndroidNotify.changeServer());
 }
 
+// Original synthesized tones, not recordings -- Apple's and Android's own
+// system notification sounds are copyrighted audio and can't be bundled
+// here, so these are new patterns merely evoking a similar bright/soft
+// feel (a crisp ascending bell, a warm descending tone, a digital double
+// beep, a marimba-style run) rather than reproductions of any of them.
 const SOUND_PRESETS = {
   none: null,
   soft: [{ freq: 660, duration: 0.18 }],
   chime: [{ freq: 523, duration: 0.14 }, { freq: 784, duration: 0.22 }],
-  alert: [{ freq: 880, duration: 0.1 }, { freq: 880, duration: 0.1, delay: 0.16 }, { freq: 880, duration: 0.16, delay: 0.32 }]
+  alert: [{ freq: 880, duration: 0.1 }, { freq: 880, duration: 0.1, delay: 0.16 }, { freq: 880, duration: 0.16, delay: 0.32 }],
+  bell: [{ freq: 1318.51, duration: 0.14, type: "triangle" }, { freq: 1567.98, duration: 0.2, delay: 0.1, type: "triangle" }],
+  mellow: [{ freq: 987.77, duration: 0.16, type: "sine" }, { freq: 783.99, duration: 0.28, delay: 0.14, type: "sine" }],
+  digital: [{ freq: 1200, duration: 0.05, type: "triangle" }, { freq: 1200, duration: 0.05, delay: 0.1, type: "triangle" }],
+  marimba: [
+    { freq: 523.25, duration: 0.12, type: "triangle" },
+    { freq: 659.25, duration: 0.12, delay: 0.1, type: "triangle" },
+    { freq: 783.99, duration: 0.12, delay: 0.2, type: "triangle" },
+    { freq: 1046.5, duration: 0.2, delay: 0.3, type: "triangle" },
+  ],
 };
 
 let audioCtx = null;
@@ -280,10 +294,10 @@ function soundPrefs() {
   };
 }
 
-function playTone(ctx, startAt, { freq, duration, delay = 0 }, volume) {
+function playTone(ctx, startAt, { freq, duration, delay = 0, type = "sine" }, volume) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
-  oscillator.type = "sine";
+  oscillator.type = type;
   oscillator.frequency.value = freq;
   const start = startAt + delay;
   gain.gain.setValueAtTime(0, start);
@@ -330,6 +344,10 @@ function ensureSoundModal() {
             <option value="soft">${labels.sound_soft || "Soft"}</option>
             <option value="chime">${labels.sound_chime || "Chime"}</option>
             <option value="alert">${labels.sound_alert || "Alert"}</option>
+            <option value="bell">${labels.sound_bell || "Bell"}</option>
+            <option value="mellow">${labels.sound_mellow || "Mellow"}</option>
+            <option value="digital">${labels.sound_digital || "Digital"}</option>
+            <option value="marimba">${labels.sound_marimba || "Marimba"}</option>
             ${window.CAD_NOTIFICATION_SOUND_URL ? `<option value="custom">${labels.sound_custom || "Custom"}</option>` : ""}
           </select>
         </label>
