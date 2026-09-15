@@ -241,17 +241,21 @@ if (changeServerButton && window.AndroidNotify?.changeServer) {
 // beep, a marimba-style run) rather than reproductions of any of them.
 const SOUND_PRESETS = {
   none: null,
-  soft: [{ freq: 660, duration: 0.18 }],
-  chime: [{ freq: 523, duration: 0.14 }, { freq: 784, duration: 0.22 }],
-  alert: [{ freq: 880, duration: 0.1 }, { freq: 880, duration: 0.1, delay: 0.16 }, { freq: 880, duration: 0.16, delay: 0.32 }],
-  bell: [{ freq: 1318.51, duration: 0.14, type: "triangle" }, { freq: 1567.98, duration: 0.2, delay: 0.1, type: "triangle" }],
-  mellow: [{ freq: 987.77, duration: 0.16, type: "sine" }, { freq: 783.99, duration: 0.28, delay: 0.14, type: "sine" }],
-  digital: [{ freq: 1200, duration: 0.05, type: "triangle" }, { freq: 1200, duration: 0.05, delay: 0.1, type: "triangle" }],
+  soft: [{ freq: 660, duration: 0.35 }],
+  chime: [{ freq: 523, duration: 0.28 }, { freq: 784, duration: 0.42, delay: 0.22 }],
+  alert: [{ freq: 880, duration: 0.16 }, { freq: 880, duration: 0.16, delay: 0.22 }, { freq: 880, duration: 0.26, delay: 0.44 }],
+  bell: [{ freq: 1318.51, duration: 0.26, type: "triangle" }, { freq: 1567.98, duration: 0.4, delay: 0.18, type: "triangle" }],
+  mellow: [{ freq: 987.77, duration: 0.28, type: "sine" }, { freq: 783.99, duration: 0.5, delay: 0.24, type: "sine" }],
+  digital: [{ freq: 1200, duration: 0.1, type: "triangle" }, { freq: 1200, duration: 0.1, delay: 0.18, type: "triangle" }],
+  // Deliberately the longest/richest preset -- a 4-note ascending run with
+  // a full-length resolving final note, closer to a typical phone's
+  // default multi-tone notification length (~1s) than the shorter beeps
+  // above, so it's easy to hear even with the display across a noisy room.
   marimba: [
-    { freq: 523.25, duration: 0.12, type: "triangle" },
-    { freq: 659.25, duration: 0.12, delay: 0.1, type: "triangle" },
-    { freq: 783.99, duration: 0.12, delay: 0.2, type: "triangle" },
-    { freq: 1046.5, duration: 0.2, delay: 0.3, type: "triangle" },
+    { freq: 523.25, duration: 0.24, type: "triangle" },
+    { freq: 659.25, duration: 0.24, delay: 0.2, type: "triangle" },
+    { freq: 783.99, duration: 0.26, delay: 0.4, type: "triangle" },
+    { freq: 1046.5, duration: 0.55, delay: 0.62, type: "triangle" },
   ],
 };
 
