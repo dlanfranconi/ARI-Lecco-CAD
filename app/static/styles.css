@@ -96,6 +96,17 @@ a { color: inherit; }
 .span-two { grid-column: span 2; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .compact-panel { padding-bottom: 8px; }
+
+/* Scoped to the Configuration page's top settings grid only (General/
+   Network/APRS + Logo/Race Name/Event Logo/Notification Sound) -- tighter
+   spacing there so Tactical Callsigns and everything else below doesn't
+   need as much scrolling to reach. */
+.compact-settings { gap: 12px; }
+.compact-settings .panel, .compact-settings .compact-panel { padding: 12px; margin-bottom: 0; }
+.compact-settings .stack { gap: 12px; }
+.compact-settings h1, .compact-settings h2 { margin: 0 0 8px; font-size: 17px; }
+.compact-settings label { margin-bottom: 6px; }
+.compact-settings .meta { margin-bottom: 6px; }
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
