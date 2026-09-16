@@ -10,18 +10,23 @@
   --danger: #b42318;
   --warning: #8a5a00;
   --topbar-bg: #102a2f;
+  /* Dark-mode tone (.dark-ui) and the announcer board's always-dark
+     default both read these instead of a fixed color, so picking a
+     scheme actually recolors dark mode too, not just the topbar/accent
+     buttons -- without this every scheme's dark mode looked like the
+     same fixed dark teal-green. */
+  --dark-bg: #071012;
+  --dark-panel: #102a2f;
+  --dark-line: #28454b;
 }
 
-/* Color scheme picker (Configuration page) -- only the accent colors
-   (and the fixed topbar's background) change; --bg/--panel/--text etc.
-   stay tied to the separate dark/light toggle so the two controls don't
-   interact. "teal" is the :root default above and needs no override
-   block of its own. */
-:root[data-color-scheme="ocean"] { --accent: #1d5fa8; --accent-2: #154880; --topbar-bg: #0d1f36; }
-:root[data-color-scheme="violet"] { --accent: #6d4aa8; --accent-2: #55397f; --topbar-bg: #221934; }
-:root[data-color-scheme="forest"] { --accent: #2f7d4f; --accent-2: #235f3c; --topbar-bg: #12271c; }
-:root[data-color-scheme="amber"] { --accent: #b8720f; --accent-2: #8f590c; --topbar-bg: #2a1c08; }
-:root[data-color-scheme="slate"] { --accent: #45566b; --accent-2: #333f4f; --topbar-bg: #1b2129; }
+/* Color scheme picker (Configuration page) -- "teal" is the :root default
+   above and needs no override block of its own. */
+:root[data-color-scheme="ocean"] { --accent: #1d5fa8; --accent-2: #154880; --topbar-bg: #0d1f36; --dark-bg: #050d17; --dark-panel: #0d1f36; --dark-line: #1f3a57; }
+:root[data-color-scheme="violet"] { --accent: #6d4aa8; --accent-2: #55397f; --topbar-bg: #221934; --dark-bg: #0e0b16; --dark-panel: #221934; --dark-line: #3a2c54; }
+:root[data-color-scheme="forest"] { --accent: #2f7d4f; --accent-2: #235f3c; --topbar-bg: #12271c; --dark-bg: #08100c; --dark-panel: #12271c; --dark-line: #23432f; }
+:root[data-color-scheme="amber"] { --accent: #b8720f; --accent-2: #8f590c; --topbar-bg: #2a1c08; --dark-bg: #120c03; --dark-panel: #2a1c08; --dark-line: #4a3410; }
+:root[data-color-scheme="slate"] { --accent: #45566b; --accent-2: #333f4f; --topbar-bg: #1b2129; --dark-bg: #0b0e11; --dark-panel: #1b2129; --dark-line: #313b47; }
 
 * { box-sizing: border-box; }
 body {
@@ -246,7 +251,7 @@ th { color: var(--muted); font-size: 13px; }
 
 .announcer {
   min-height: 100vh;
-  background: #071012;
+  background: var(--dark-bg);
   color: #f8fbfb;
   display: grid;
   place-items: center;
@@ -329,9 +334,9 @@ th { color: var(--muted); font-size: 13px; }
    this, some browsers/devices (notably Android Chrome with "force dark
    for web contents") override the page's real colors, including the
    chosen accent, with their own guessed ones. */
-.dark-ui { color-scheme: dark; --bg: #071012; --panel: #102a2f; --text: #f8fbfb; --muted: #b7c7c9; --line: #28454b; }
-.dark-ui input, .dark-ui select, .dark-ui textarea { background: #071012; color: #f8fbfb; border-color: #46666d; }
-.dark-ui .card { background: #0c1d21; }
+.dark-ui { color-scheme: dark; --bg: var(--dark-bg); --panel: var(--dark-panel); --text: #f8fbfb; --muted: #b7c7c9; --line: var(--dark-line); }
+.dark-ui input, .dark-ui select, .dark-ui textarea { background: var(--bg); color: #f8fbfb; border-color: var(--line); }
+.dark-ui .card { background: var(--panel); }
 .icon-button { width: 38px; padding: 0; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; }
 .compact-table table { min-width: 560px; }
 .actions-cell { display: flex; gap: 8px; align-items: center; }
@@ -346,7 +351,7 @@ th { color: var(--muted); font-size: 13px; }
    light-grey chip as the sound/contrast buttons next to it in both
    modes, instead of leaving it on .ghost's dark-background-only style. */
 .announcer #account-toggle { background: #dce6ea; color: #071012; border-color: rgba(0,0,0,.18); }
-.announcer #account-panel { background: #0c1d21; color: #f8fbfb; border-color: rgba(255,255,255,.18); }
+.announcer #account-panel { background: var(--dark-panel); color: #f8fbfb; border-color: rgba(255,255,255,.18); }
 .announcer.light-mode { background: #f8fbfb; color: #071012; }
 .announcer.light-mode .announcer-clock { background: rgba(248,251,251,.88); color: var(--accent); border-color: rgba(0,0,0,.18); }
 .announcer.light-mode .announcer-label { color: var(--accent); }
@@ -368,7 +373,7 @@ th { color: var(--muted); font-size: 13px; }
 .notice-history-list article .meta { display: block; color: #98b8bd; font-size: .55em; margin-top: 4px; }
 .announcer.light-mode .notice-history-list article, .announcer.light-mode .notice-history-list p { color: #273b40; border-color: rgba(0,0,0,.14); }
 .announcer.light-mode .notice-history-list article .meta { color: #546970; }
-.announcer .modal-panel { background: #0c1d21; color: #f8fbfb; border-color: rgba(255,255,255,.18); }
+.announcer .modal-panel { background: var(--dark-panel); color: #f8fbfb; border-color: rgba(255,255,255,.18); }
 .announcer.light-mode .modal-panel { background: #fff; color: #071012; }
 .sound-toggle { width: 42px; padding: 0; font-size: 22px; background: #dce6ea; color: #071012; }
 .sound-settings-panel { display: grid; gap: 14px; }

@@ -218,16 +218,17 @@ def current_setup_full_span_boxes() -> list[str]:
     # (default: Tactical Callsigns/All Users/Athletes, since those hold
     # wide data tables) -- None stored yet means "use the template's own
     # defaults" rather than forcing every box back to half width.
+    default = ["tactical_callsigns", "all_users", "athletes", "exports"]
     raw = setting("setup_full_span_boxes", "")
     if not raw:
-        return ["tactical_callsigns", "all_users", "athletes"]
+        return default
     try:
         data = json.loads(raw)
         if isinstance(data, list):
             return [str(item) for item in data]
     except ValueError:
         pass
-    return ["tactical_callsigns", "all_users", "athletes"]
+    return default
 
 
 async def aprs_loop() -> None:

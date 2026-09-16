@@ -5,6 +5,8 @@
   <button type="button" id="reorder-save" class="danger" hidden>{{ t.reorder_save }}</button>
 </div>
 <section class="grid three compact-settings" id="reorder-grid">
+  <div class="stack full-width" id="reorder-top-zone"></div>
+
   <div class="stack">
     <form method="post" action="/setup/settings" class="panel" data-box="general">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
@@ -38,19 +40,12 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <form method="post" action="/setup/settings" class="panel" data-box="appearance">
+    <form method="post" action="/setup/settings" class="panel" data-box="aprs">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.appearance }}</h2>
-      <label>{{ t.color_scheme }}
-        <select name="color_scheme">
-          <option value="teal" {% if color_scheme == 'teal' %}selected{% endif %}>{{ t.color_scheme_teal }}</option>
-          <option value="ocean" {% if color_scheme == 'ocean' %}selected{% endif %}>{{ t.color_scheme_ocean }}</option>
-          <option value="violet" {% if color_scheme == 'violet' %}selected{% endif %}>{{ t.color_scheme_violet }}</option>
-          <option value="forest" {% if color_scheme == 'forest' %}selected{% endif %}>{{ t.color_scheme_forest }}</option>
-          <option value="amber" {% if color_scheme == 'amber' %}selected{% endif %}>{{ t.color_scheme_amber }}</option>
-          <option value="slate" {% if color_scheme == 'slate' %}selected{% endif %}>{{ t.color_scheme_slate }}</option>
-        </select>
-      </label>
+      <h2>{{ t.aprs_settings }}</h2>
+      <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
+      <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
+      <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
       <button>{{ t.save_settings }}</button>
     </form>
 
@@ -71,12 +66,12 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <section class="panel compact-panel" data-box="logo">
+    <section class="panel" data-box="notification_sound">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h1>{{ t.logo }}</h1>
-      {% if logo_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
-      <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
-      {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
+      <h1>{{ t.notification_sound }}</h1>
+      {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
+      <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
+      {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
     </section>
 
     <form method="post" action="/setup/race" class="panel" data-box="race_name">
@@ -89,14 +84,13 @@
   </div>
 
   <div class="stack">
-    <form method="post" action="/setup/settings" class="panel" data-box="aprs">
+    <section class="panel compact-panel" data-box="logo">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.aprs_settings }}</h2>
-      <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
-      <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
-      <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
-      <button>{{ t.save_settings }}</button>
-    </form>
+      <h1>{{ t.logo }}</h1>
+      {% if logo_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
+      <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
+      {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
+    </section>
 
     <section class="panel compact-panel" data-box="logo2">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
@@ -106,13 +100,31 @@
       {% if logo2_url %}<form method="post" action="/setup/logo2/delete"><button class="danger">{{ t.remove_event_logo }}</button></form>{% endif %}
     </section>
 
-    <section class="panel" data-box="notification_sound">
+    <form method="post" action="/setup/settings" class="panel" data-box="appearance">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h1>{{ t.notification_sound }}</h1>
-      {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
-      <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
-      {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
+      <h2>{{ t.appearance }}</h2>
+      <label>{{ t.color_scheme }}
+        <select name="color_scheme">
+          <option value="teal" {% if color_scheme == 'teal' %}selected{% endif %}>{{ t.color_scheme_teal }}</option>
+          <option value="ocean" {% if color_scheme == 'ocean' %}selected{% endif %}>{{ t.color_scheme_ocean }}</option>
+          <option value="violet" {% if color_scheme == 'violet' %}selected{% endif %}>{{ t.color_scheme_violet }}</option>
+          <option value="forest" {% if color_scheme == 'forest' %}selected{% endif %}>{{ t.color_scheme_forest }}</option>
+          <option value="amber" {% if color_scheme == 'amber' %}selected{% endif %}>{{ t.color_scheme_amber }}</option>
+          <option value="slate" {% if color_scheme == 'slate' %}selected{% endif %}>{{ t.color_scheme_slate }}</option>
+        </select>
+      </label>
+      <button>{{ t.save_settings }}</button>
+    </form>
+
+    {% if race_mode %}
+    <section class="panel" data-box="runner_import">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
+      <h2>{{ t.runner_import }}</h2>
+      {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
+      {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
+      <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
     </section>
+    {% endif %}
   </div>
 
   <div class="stack full-width">
@@ -213,7 +225,7 @@
       </div>
     </section>
 
-    <section class="panel" data-box="exports">
+    <section class="panel full-span" data-box="exports">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.exports }}</h2>
       {% if request.query_params.get("clear_error") %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
@@ -238,16 +250,6 @@
         <button class="danger">{{ t.restore_full_backup }}</button>
       </form>
     </section>
-
-    {% if race_mode %}
-    <section class="panel" data-box="runner_import">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.runner_import }}</h2>
-      {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
-      {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
-      <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
-    </section>
-    {% endif %}
 
     <section class="panel" data-box="archive">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
