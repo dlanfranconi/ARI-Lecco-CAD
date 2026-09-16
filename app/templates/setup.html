@@ -1,47 +1,90 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="grid three compact-settings">
-  <form method="post" action="/setup/settings" class="panel">
-    <h1>{{ t.setup }}</h1>
-    <label>{{ t.language }}
-      <select name="language">
-        <option value="en" {% if lang == 'en' %}selected{% endif %}>{{ t.english }}</option>
-        <option value="it" {% if lang == 'it' %}selected{% endif %}>{{ t.italian }}</option>
-        <option value="es" {% if lang == 'es' %}selected{% endif %}>{{ t.spanish }}</option>
-        <option value="fr" {% if lang == 'fr' %}selected{% endif %}>{{ t.french }}</option>
-        <option value="de" {% if lang == 'de' %}selected{% endif %}>{{ t.german }}</option>
-      </select>
-    </label>
-    <h2>{{ t.time_settings }}</h2>
-    <label>{{ t.timezone }}<input name="app_timezone" value="{{ app_timezone }}" placeholder="Europe/Rome"></label>
-    <label>{{ t.locale }}<input name="app_locale" value="{{ app_locale }}" placeholder="it_IT.UTF-8"></label>
-    <label>{{ t.ntp_server }}<input name="ntp_server" value="{{ ntp_server }}" placeholder="pool.ntp.org"></label>
-    <label>{{ t.athlete_name_display }}
-      <select name="athlete_name_display">
-        <option value="full" {% if athlete_name_display == 'full' %}selected{% endif %}>{{ t.first_and_last_name }}</option>
-        <option value="first" {% if athlete_name_display == 'first' %}selected{% endif %}>{{ t.first_name_only }}</option>
-      </select>
-    </label>
-    <label>{{ t.app_mode }}
-      <select name="app_mode">
-        <option value="race" {% if app_mode == 'race' %}selected{% endif %}>{{ t.app_mode_race }}</option>
-        <option value="cad" {% if app_mode == 'cad' %}selected{% endif %}>{{ t.app_mode_cad }}</option>
-      </select>
-    </label>
-    <p class="meta">{{ t.app_mode_hint }}</p>
-    <h2>{{ t.appearance }}</h2>
-    <label>{{ t.color_scheme }}
-      <select name="color_scheme">
-        <option value="teal" {% if color_scheme == 'teal' %}selected{% endif %}>{{ t.color_scheme_teal }}</option>
-        <option value="ocean" {% if color_scheme == 'ocean' %}selected{% endif %}>{{ t.color_scheme_ocean }}</option>
-        <option value="violet" {% if color_scheme == 'violet' %}selected{% endif %}>{{ t.color_scheme_violet }}</option>
-        <option value="forest" {% if color_scheme == 'forest' %}selected{% endif %}>{{ t.color_scheme_forest }}</option>
-        <option value="amber" {% if color_scheme == 'amber' %}selected{% endif %}>{{ t.color_scheme_amber }}</option>
-        <option value="slate" {% if color_scheme == 'slate' %}selected{% endif %}>{{ t.color_scheme_slate }}</option>
-      </select>
-    </label>
-    <button>{{ t.save_settings }}</button>
-  </form>
+  <div class="stack">
+    <form method="post" action="/setup/settings" class="panel">
+      <h1>{{ t.setup }}</h1>
+      <label>{{ t.language }}
+        <select name="language">
+          <option value="en" {% if lang == 'en' %}selected{% endif %}>{{ t.english }}</option>
+          <option value="it" {% if lang == 'it' %}selected{% endif %}>{{ t.italian }}</option>
+          <option value="es" {% if lang == 'es' %}selected{% endif %}>{{ t.spanish }}</option>
+          <option value="fr" {% if lang == 'fr' %}selected{% endif %}>{{ t.french }}</option>
+          <option value="de" {% if lang == 'de' %}selected{% endif %}>{{ t.german }}</option>
+        </select>
+      </label>
+      <h2>{{ t.time_settings }}</h2>
+      <label>{{ t.timezone }}<input name="app_timezone" value="{{ app_timezone }}" placeholder="Europe/Rome"></label>
+      <label>{{ t.locale }}<input name="app_locale" value="{{ app_locale }}" placeholder="it_IT.UTF-8"></label>
+      <label>{{ t.ntp_server }}<input name="ntp_server" value="{{ ntp_server }}" placeholder="pool.ntp.org"></label>
+      <label>{{ t.athlete_name_display }}
+        <select name="athlete_name_display">
+          <option value="full" {% if athlete_name_display == 'full' %}selected{% endif %}>{{ t.first_and_last_name }}</option>
+          <option value="first" {% if athlete_name_display == 'first' %}selected{% endif %}>{{ t.first_name_only }}</option>
+        </select>
+      </label>
+      <label>{{ t.app_mode }}
+        <select name="app_mode">
+          <option value="race" {% if app_mode == 'race' %}selected{% endif %}>{{ t.app_mode_race }}</option>
+          <option value="cad" {% if app_mode == 'cad' %}selected{% endif %}>{{ t.app_mode_cad }}</option>
+        </select>
+      </label>
+      <p class="meta">{{ t.app_mode_hint }}</p>
+      <button>{{ t.save_settings }}</button>
+    </form>
+
+    <form method="post" action="/setup/settings" class="panel">
+      <h2>{{ t.appearance }}</h2>
+      <label>{{ t.color_scheme }}
+        <select name="color_scheme">
+          <option value="teal" {% if color_scheme == 'teal' %}selected{% endif %}>{{ t.color_scheme_teal }}</option>
+          <option value="ocean" {% if color_scheme == 'ocean' %}selected{% endif %}>{{ t.color_scheme_ocean }}</option>
+          <option value="violet" {% if color_scheme == 'violet' %}selected{% endif %}>{{ t.color_scheme_violet }}</option>
+          <option value="forest" {% if color_scheme == 'forest' %}selected{% endif %}>{{ t.color_scheme_forest }}</option>
+          <option value="amber" {% if color_scheme == 'amber' %}selected{% endif %}>{{ t.color_scheme_amber }}</option>
+          <option value="slate" {% if color_scheme == 'slate' %}selected{% endif %}>{{ t.color_scheme_slate }}</option>
+        </select>
+      </label>
+      <button>{{ t.save_settings }}</button>
+    </form>
+
+    <section class="panel">
+      <h1>{{ t.tactical_callsigns }}</h1>
+      <label>{{ t.tactical_callsign }}
+        <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
+      </label>
+      <div class="table-wrap compact-table">
+        <table class="setup-table tac-table">
+          <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <form method="post" action="/setup/tactical-callsigns">
+                <td><input name="name" required></td>
+                <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
+                <td>{{ t.active }}</td>
+                <td><button>{{ t.add }}</button></td>
+                <td></td>
+              </form>
+            </tr>
+            {% for tac in tactical_callsigns %}
+            <tr class="tac-row" id="tac-{{ tac.id }}">
+              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
+                <td><input name="name" value="{{ tac.name }}" required></td>
+                <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
+                <td>{{ t.active if tac.active else t.disabled }}</td>
+                <td><button>{{ t.save }}</button></td>
+              </form>
+              <td class="actions-cell">
+                <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
+                <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
   <div class="stack">
     <form method="post" action="/setup/settings" class="panel">
@@ -94,43 +137,6 @@
       <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
       {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
     </section>
-  </div>
-</section>
-
-<section class="panel">
-  <h1>{{ t.tactical_callsigns }}</h1>
-  <label>{{ t.tactical_callsign }}
-    <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
-  </label>
-  <div class="table-wrap compact-table">
-    <table class="setup-table tac-table">
-      <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
-      <tbody>
-        <tr>
-          <form method="post" action="/setup/tactical-callsigns">
-            <td><input name="name" required></td>
-            <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
-            <td>{{ t.active }}</td>
-            <td><button>{{ t.add }}</button></td>
-            <td></td>
-          </form>
-        </tr>
-        {% for tac in tactical_callsigns %}
-        <tr class="tac-row" id="tac-{{ tac.id }}">
-          <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
-            <td><input name="name" value="{{ tac.name }}" required></td>
-            <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
-            <td>{{ t.active if tac.active else t.disabled }}</td>
-            <td><button>{{ t.save }}</button></td>
-          </form>
-          <td class="actions-cell">
-            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
-            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </div>
 </section>
 
