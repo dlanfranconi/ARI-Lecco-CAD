@@ -362,6 +362,7 @@ function ensureSoundModal() {
           <input type="checkbox" id="sound-mute-toggle">
           ${labels.mute_alerts || "Mute push alerts and sounds on this device"}
         </label>
+        <button type="button" id="push-toggle-button" class="secondary" hidden></button>
         <div class="actions">
           <button type="button" id="sound-test">${labels.sound_test || "Test"}</button>
           <button type="button" class="secondary" id="sound-close">${labels.dismiss || "Close"}</button>
@@ -382,6 +383,26 @@ function ensureSoundModal() {
   muteToggle.addEventListener("change", () => localStorage.setItem("announcer-push-muted", muteToggle.checked ? "1" : "0"));
   modal.querySelector("#sound-test")?.addEventListener("click", playNotificationSound);
   modal.querySelector("#sound-close")?.addEventListener("click", () => modal.classList.add("hidden"));
+
+  // Browser push -- hidden entirely inside the native app (CAD_PUSH.supported()
+  // is false there), which already has its own always-on background alerts.
+  const pushButton = modal.querySelector("#push-toggle-button");
+  if (window.CAD_PUSH?.supported?.()) {
+    const enableLabel = labels.enable_push || "Enable browser push notifications";
+    const disableLabel = labels.disable_push || "Disable browser push notifications";
+    pushButton.hidden = false;
+    window.CAD_PUSH.isEnabled().then((enabled) => { pushButton.textContent = enabled ? disableLabel : enableLabel; });
+    pushButton.addEventListener("click", async () => {
+      const enabled = await window.CAD_PUSH.isEnabled();
+      if (enabled) {
+        await window.CAD_PUSH.disable();
+        pushButton.textContent = enableLabel;
+      } else {
+        const granted = await window.CAD_PUSH.enable();
+        pushButton.textContent = granted ? disableLabel : enableLabel;
+      }
+    });
+  }
   return modal;
 }
 

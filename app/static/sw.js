@@ -49,3 +49,36 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+// Web Push notifications -- the browser-tab equivalent of the native
+// Android app's background alerts, for anyone using a plain browser
+// (desktop, Android Chrome, or an iPhone with the site added to the Home
+// Screen). Only reaches subscribers /push/subscribe already knows about.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = { title: "ARI Lecco CAD", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "ARI Lecco CAD";
+  const options = {
+    body: data.body || "",
+    icon: "/static/icons/icon-192.png",
+    badge: "/static/icons/icon-192.png",
+    data: { url: data.url || "/" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetPath = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const existing = clientList.find((client) => new URL(client.url).pathname === targetPath);
+      if (existing) return existing.focus();
+      return self.clients.openWindow(targetPath);
+    })
+  );
+});

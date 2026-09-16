@@ -200,7 +200,7 @@ th { color: var(--muted); font-size: 13px; }
 }
 .combobox-suggestions li { padding: 9px 10px; border-radius: 6px; cursor: pointer; }
 .combobox-suggestions li:hover, .combobox-suggestions li:active { background: #e3f5f4; }
-.meta { color: var(--muted); margin: 0 0 8px; }
+.meta { color: var(--muted); margin: 0 0 8px; font-size: 13px; line-height: 1.45; }
 .bulletin-text { font-size: 20px; }
 .error { color: var(--danger); font-weight: 700; }
 .success { color: var(--accent-2); font-weight: 700; }
@@ -223,7 +223,9 @@ th { color: var(--muted); font-size: 13px; }
   display: grid;
   place-items: center;
   padding: 5vw;
+  color-scheme: dark;
 }
+.announcer.light-mode { color-scheme: light; }
 .announcer main { width: 100%; text-align: center; }
 .announcer-label {
   color: #8bd3ce;
@@ -293,7 +295,13 @@ th { color: var(--muted); font-size: 13px; }
 
 .runner-reference-inline { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); margin: 0 0 12px; }
 
-.dark-ui { --bg: #071012; --panel: #102a2f; --text: #f8fbfb; --muted: #b7c7c9; --line: #28454b; }
+/* Telling the browser which theme is actually active (rather than always
+   declaring "light") stops Chrome's own auto-dark-theme heuristic from
+   layering a second, synthetic dark rewrite on top of ours -- without
+   this, some browsers/devices (notably Android Chrome with "force dark
+   for web contents") override the page's real colors, including the
+   chosen accent, with their own guessed ones. */
+.dark-ui { color-scheme: dark; --bg: #071012; --panel: #102a2f; --text: #f8fbfb; --muted: #b7c7c9; --line: #28454b; }
 .dark-ui input, .dark-ui select, .dark-ui textarea { background: #071012; color: #f8fbfb; border-color: #46666d; }
 .dark-ui .card { background: #0c1d21; }
 .icon-button { width: 38px; padding: 0; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; }
@@ -312,8 +320,8 @@ th { color: var(--muted); font-size: 13px; }
 .announcer #account-toggle { background: #dce6ea; color: #071012; border-color: rgba(0,0,0,.18); }
 .announcer #account-panel { background: #0c1d21; color: #f8fbfb; border-color: rgba(255,255,255,.18); }
 .announcer.light-mode { background: #f8fbfb; color: #071012; }
-.announcer.light-mode .announcer-clock { background: rgba(248,251,251,.88); color: #146c75; border-color: rgba(0,0,0,.18); }
-.announcer.light-mode .announcer-label { color: #146c75; }
+.announcer.light-mode .announcer-clock { background: rgba(248,251,251,.88); color: var(--accent); border-color: rgba(0,0,0,.18); }
+.announcer.light-mode .announcer-label { color: var(--accent); }
 .announcer.light-mode .announcer-time { color: #41525a; }
 .announcer.light-mode .runner-details { color: #173b40; }
 .announcer.light-mode #account-panel { background: #fff; color: #071012; border-color: var(--line); }

@@ -44,3 +44,24 @@ if (changeServerButton && window.AndroidNotify?.changeServer) {
   changeServerButton.hidden = false;
   changeServerButton.addEventListener("click", () => window.AndroidNotify.changeServer());
 }
+
+// Push notifications for a plain browser session -- CAD_PUSH.supported()
+// is false inside the native app (which has its own background alert
+// mechanism already), so this button just never appears there.
+const pushToggleButton = document.getElementById("push-toggle-button");
+if (pushToggleButton && window.CAD_PUSH?.supported?.()) {
+  pushToggleButton.hidden = false;
+  window.CAD_PUSH.isEnabled().then((enabled) => {
+    pushToggleButton.textContent = enabled ? pushToggleButton.dataset.disableLabel : pushToggleButton.dataset.enableLabel;
+  });
+  pushToggleButton.addEventListener("click", async () => {
+    const enabled = await window.CAD_PUSH.isEnabled();
+    if (enabled) {
+      await window.CAD_PUSH.disable();
+      pushToggleButton.textContent = pushToggleButton.dataset.enableLabel;
+    } else {
+      const granted = await window.CAD_PUSH.enable();
+      pushToggleButton.textContent = granted ? pushToggleButton.dataset.disableLabel : pushToggleButton.dataset.enableLabel;
+    }
+  });
+}

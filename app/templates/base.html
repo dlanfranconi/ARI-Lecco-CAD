@@ -58,6 +58,7 @@
         <div id="account-panel" class="account-panel" role="menu">
           <div class="account-panel-name">{{ current_user.display_name }}</div>
           <a href="/change-password" role="menuitem">{{ t.change_password }}</a>
+          <button id="push-toggle-button" type="button" class="secondary" role="menuitem" hidden data-enable-label="{{ t.enable_push }}" data-disable-label="{{ t.disable_push }}">{{ t.enable_push }}</button>
           <button id="change-server-button" type="button" class="secondary" role="menuitem" hidden>{{ t.change_server }}</button>
           <form method="post" action="/logout" role="none"><button type="submit" class="danger" role="menuitem">{{ t.logout }}</button></form>
         </div>
@@ -75,6 +76,7 @@
   <script src="{{ asset('/static/notice-toast.js') }}"></script>
   {% endif %}
   {% if is_admin %}<script>window.CAD_LABELS = {{ t|tojson }}; window.CAD_USERS_LIST = {{ users_list|tojson }};</script><script src="{{ asset('/static/review-alert.js') }}"></script>{% endif %}
+  <script src="{{ asset('/static/push-notifications.js') }}"></script>
   <script src="{{ asset('/static/theme.js') }}"></script>
   <script src="{{ asset('/static/pwa.js') }}"></script>
   <script src="{{ asset('/static/native-notify.js') }}"></script>

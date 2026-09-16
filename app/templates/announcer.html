@@ -58,6 +58,7 @@
   <footer class="site-footer announcer-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }}; window.CAD_NOTIFICATION_SOUND_URL = {{ notification_sound_url|tojson }}; {% if viewer_user %}window.CAD_CURRENT_USER = {{ viewer_user|tojson }};{% endif %}</script>
   <script src="{{ asset('/static/race-timer.js') }}"></script>
+  <script src="{{ asset('/static/push-notifications.js') }}"></script>
   <script src="{{ asset('/static/announcer.js') }}"></script>
   <script src="{{ asset('/static/pwa.js') }}"></script>
   <script src="{{ asset('/static/native-notify.js') }}"></script>

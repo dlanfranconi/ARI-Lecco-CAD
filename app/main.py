@@ -24,7 +24,7 @@ from .auth import COOKIE_NAME, hash_password, make_session, read_session, verify
 from .config import settings
 from .db import connect, init_db, row, rows, save_setting, setting
 from .i18n import TRANSLATIONS, normalize_language
-from . import iperf, mdns, netmon, tls
+from . import iperf, mdns, netmon, tls, webpush
 
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
@@ -1393,6 +1393,42 @@ async def api_race_timer() -> dict[str, str | bool]:
 async def api_pending_count(_: Any = Depends(require_admin)) -> dict[str, int]:
     return {"pending_count": pending_notice_count()}
 
+
+@app.get("/push/vapid-public-key")
+async def push_vapid_public_key() -> dict[str, str]:
+    return {"key": webpush.vapid_public_key_b64()}
+
+
+@app.post("/push/subscribe")
+async def push_subscribe(request: Request) -> dict[str, bool]:
+    data = await request.json()
+    endpoint = str(data.get("endpoint") or "")
+    keys = data.get("keys") or {}
+    p256dh = str(keys.get("p256dh") or "")
+    auth = str(keys.get("auth") or "")
+    if not endpoint or not p256dh or not auth:
+        raise HTTPException(status_code=400, detail="Invalid subscription")
+    user = current_user(request)
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
+            ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth
+            """,
+            (user["id"] if user else None, endpoint, p256dh, auth),
+        )
+    return {"ok": True}
+
+
+@app.post("/push/unsubscribe")
+async def push_unsubscribe(request: Request) -> dict[str, bool]:
+    data = await request.json()
+    endpoint = str(data.get("endpoint") or "")
+    if endpoint:
+        with connect() as conn:
+            conn.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+    return {"ok": True}
+
 @app.get("/api/notices/{notice_id}")
 @app.get("/api/bulletins/{notice_id}")
 async def api_notice(notice_id: int, _: Any = Depends(require_admin)) -> dict[str, object]:
@@ -1633,14 +1669,25 @@ async def broadcast_approved_bulletin(notice_id: int) -> None:
     notice_data = notice_payload(notice)
     payload = json.dumps({"type": "notice", "notice": notice_data, "bulletin": notice_data, "labels": TRANSLATIONS[current_language()]})
     await _broadcast(bulletin_clients, payload)
+    await asyncio.to_thread(
+        webpush.push_to_announcer_audience,
+        {"title": TRANSLATIONS[current_language()]["new_announcement"], "body": notice_data.get("message", ""), "url": "/announcer"},
+        notice_data.get("recipient_user_ids", []),
+        bool(notice_data.get("broadcast_all")),
+    )
 
 
 async def broadcast_review_notice(notice_id: int) -> None:
     notice = row("SELECT * FROM bulletins WHERE id = ?", (notice_id,))
     if not notice:
         return
-    payload = json.dumps({"type": "pending_notice", "notice": notice_payload(notice), "labels": TRANSLATIONS[current_language()], "pending_count": pending_notice_count()})
+    notice_data = notice_payload(notice)
+    payload = json.dumps({"type": "pending_notice", "notice": notice_data, "labels": TRANSLATIONS[current_language()], "pending_count": pending_notice_count()})
     await _broadcast(review_clients, payload)
+    await asyncio.to_thread(
+        webpush.push_to_admins,
+        {"title": TRANSLATIONS[current_language()]["new_notice"], "body": notice_data.get("message", ""), "url": "/notices"},
+    )
 
 
 def pending_notice_count() -> int:
