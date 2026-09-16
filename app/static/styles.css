@@ -95,7 +95,12 @@ a { color: inherit; }
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .span-two { grid-column: span 2; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
-.stack.full-width { grid-column: 1 / -1; }
+/* The lower reorder zone spans the full page width, but its boxes default
+   to half-width pairs (like Exports/Full Backup used to be) rather than
+   each taking the whole row -- .full-span opts a specific box (a wide
+   data table) back out to the full width. */
+.stack.full-width { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.stack.full-width .full-span { grid-column: 1 / -1; }
 .compact-panel { padding-bottom: 8px; }
 
 /* Scoped to the Configuration page's top settings grid only (General/

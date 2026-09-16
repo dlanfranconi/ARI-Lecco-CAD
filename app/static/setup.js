@@ -67,13 +67,35 @@ if (reorderGrid) {
     handle?.addEventListener("dragend", () => { dragged = null; });
   });
 
+  // Works for both a single-column stack (compare by Y only, siblings
+  // never overlap horizontally) and a two-up grid zone (nearest sibling by
+  // straight-line distance, then decide before/after from which side of
+  // its center the cursor landed on).
+  function insertionTarget(stack, x, y, dragged) {
+    const siblings = Array.from(stack.children).filter((el) => el !== dragged);
+    let closest = null;
+    let closestDist = Infinity;
+    let before = true;
+    siblings.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dist = Math.hypot(x - cx, y - cy);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = el;
+        before = y < cy || (Math.abs(y - cy) < rect.height / 3 && x < cx);
+      }
+    });
+    if (!closest) return null;
+    return before ? closest : closest.nextElementSibling;
+  }
+
   stacks.forEach((stack) => {
     stack.addEventListener("dragover", (event) => {
       if (!dragged) return;
       event.preventDefault();
-      const siblings = Array.from(stack.children).filter((el) => el !== dragged);
-      const after = siblings.find((el) => event.clientY < el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2);
-      stack.insertBefore(dragged, after || null);
+      stack.insertBefore(dragged, insertionTarget(stack, event.clientX, event.clientY, dragged));
     });
   });
 
