@@ -196,6 +196,23 @@ def current_public_url() -> str:
     return setting("public_url", "")
 
 
+def current_setup_box_order() -> list[list[str]] | None:
+    # Admin-defined arrangement of the small Setup panels (drag-and-drop
+    # "Riordina caselle" on the Configuration page) -- None means "use the
+    # template's own default order", so a fresh install needs no migration
+    # or seed value here.
+    raw = setting("setup_box_order", "")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list) and all(isinstance(col, list) for col in data):
+            return data
+    except ValueError:
+        pass
+    return None
+
+
 async def aprs_loop() -> None:
     while True:
         with suppress(Exception):
@@ -329,6 +346,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("mdns_hostname", current_mdns_hostname())
     context.setdefault("public_url", current_public_url())
+    context.setdefault("setup_box_order", current_setup_box_order())
     context.setdefault("race_mode", race_mode_enabled())
     context.setdefault("app_mode", "race" if race_mode_enabled() else "cad")
     context.setdefault("network_monitor_poll_seconds", current_network_monitor_poll_seconds())
@@ -1010,6 +1028,18 @@ async def _upload_logo(logo: UploadFile, stem: str, setting_key: str) -> Redirec
     target.write_bytes(data)
     save_setting(setting_key, f"/static/uploads/{target.name}")
     return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/box-order")
+async def save_setup_box_order(request: Request, _: Any = Depends(require_admin)) -> dict[str, bool]:
+    data = await request.json()
+    columns = data.get("columns")
+    valid_boxes = {"general", "appearance", "network", "logo", "race_name", "aprs", "logo2", "notification_sound"}
+    if not isinstance(columns, list) or not all(isinstance(col, list) for col in columns):
+        raise HTTPException(status_code=400, detail="Invalid layout")
+    cleaned = [[str(box) for box in col if str(box) in valid_boxes] for col in columns]
+    save_setting("setup_box_order", json.dumps(cleaned))
+    return {"ok": True}
 
 
 def _delete_logo(stem: str, setting_key: str) -> RedirectResponse:

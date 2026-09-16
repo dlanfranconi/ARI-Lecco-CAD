@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="grid three compact-settings">
+<div class="actions" style="margin-bottom:12px">
+  <button type="button" id="reorder-toggle" class="secondary">{{ t.reorder_boxes }}</button>
+  <button type="button" id="reorder-save" class="danger" hidden>{{ t.reorder_save }}</button>
+</div>
+<section class="grid three compact-settings" id="reorder-grid">
   <div class="stack">
-    <form method="post" action="/setup/settings" class="panel">
+    <form method="post" action="/setup/settings" class="panel" data-box="general">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h1>{{ t.setup }}</h1>
       <label>{{ t.language }}
         <select name="language">
@@ -33,7 +38,8 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <form method="post" action="/setup/settings" class="panel">
+    <form method="post" action="/setup/settings" class="panel" data-box="appearance">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h2>{{ t.appearance }}</h2>
       <label>{{ t.color_scheme }}
         <select name="color_scheme">
@@ -48,46 +54,11 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <section class="panel">
-      <h1>{{ t.tactical_callsigns }}</h1>
-      <label>{{ t.tactical_callsign }}
-        <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
-      </label>
-      <div class="table-wrap compact-table">
-        <table class="setup-table tac-table">
-          <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
-          <tbody>
-            <tr>
-              <form method="post" action="/setup/tactical-callsigns">
-                <td><input name="name" required></td>
-                <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
-                <td>{{ t.active }}</td>
-                <td><button>{{ t.add }}</button></td>
-                <td></td>
-              </form>
-            </tr>
-            {% for tac in tactical_callsigns %}
-            <tr class="tac-row" id="tac-{{ tac.id }}">
-              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
-                <td><input name="name" value="{{ tac.name }}" required></td>
-                <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
-                <td>{{ t.active if tac.active else t.disabled }}</td>
-                <td><button>{{ t.save }}</button></td>
-              </form>
-              <td class="actions-cell">
-                <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
-                <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
   </div>
 
   <div class="stack">
-    <form method="post" action="/setup/settings" class="panel">
+    <form method="post" action="/setup/settings" class="panel" data-box="network">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h2>{{ t.network_settings }}</h2>
       {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
       <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
@@ -100,14 +71,16 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <section class="panel compact-panel">
+    <section class="panel compact-panel" data-box="logo">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h1>{{ t.logo }}</h1>
       {% if logo_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
       <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
       {% if logo_url %}<form method="post" action="/setup/logo/delete"><button class="danger">{{ t.remove_logo }}</button></form>{% endif %}
     </section>
 
-    <form method="post" action="/setup/race" class="panel">
+    <form method="post" action="/setup/race" class="panel" data-box="race_name">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h1>{{ t.race_name }}</h1>
       <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
       <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
@@ -116,7 +89,8 @@
   </div>
 
   <div class="stack">
-    <form method="post" action="/setup/settings" class="panel">
+    <form method="post" action="/setup/settings" class="panel" data-box="aprs">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h2>{{ t.aprs_settings }}</h2>
       <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
       <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
@@ -124,19 +98,58 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <section class="panel compact-panel">
+    <section class="panel compact-panel" data-box="logo2">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h1>{{ t.event_logo }}</h1>
       {% if logo2_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
       <form method="post" action="/setup/logo2" enctype="multipart/form-data"><label>{{ t.event_logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_event_logo }}</button></form>
       {% if logo2_url %}<form method="post" action="/setup/logo2/delete"><button class="danger">{{ t.remove_event_logo }}</button></form>{% endif %}
     </section>
 
-    <section class="panel">
+    <section class="panel" data-box="notification_sound">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
       <h1>{{ t.notification_sound }}</h1>
       {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
       <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
       {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
     </section>
+  </div>
+</section>
+
+<section class="panel">
+  <h1>{{ t.tactical_callsigns }}</h1>
+  <label>{{ t.tactical_callsign }}
+    <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
+  </label>
+  <div class="table-wrap compact-table">
+    <table class="setup-table tac-table">
+      <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <form method="post" action="/setup/tactical-callsigns">
+            <td><input name="name" required></td>
+            <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
+            <td>{{ t.active }}</td>
+            <td><button>{{ t.add }}</button></td>
+            <td></td>
+          </form>
+        </tr>
+        {% for tac in tactical_callsigns %}
+        <tr class="tac-row" id="tac-{{ tac.id }}">
+          <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
+            <td><input name="name" value="{{ tac.name }}" required></td>
+            <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
+            <td>{{ t.active if tac.active else t.disabled }}</td>
+            <td><button>{{ t.save }}</button></td>
+          </form>
+          <td class="actions-cell">
+            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
+            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -289,4 +302,7 @@
 {% endif %}
 
 {% endblock %}
-{% block scripts %}<script src="{{ asset('/static/setup.js') }}"></script>{% endblock %}
+{% block scripts %}
+<script>window.CAD_SETUP_BOX_ORDER = {{ setup_box_order|tojson }};</script>
+<script src="{{ asset('/static/setup.js') }}"></script>
+{% endblock %}

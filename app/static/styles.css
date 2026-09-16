@@ -107,6 +107,15 @@ a { color: inherit; }
 .compact-settings h1, .compact-settings h2 { margin: 0 0 8px; font-size: 17px; }
 .compact-settings label { margin-bottom: 6px; }
 .compact-settings .meta { margin-bottom: 6px; }
+
+/* Drag-and-drop box reordering ("Riordina caselle") on the Configuration
+   page -- the handle is a separate small grab target rather than making
+   the whole panel draggable, so dragging never fights with selecting text
+   or using the form fields inside it. */
+.compact-settings[data-reorder-active] > .stack { min-height: 60px; outline: 1px dashed var(--line); outline-offset: 4px; }
+.compact-settings[data-reorder-active] .panel, .compact-settings[data-reorder-active] .compact-panel { position: relative; }
+.drag-handle { cursor: grab; position: absolute; top: 10px; right: 10px; font-size: 16px; line-height: 1; color: var(--muted); }
+.drag-handle:active { cursor: grabbing; }
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
