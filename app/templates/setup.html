@@ -7,7 +7,7 @@
 <section class="grid three compact-settings" id="reorder-grid">
   <div class="stack">
     <form method="post" action="/setup/settings" class="panel" data-box="general">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.setup }}</h1>
       <label>{{ t.language }}
         <select name="language">
@@ -39,7 +39,7 @@
     </form>
 
     <form method="post" action="/setup/settings" class="panel" data-box="appearance">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.appearance }}</h2>
       <label>{{ t.color_scheme }}
         <select name="color_scheme">
@@ -58,7 +58,7 @@
 
   <div class="stack">
     <form method="post" action="/setup/settings" class="panel" data-box="network">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.network_settings }}</h2>
       {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
       <label>{{ t.hostname }}<input name="mdns_hostname" value="{{ mdns_hostname }}" placeholder="cad-server"></label>
@@ -72,7 +72,7 @@
     </form>
 
     <section class="panel compact-panel" data-box="logo">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.logo }}</h1>
       {% if logo_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
       <form method="post" action="/setup/logo" enctype="multipart/form-data"><label>{{ t.logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_logo }}</button></form>
@@ -80,7 +80,7 @@
     </section>
 
     <form method="post" action="/setup/race" class="panel" data-box="race_name">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.race_name }}</h1>
       <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
       <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
@@ -90,7 +90,7 @@
 
   <div class="stack">
     <form method="post" action="/setup/settings" class="panel" data-box="aprs">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.aprs_settings }}</h2>
       <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
       <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
@@ -99,7 +99,7 @@
     </form>
 
     <section class="panel compact-panel" data-box="logo2">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.event_logo }}</h1>
       {% if logo2_url %}<div class="logo-preview logo-preview-compact"><img src="{{ logo2_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
       <form method="post" action="/setup/logo2" enctype="multipart/form-data"><label>{{ t.event_logo_file }}<input type="file" name="logo" accept="image/png,image/jpeg" required></label><button>{{ t.upload_event_logo }}</button></form>
@@ -107,7 +107,7 @@
     </section>
 
     <section class="panel" data-box="notification_sound">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.notification_sound }}</h1>
       {% if notification_sound_url %}<audio controls src="{{ notification_sound_url }}"></audio>{% endif %}
       <form method="post" action="/setup/notification-sound" enctype="multipart/form-data"><label>{{ t.notification_sound_file }}<input type="file" name="sound" accept="audio/mpeg,audio/wav" required></label><button>{{ t.upload_notification_sound }}</button></form>
@@ -117,7 +117,7 @@
 
   <div class="stack full-width">
     <section class="panel full-span" data-box="tactical_callsigns">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.tactical_callsigns }}</h1>
       <label>{{ t.tactical_callsign }}
         <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
@@ -155,7 +155,7 @@
     </section>
 
     <section class="panel full-span" data-box="all_users">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.all_users }}</h2>
       <label>{{ t.select_user_to_edit }}
         <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
@@ -214,7 +214,7 @@
     </section>
 
     <section class="panel" data-box="exports">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.exports }}</h2>
       {% if request.query_params.get("clear_error") %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
       <div class="actions"><a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a><a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a><a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a><a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a><a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a></div>
@@ -225,7 +225,7 @@
     </section>
 
     <section class="panel" data-box="full_backup">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.full_backup }}</h2>
       <p class="meta">{{ t.full_backup_hint }}</p>
       {% if request.query_params.get("backup_restored") %}<p class="success">{{ t.backup_restored }}</p>{% endif %}
@@ -241,7 +241,7 @@
 
     {% if race_mode %}
     <section class="panel" data-box="runner_import">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.runner_import }}</h2>
       {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
       {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
@@ -250,7 +250,7 @@
     {% endif %}
 
     <section class="panel" data-box="archive">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.archive }}</h2>
       <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
       <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
@@ -258,7 +258,7 @@
 
     {% if race_mode %}
     <section class="panel full-span" data-box="athletes">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.athletes }}</h2>
       <label>{{ t.select_athlete_to_edit }}
         <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.full_name or runner.name }}</option>{% endfor %}</select>
@@ -309,6 +309,6 @@
 
 {% endblock %}
 {% block scripts %}
-<script>window.CAD_SETUP_BOX_ORDER = {{ setup_box_order|tojson }};</script>
+<script>window.CAD_SETUP_BOX_ORDER = {{ setup_box_order|tojson }}; window.CAD_SETUP_FULL_SPAN_BOXES = {{ setup_full_span_boxes|tojson }};</script>
 <script src="{{ asset('/static/setup.js') }}"></script>
 {% endblock %}

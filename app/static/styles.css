@@ -122,6 +122,8 @@ a { color: inherit; }
 .compact-settings[data-reorder-active] .panel, .compact-settings[data-reorder-active] .compact-panel { position: relative; }
 .drag-handle { cursor: grab; position: absolute; top: 10px; right: 10px; font-size: 16px; line-height: 1; color: var(--muted); }
 .drag-handle:active { cursor: grabbing; }
+.width-toggle { position: absolute; top: 6px; right: 32px; font-size: 14px; line-height: 1; color: var(--muted); background: none; border: none; padding: 4px; cursor: pointer; width: auto; }
+.width-toggle:hover { color: var(--accent); }
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);

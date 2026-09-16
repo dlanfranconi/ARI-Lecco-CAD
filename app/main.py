@@ -213,6 +213,23 @@ def current_setup_box_order() -> list[list[str]] | None:
     return None
 
 
+def current_setup_full_span_boxes() -> list[str]:
+    # Which boxes are toggled to full width within the lower reorder zone
+    # (default: Tactical Callsigns/All Users/Athletes, since those hold
+    # wide data tables) -- None stored yet means "use the template's own
+    # defaults" rather than forcing every box back to half width.
+    raw = setting("setup_full_span_boxes", "")
+    if not raw:
+        return ["tactical_callsigns", "all_users", "athletes"]
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            return [str(item) for item in data]
+    except ValueError:
+        pass
+    return ["tactical_callsigns", "all_users", "athletes"]
+
+
 async def aprs_loop() -> None:
     while True:
         with suppress(Exception):
@@ -347,6 +364,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("mdns_hostname", current_mdns_hostname())
     context.setdefault("public_url", current_public_url())
     context.setdefault("setup_box_order", current_setup_box_order())
+    context.setdefault("setup_full_span_boxes", current_setup_full_span_boxes())
     context.setdefault("race_mode", race_mode_enabled())
     context.setdefault("app_mode", "race" if race_mode_enabled() else "cad")
     context.setdefault("network_monitor_poll_seconds", current_network_monitor_poll_seconds())
@@ -1042,6 +1060,9 @@ async def save_setup_box_order(request: Request, _: Any = Depends(require_admin)
         raise HTTPException(status_code=400, detail="Invalid layout")
     cleaned = [[str(box) for box in col if str(box) in valid_boxes] for col in columns]
     save_setting("setup_box_order", json.dumps(cleaned))
+    full_span = data.get("full_span")
+    if isinstance(full_span, list):
+        save_setting("setup_full_span_boxes", json.dumps([str(box) for box in full_span if str(box) in valid_boxes]))
     return {"ok": True}
 
 

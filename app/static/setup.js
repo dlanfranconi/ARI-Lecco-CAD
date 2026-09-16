@@ -56,6 +56,14 @@ if (reorderGrid) {
     });
   })();
 
+  (function applyStoredFullSpan() {
+    const fullSpan = window.CAD_SETUP_FULL_SPAN_BOXES;
+    if (!Array.isArray(fullSpan)) return;
+    reorderGrid.querySelectorAll("[data-box]").forEach((box) => {
+      box.classList.toggle("full-span", fullSpan.includes(box.dataset.box));
+    });
+  })();
+
   let dragged = null;
   reorderGrid.querySelectorAll("[data-box]").forEach((box) => {
     const handle = box.querySelector(".drag-handle");
@@ -99,23 +107,30 @@ if (reorderGrid) {
     });
   });
 
+  reorderGrid.querySelectorAll("[data-box]").forEach((box) => {
+    box.querySelector(".width-toggle")?.addEventListener("click", () => {
+      box.classList.toggle("full-span");
+    });
+  });
+
   const toggleButton = document.getElementById("reorder-toggle");
   const saveButton = document.getElementById("reorder-save");
   toggleButton?.addEventListener("click", () => {
     const active = reorderGrid.toggleAttribute("data-reorder-active");
-    reorderGrid.querySelectorAll(".drag-handle").forEach((handle) => { handle.hidden = !active; });
+    reorderGrid.querySelectorAll(".drag-handle, .width-toggle").forEach((el) => { el.hidden = !active; });
     if (saveButton) saveButton.hidden = !active;
   });
 
   saveButton?.addEventListener("click", async () => {
     const columns = stacks.map((stack) => Array.from(stack.querySelectorAll(":scope > [data-box]")).map((box) => box.dataset.box));
+    const fullSpan = Array.from(reorderGrid.querySelectorAll("[data-box].full-span")).map((box) => box.dataset.box);
     await fetch("/setup/box-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ columns }),
+      body: JSON.stringify({ columns, full_span: fullSpan }),
     }).catch(() => {});
     reorderGrid.removeAttribute("data-reorder-active");
-    reorderGrid.querySelectorAll(".drag-handle").forEach((handle) => { handle.hidden = true; });
+    reorderGrid.querySelectorAll(".drag-handle, .width-toggle").forEach((el) => { el.hidden = true; });
     saveButton.hidden = true;
   });
 }
