@@ -1034,7 +1034,10 @@ async def _upload_logo(logo: UploadFile, stem: str, setting_key: str) -> Redirec
 async def save_setup_box_order(request: Request, _: Any = Depends(require_admin)) -> dict[str, bool]:
     data = await request.json()
     columns = data.get("columns")
-    valid_boxes = {"general", "appearance", "network", "logo", "race_name", "aprs", "logo2", "notification_sound"}
+    valid_boxes = {
+        "general", "appearance", "network", "logo", "race_name", "aprs", "logo2", "notification_sound",
+        "tactical_callsigns", "all_users", "exports", "full_backup", "runner_import", "archive", "athletes",
+    }
     if not isinstance(columns, list) or not all(isinstance(col, list) for col in columns):
         raise HTTPException(status_code=400, detail="Invalid layout")
     cleaned = [[str(box) for box in col if str(box) in valid_boxes] for col in columns]

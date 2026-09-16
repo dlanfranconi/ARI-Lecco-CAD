@@ -95,6 +95,7 @@ a { color: inherit; }
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .span-two { grid-column: span 2; }
 .stack { display: flex; flex-direction: column; gap: 16px; }
+.stack.full-width { grid-column: 1 / -1; }
 .compact-panel { padding-bottom: 8px; }
 
 /* Scoped to the Configuration page's top settings grid only (General/

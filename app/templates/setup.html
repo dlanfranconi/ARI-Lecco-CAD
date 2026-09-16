@@ -114,192 +114,198 @@
       {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
     </section>
   </div>
-</section>
 
-<section class="panel">
-  <h1>{{ t.tactical_callsigns }}</h1>
-  <label>{{ t.tactical_callsign }}
-    <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
-  </label>
-  <div class="table-wrap compact-table">
-    <table class="setup-table tac-table">
-      <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
-      <tbody>
-        <tr>
-          <form method="post" action="/setup/tactical-callsigns">
-            <td><input name="name" required></td>
-            <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
-            <td>{{ t.active }}</td>
-            <td><button>{{ t.add }}</button></td>
-            <td></td>
-          </form>
-        </tr>
-        {% for tac in tactical_callsigns %}
-        <tr class="tac-row" id="tac-{{ tac.id }}">
-          <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
-            <td><input name="name" value="{{ tac.name }}" required></td>
-            <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
-            <td>{{ t.active if tac.active else t.disabled }}</td>
-            <td><button>{{ t.save }}</button></td>
-          </form>
-          <td class="actions-cell">
-            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
-            <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="stack full-width">
+    <section class="panel" data-box="tactical_callsigns">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h1>{{ t.tactical_callsigns }}</h1>
+      <label>{{ t.tactical_callsign }}
+        <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
+      </label>
+      <div class="table-wrap compact-table">
+        <table class="setup-table tac-table">
+          <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <form method="post" action="/setup/tactical-callsigns">
+                <td><input name="name" required></td>
+                <td><input name="location_preposition" placeholder="to / a / al / alla"></td>
+                <td>{{ t.active }}</td>
+                <td><button>{{ t.add }}</button></td>
+                <td></td>
+              </form>
+            </tr>
+            {% for tac in tactical_callsigns %}
+            <tr class="tac-row" id="tac-{{ tac.id }}">
+              <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}">
+                <td><input name="name" value="{{ tac.name }}" required></td>
+                <td><input name="location_preposition" value="{{ tac.location_preposition }}"></td>
+                <td>{{ t.active if tac.active else t.disabled }}</td>
+                <td><button>{{ t.save }}</button></td>
+              </form>
+              <td class="actions-cell">
+                <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/toggle"><button class="secondary">{{ t.disable if tac.active else t.enable }}</button></form>
+                <form method="post" action="/setup/tactical-callsigns/{{ tac.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" data-box="all_users">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h2>{{ t.all_users }}</h2>
+      <label>{{ t.select_user_to_edit }}
+        <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
+      </label>
+      <div class="table-wrap">
+        <table class="setup-table">
+          <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.speaker_group }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
+          <tbody>
+            <tr>
+              <form method="post" action="/setup/users">
+                <td><input name="display_name" required></td>
+                <td><input name="operator_callsign"></td>
+                <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns if tac.active %}<option value="{{ tac.name }}">{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
+                <td><input name="default_location"></td>
+                <td><input name="aprs_callsign" placeholder="I1ABC-9"></td>
+                <td><input name="dstar_callsign"></td>
+                <td><input name="username"></td>
+                <td><input name="password" type="password"></td>
+                <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="viewer">{{ t.viewer_role }}</option></select></td>
+                <td><input type="checkbox" name="in_speaker_group" checked></td>
+                <td>{{ t.active }}</td>
+                <td><button>{{ t.add }}</button></td>
+                <td></td>
+              </form>
+            </tr>
+            {% for user in users %}
+            <tr class="user-row" id="user-{{ user.id }}">
+              <form method="post" action="/setup/users/{{ user.id }}">
+                <td><input name="display_name" value="{{ user.display_name }}" required></td>
+                <td><input name="operator_callsign" value="{{ user.operator_callsign }}"></td>
+                <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
+                <td><input name="default_location" value="{{ user.default_location }}"></td>
+                <td><input name="aprs_callsign" value="{{ user.aprs_callsign or '' }}" placeholder="I1ABC-9"></td>
+                <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
+                <td><input name="username" value="{{ user.username or '' }}"></td>
+                <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
+                <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>{{ t.viewer_role }}</option></select></td>
+                <td><input type="checkbox" name="in_speaker_group" {% if user.in_speaker_group %}checked{% endif %}></td>
+                <td>{{ t.active if user.active else t.disabled }}</td>
+                <td><button>{{ t.save }}</button></td>
+              </form>
+              <td>
+                <form method="post" action="/setup/users/{{ user.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_user_confirm }}">
+                  <select name="action">
+                    {% if user.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
+                    <option value="delete">{{ t.delete }}</option>
+                  </select>
+                  <button class="secondary">{{ t.apply }}</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" data-box="exports">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h2>{{ t.exports }}</h2>
+      {% if request.query_params.get("clear_error") %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
+      <div class="actions"><a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a><a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a><a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a><a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a><a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a></div>
+      <p class="warning">{{ t.clear_all_requires_archive }}</p>
+      <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="logs"><label>{{ t.clear_logs_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_logs_only }}</button></form>
+      <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="notices"><label>{{ t.clear_notices_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_notices_only }}</button></form>
+      <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="all"><label>{{ t.clear_all }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label><button class="danger">{{ t.clear_all }}</button></form>
+    </section>
+
+    <section class="panel" data-box="full_backup">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h2>{{ t.full_backup }}</h2>
+      <p class="meta">{{ t.full_backup_hint }}</p>
+      {% if request.query_params.get("backup_restored") %}<p class="success">{{ t.backup_restored }}</p>{% endif %}
+      {% if request.query_params.get("backup_error") == "confirm" %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
+      {% if request.query_params.get("backup_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
+      <div class="actions"><a class="button secondary" href="/export/backup.json">{{ t.download_full_backup }}</a></div>
+      <form method="post" action="/setup/backup/restore" enctype="multipart/form-data" class="clear-form">
+        <label>{{ t.restore_full_backup }}<input type="file" name="file" accept=".json" required></label>
+        <label>{{ t.type_clear }}<input name="confirm" placeholder="{{ t.type_clear }}"></label>
+        <button class="danger">{{ t.restore_full_backup }}</button>
+      </form>
+    </section>
+
+    {% if race_mode %}
+    <section class="panel" data-box="runner_import">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h2>{{ t.runner_import }}</h2>
+      {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
+      {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
+      <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
+    </section>
+    {% endif %}
+
+    <section class="panel" data-box="archive">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h2>{{ t.archive }}</h2>
+      <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
+      <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
+    </section>
+
+    {% if race_mode %}
+    <section class="panel" data-box="athletes">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span>
+      <h2>{{ t.athletes }}</h2>
+      <label>{{ t.select_athlete_to_edit }}
+        <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.full_name or runner.name }}</option>{% endfor %}</select>
+      </label>
+      <div class="table-wrap">
+        <table class="setup-table">
+          <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.first_name }}</th><th>{{ t.last_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
+          <tbody>
+            <tr>
+              <form method="post" action="/setup/runners">
+                <td><input name="bib_number" required></td>
+                <td><input name="first_name" required></td>
+                <td><input name="last_name"></td>
+                <td><input name="hometown"></td>
+                <td>{{ t.active }}</td>
+                <td><button>{{ t.add_athlete }}</button></td>
+                <td></td>
+              </form>
+            </tr>
+            {% for runner in runners %}
+            <tr class="runner-row" id="runner-{{ runner.id }}">
+              <form method="post" action="/setup/runners/{{ runner.id }}">
+                <td><input name="bib_number" value="{{ runner.bib_number }}" required></td>
+                <td><input name="first_name" value="{{ runner.first_name or '' }}" required></td>
+                <td><input name="last_name" value="{{ runner.last_name or '' }}"></td>
+                <td><input name="hometown" value="{{ runner.hometown }}"></td>
+                <td>{{ t.active if runner.active else t.disabled }}</td>
+                <td><button>{{ t.save }}</button></td>
+              </form>
+              <td>
+                <form method="post" action="/setup/runners/{{ runner.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_athlete_confirm }}">
+                  <select name="action">
+                    {% if runner.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
+                    <option value="delete">{{ t.delete }}</option>
+                  </select>
+                  <button class="secondary">{{ t.apply }}</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
   </div>
 </section>
-
-<section class="panel">
-  <h2>{{ t.all_users }}</h2>
-  <label>{{ t.select_user_to_edit }}
-    <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
-  </label>
-  <div class="table-wrap">
-    <table class="setup-table">
-      <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.speaker_group }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
-      <tbody>
-        <tr>
-          <form method="post" action="/setup/users">
-            <td><input name="display_name" required></td>
-            <td><input name="operator_callsign"></td>
-            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns if tac.active %}<option value="{{ tac.name }}">{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
-            <td><input name="default_location"></td>
-            <td><input name="aprs_callsign" placeholder="I1ABC-9"></td>
-            <td><input name="dstar_callsign"></td>
-            <td><input name="username"></td>
-            <td><input name="password" type="password"></td>
-            <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="viewer">{{ t.viewer_role }}</option></select></td>
-            <td><input type="checkbox" name="in_speaker_group" checked></td>
-            <td>{{ t.active }}</td>
-            <td><button>{{ t.add }}</button></td>
-            <td></td>
-          </form>
-        </tr>
-        {% for user in users %}
-        <tr class="user-row" id="user-{{ user.id }}">
-          <form method="post" action="/setup/users/{{ user.id }}">
-            <td><input name="display_name" value="{{ user.display_name }}" required></td>
-            <td><input name="operator_callsign" value="{{ user.operator_callsign }}"></td>
-            <td><select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select></td>
-            <td><input name="default_location" value="{{ user.default_location }}"></td>
-            <td><input name="aprs_callsign" value="{{ user.aprs_callsign or '' }}" placeholder="I1ABC-9"></td>
-            <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
-            <td><input name="username" value="{{ user.username or '' }}"></td>
-            <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
-            <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>{{ t.viewer_role }}</option></select></td>
-            <td><input type="checkbox" name="in_speaker_group" {% if user.in_speaker_group %}checked{% endif %}></td>
-            <td>{{ t.active if user.active else t.disabled }}</td>
-            <td><button>{{ t.save }}</button></td>
-          </form>
-          <td>
-            <form method="post" action="/setup/users/{{ user.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_user_confirm }}">
-              <select name="action">
-                {% if user.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
-                <option value="delete">{{ t.delete }}</option>
-              </select>
-              <button class="secondary">{{ t.apply }}</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="grid two">
-  <section class="panel">
-    <h2>{{ t.exports }}</h2>
-    {% if request.query_params.get("clear_error") %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
-    <div class="actions"><a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a><a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a><a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a><a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a><a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a></div>
-    <p class="warning">{{ t.clear_all_requires_archive }}</p>
-    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="logs"><label>{{ t.clear_logs_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_logs_only }}</button></form>
-    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="notices"><label>{{ t.clear_notices_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_notices_only }}</button></form>
-    <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="all"><label>{{ t.clear_all }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label><button class="danger">{{ t.clear_all }}</button></form>
-  </section>
-  <section class="panel">
-    <h2>{{ t.full_backup }}</h2>
-    <p class="meta">{{ t.full_backup_hint }}</p>
-    {% if request.query_params.get("backup_restored") %}<p class="success">{{ t.backup_restored }}</p>{% endif %}
-    {% if request.query_params.get("backup_error") == "confirm" %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
-    {% if request.query_params.get("backup_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
-    <div class="actions"><a class="button secondary" href="/export/backup.json">{{ t.download_full_backup }}</a></div>
-    <form method="post" action="/setup/backup/restore" enctype="multipart/form-data" class="clear-form">
-      <label>{{ t.restore_full_backup }}<input type="file" name="file" accept=".json" required></label>
-      <label>{{ t.type_clear }}<input name="confirm" placeholder="{{ t.type_clear }}"></label>
-      <button class="danger">{{ t.restore_full_backup }}</button>
-    </form>
-  </section>
-</section>
-
-<section class="grid two">
-  {% if race_mode %}
-  <section class="panel">
-    <h2>{{ t.runner_import }}</h2>
-    {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
-    {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
-    <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
-  </section>
-  {% endif %}
-  <section class="panel">
-    <h2>{{ t.archive }}</h2>
-    <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
-    <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
-  </section>
-</section>
-
-
-{% if race_mode %}
-<section class="panel">
-  <h2>{{ t.athletes }}</h2>
-  <label>{{ t.select_athlete_to_edit }}
-    <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.full_name or runner.name }}</option>{% endfor %}</select>
-  </label>
-  <div class="table-wrap">
-    <table class="setup-table">
-      <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.first_name }}</th><th>{{ t.last_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
-      <tbody>
-        <tr>
-          <form method="post" action="/setup/runners">
-            <td><input name="bib_number" required></td>
-            <td><input name="first_name" required></td>
-            <td><input name="last_name"></td>
-            <td><input name="hometown"></td>
-            <td>{{ t.active }}</td>
-            <td><button>{{ t.add_athlete }}</button></td>
-            <td></td>
-          </form>
-        </tr>
-        {% for runner in runners %}
-        <tr class="runner-row" id="runner-{{ runner.id }}">
-          <form method="post" action="/setup/runners/{{ runner.id }}">
-            <td><input name="bib_number" value="{{ runner.bib_number }}" required></td>
-            <td><input name="first_name" value="{{ runner.first_name or '' }}" required></td>
-            <td><input name="last_name" value="{{ runner.last_name or '' }}"></td>
-            <td><input name="hometown" value="{{ runner.hometown }}"></td>
-            <td>{{ t.active if runner.active else t.disabled }}</td>
-            <td><button>{{ t.save }}</button></td>
-          </form>
-          <td>
-            <form method="post" action="/setup/runners/{{ runner.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_athlete_confirm }}">
-              <select name="action">
-                {% if runner.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
-                <option value="delete">{{ t.delete }}</option>
-              </select>
-              <button class="secondary">{{ t.apply }}</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-{% endif %}
 
 {% endblock %}
 {% block scripts %}
