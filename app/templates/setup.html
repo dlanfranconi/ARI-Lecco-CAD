@@ -224,10 +224,10 @@
 
     <form method="post" action="/setup/race" class="panel" data-box="race_name">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h1>{{ t.race_name }}</h1>
-      <label>{{ t.race_name }}<input name="race_name" value="{{ race_name }}" required></label>
+      <h1>{{ t.race_name if race_mode else t.event_name }}</h1>
+      <label>{{ t.race_name if race_mode else t.event_name }}<input name="race_name" value="{{ race_name }}" required></label>
       <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
-      <button>{{ t.start_new_race }}</button>
+      <button>{{ t.start_new_race if race_mode else t.start_new_event }}</button>
     </form>
   </div>
 
