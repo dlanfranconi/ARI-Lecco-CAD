@@ -1163,6 +1163,74 @@ async def add_user(
     return RedirectResponse("/setup", status_code=303)
 
 
+@app.post("/setup/users/import")
+async def import_users(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    try:
+        content = (await file.read()).decode("utf-8-sig")
+    except UnicodeDecodeError:
+        params = urlencode({"users_import_error": "decode"})
+        return RedirectResponse(f"/setup?{params}", status_code=303)
+    reader = csv_reader_for_content(content)
+    imported = 0
+    updated = 0
+    skipped = 0
+    with connect() as conn:
+        for item in reader:
+            display_name = csv_value(item, "display name", "display_name", "name", "nome", "nome visualizzato")
+            username = csv_value(item, "username", "user", "login", "nome utente")
+            if not display_name:
+                skipped += 1
+                continue
+            operator_callsign = csv_value(item, "operator callsign", "operator_callsign", "callsign", "nominativo operatore")
+            tactical_callsign = csv_value(item, "tactical callsign", "tactical_callsign", "nominativo tattico")
+            default_location = csv_value(item, "default location", "default_location", "location", "postazione", "luogo")
+            aprs_callsign = csv_value(item, "aprs callsign", "aprs_callsign", "aprs")
+            dstar_callsign = csv_value(item, "dstar callsign", "dstar_callsign", "d-star", "dstar")
+            password = csv_value(item, "password", "pass", "password")
+            role_raw = csv_value(item, "role", "ruolo")
+            role = role_raw if role_raw in {"admin", "user", "viewer"} else "user"
+            speaker_raw = csv_value(item, "in speaker group", "speaker group", "gruppo speaker", "annunciatore").strip().lower()
+            in_speaker_group = speaker_raw in {"1", "true", "yes", "si", "sì", "x"}
+            active_raw = csv_value(item, "active", "attivo").strip().lower()
+            active = 0 if active_raw in {"0", "false", "no"} else 1
+
+            if tactical_callsign:
+                conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
+            station_id = aprs_station_id_for_callsign(conn, aprs_callsign)
+            clean_username = username.strip() or None
+
+            existing = row("SELECT id, role FROM users WHERE username = ?", (clean_username,)) if clean_username else None
+            if existing:
+                if existing["role"] == "admin" and role != "admin":
+                    admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").fetchone()["count"]
+                    if admin_count <= 1:
+                        role = "admin"
+                conn.execute(
+                    """
+                    UPDATE users
+                    SET display_name = ?, operator_callsign = ?, tactical_callsign = ?,
+                        default_location = ?, aprs_station_id = ?, dstar_callsign = ?, role = ?, in_speaker_group = ?, active = ?
+                    WHERE id = ?
+                    """,
+                    (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), role, in_speaker_group, active, existing["id"]),
+                )
+                if password:
+                    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), existing["id"]))
+                updated += 1
+            else:
+                password_hash = hash_password(password) if password else ""
+                conn.execute(
+                    """
+                    INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign, username, password_hash, role, in_speaker_group, active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (display_name, operator_callsign, tactical_callsign, default_location, station_id, dstar_callsign.strip().upper(), clean_username, password_hash, role, in_speaker_group, active),
+                )
+                imported += 1
+    params = urlencode({"users_imported": imported, "users_updated": updated, "users_skipped": skipped})
+    return RedirectResponse(f"/setup?{params}", status_code=303)
+
+
 @app.post("/setup/users/{user_id}/toggle")
 async def toggle_user(user_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
     with connect() as conn:
@@ -1799,6 +1867,21 @@ async def export_aprs_geojson(_: Any = Depends(require_admin)) -> StreamingRespo
 @app.get("/export/dstar.geojson")
 async def export_dstar_geojson(_: Any = Depends(require_admin)) -> StreamingResponse:
     return geojson_response("dstar_waypoints.geojson", rows("SELECT *, 'D-STAR' AS source FROM dstar_positions ORDER BY callsign, id"))
+
+
+@app.get("/export/users.csv")
+async def export_users(_: Any = Depends(require_admin)) -> StreamingResponse:
+    users = rows(
+        """
+        SELECT users.*, aprs_stations.callsign AS aprs_callsign
+        FROM users
+        LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
+        ORDER BY users.active DESC, users.role, users.display_name
+        """
+    )
+    fields = ["display_name", "operator_callsign", "tactical_callsign", "default_location", "aprs_callsign", "dstar_callsign", "username", "role", "in_speaker_group", "active"]
+    data = [{field: user[field] for field in fields} for user in users]
+    return csv_response("users.csv", data)
 
 
 BACKUP_TABLES = ["users", "tactical_callsigns", "runners", "monitored_devices", "device_alert_recipients", "iperf_targets"]

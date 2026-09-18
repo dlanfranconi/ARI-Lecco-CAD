@@ -47,6 +47,13 @@
     <section class="panel full-span" data-box="all_users">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.all_users }}</h2>
+      {% if request.query_params.get("users_import_error") == "decode" %}<p class="error">{{ t.users_import_decode_error }}</p>{% endif %}
+      {% if request.query_params.get("users_imported") is not none %}<p class="success">{{ t.users_import_result.format(imported=request.query_params.get("users_imported"), updated=request.query_params.get("users_updated", "0"), skipped=request.query_params.get("users_skipped", "0")) }}</p>{% endif %}
+      <div class="actions">
+        <a class="button secondary" href="/export/users.csv">{{ t.export_users_csv }}</a>
+        <form method="post" action="/setup/users/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
+      </div>
+      <p class="meta">{{ t.users_import_hint }}</p>
       <label>{{ t.select_user_to_edit }}
         <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
       </label>
