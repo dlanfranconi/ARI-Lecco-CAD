@@ -345,6 +345,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("t", TRANSLATIONS[lang])
     context.setdefault("format_dt", format_dt)
     context.setdefault("athlete_rows", athlete_rows)
+    context.setdefault("has_athlete_name", has_athlete_name)
     context.setdefault("has_athlete_hometown", has_athlete_hometown)
     context.setdefault("has_athlete_position", has_athlete_position)
     context.setdefault("operator_option_label", operator_option_label)
@@ -510,6 +511,10 @@ def athlete_rows(item: Any) -> list[dict[str, str]]:
                 "position": (positions[index] if index < len(positions) else "").strip(),
             })
     return rows_out
+
+
+def has_athlete_name(athletes: list[dict[str, str]]) -> bool:
+    return any(str(athlete.get("name", "")).strip() for athlete in athletes)
 
 
 def has_athlete_hometown(athletes: list[dict[str, str]]) -> bool:

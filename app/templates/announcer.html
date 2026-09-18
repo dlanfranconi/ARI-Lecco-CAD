@@ -40,9 +40,9 @@
     <div id="runner-details" class="runner-details {% if not latest or not latest.runner_bib %}hidden{% endif %}">
       {% if latest and latest.runner_bib %}
       {% set latest_athletes = athlete_rows(latest) %}
-      <div class="athlete-rows {% if has_athlete_hometown(latest_athletes) %}has-town{% else %}no-town{% endif %} {% if has_athlete_position(latest_athletes) %}has-position{% else %}no-position{% endif %}">
+      <div class="athlete-rows {% if has_athlete_name(latest_athletes) %}has-name{% else %}no-name{% endif %} {% if has_athlete_hometown(latest_athletes) %}has-town{% else %}no-town{% endif %} {% if has_athlete_position(latest_athletes) %}has-position{% else %}no-position{% endif %}">
       {% for athlete in latest_athletes %}
-      <div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% if athlete.hometown|trim %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position|trim %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
+      <div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span>{% if athlete.name|trim %}<span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% endif %}{% if athlete.hometown|trim %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position|trim %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
       {% endfor %}
       </div>
       {% endif %}

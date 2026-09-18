@@ -438,10 +438,40 @@ th { color: var(--muted); font-size: 13px; }
 .announcer .athlete-rows.no-position.has-town .athlete-row { grid-template-columns: 190px 520px 300px; min-width: 1050px; }
 .announcer .athlete-rows.no-position.has-town .athlete-town { grid-column: 3; }
 .announcer .athlete-rows.no-town.no-position .athlete-row { grid-template-columns: 220px 620px; min-width: 880px; }
+
+/* Athlete name is unused/blank in most events -- collapse its column out
+   of the desktop grid instead of leaving a wide empty gap where it would
+   have gone. */
+.announcer .athlete-rows.no-name .athlete-row { grid-template-columns: 170px 560px 240px; min-width: 1050px; }
+.announcer .athlete-rows.no-name .athlete-town { grid-column: 2; }
+.announcer .athlete-rows.no-name .athlete-position { grid-column: 3; }
+.announcer .athlete-rows.no-name.no-town .athlete-row { grid-template-columns: 190px 240px; min-width: 460px; }
+.announcer .athlete-rows.no-name.no-town .athlete-position { grid-column: 2; }
+.announcer .athlete-rows.no-name.no-position.has-town .athlete-row { grid-template-columns: 190px 620px; min-width: 840px; }
+.announcer .athlete-rows.no-name.no-position.has-town .athlete-town { grid-column: 2; }
+.announcer .athlete-rows.no-name.no-town.no-position .athlete-row { grid-template-columns: 190px; min-width: 220px; }
+
 @media (max-width: 860px) {
   .announcer .athlete-rows.no-town .athlete-row,
   .announcer .athlete-rows.no-position.has-town .athlete-row,
-  .announcer .athlete-rows.no-town.no-position .athlete-row { grid-template-columns: 1fr; min-width: 0; }
+  .announcer .athlete-rows.no-town.no-position .athlete-row,
+  .announcer .athlete-rows.no-name .athlete-row,
+  .announcer .athlete-rows.no-name.no-town .athlete-row,
+  .announcer .athlete-rows.no-name.no-position.has-town .athlete-row,
+  .announcer .athlete-rows.no-name.no-town.no-position .athlete-row { grid-template-columns: 1fr; min-width: 0; }
   .announcer .athlete-rows.no-town .athlete-position { grid-column: auto; }
   .announcer .athlete-rows.no-position.has-town .athlete-town { grid-column: auto; }
+  .announcer .athlete-rows.no-name .athlete-town,
+  .announcer .athlete-rows.no-name .athlete-position,
+  .announcer .athlete-rows.no-name.no-town .athlete-position,
+  .announcer .athlete-rows.no-name.no-position.has-town .athlete-town { grid-column: auto; }
+  /* Each .athlete-row's own fields (bib/name/town/position) sat only 8px
+     apart, same as the gap between DIFFERENT athletes below -- with the
+     usually-blank name line now gone, every athlete could be as few as
+     two lines, and with no visual boundary they ran together into what
+     read as a single unbroken block. */
+  .announcer .athlete-rows { gap: 20px; }
+  .announcer .athlete-row { padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, .16); }
+  .announcer .athlete-rows > .athlete-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .announcer.light-mode .athlete-row { border-bottom-color: rgba(0, 0, 0, .14); }
 }
