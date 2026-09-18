@@ -412,6 +412,12 @@ th { color: var(--muted); font-size: 13px; }
   .announcer-logo-secondary { bottom: 70px; right: 10px; }
   .announcer-logo-secondary img { max-width: 96px; max-height: 40px; }
   .announcer .athlete-row { grid-template-columns: 1fr; }
+  /* .announcer-logo and .announcer-topbar are position:fixed corner
+     overlays so they stay visible while the teleprompter text is long --
+     but the body's 5vw padding (~20px on a phone) isn't enough clearance
+     for them (~76px tall here), so the headline started underneath and
+     got visually hidden behind the logo/clock. */
+  .announcer { padding-top: calc(16px + 60px + 20px + env(safe-area-inset-top, 0px)); }
 }
 
 /* Fixed announcer athlete columns so browser zoom cannot collapse labels together. */
