@@ -23,7 +23,12 @@
           <form method="post" action="/network/devices">
             <td><input name="name" required placeholder="{{ t.device_name }}"></td>
             <td><input name="ip_address" required placeholder="192.168.1.50"></td>
-            <td><div class="recipient-checks">{% for user in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ user.id }}"> {{ user.display_name }}</label>{% endfor %}{% if not users_list %}<span class="meta">{{ t.notify_all_admins }}</span>{% endif %}</div></td>
+            <td>
+              <div class="recipient-picker">
+                <button type="button" class="recipient-picker-toggle">{{ t.notify_all_admins }}</button>
+                <div class="recipient-checks" hidden>{% for user in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ user.id }}"> {{ user.display_name }}</label>{% endfor %}{% if not users_list %}<span class="meta">{{ t.notify_all_admins }}</span>{% endif %}</div>
+              </div>
+            </td>
             <td>{{ t.unknown }}</td>
             <td></td>
             <td><button>{{ t.add }}</button></td>
@@ -38,7 +43,12 @@
           <form method="post" action="/network/devices/{{ device.id }}">
             <td><input name="name" value="{{ device.name }}" required></td>
             <td><input name="ip_address" value="{{ device.ip_address }}" required></td>
-            <td><div class="recipient-checks">{% for user in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ user.id }}" {% if user.id in recipient_ids %}checked{% endif %}> {{ user.display_name }}</label>{% endfor %}</div></td>
+            <td>
+              <div class="recipient-picker">
+                <button type="button" class="recipient-picker-toggle">{{ recipient_names_by_device.get(device.id)|join(', ') if recipient_names_by_device.get(device.id) else t.notify_all_admins }}</button>
+                <div class="recipient-checks" hidden>{% for user in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ user.id }}" {% if user.id in recipient_ids %}checked{% endif %}> {{ user.display_name }}</label>{% endfor %}</div>
+              </div>
+            </td>
             <td><span class="device-status status-{{ device.last_status }}">{{ t[device.last_status] if device.last_status in ['up', 'down'] else t.unknown }}</span></td>
             <td class="device-last-checked">{{ format_dt(device.last_checked_at) if device.last_checked_at else '' }}</td>
             <td>{{ t.active if device.active else t.disabled }} <button>{{ t.save }}</button></td>
@@ -126,6 +136,7 @@
 {% endblock %}
 {% block scripts %}
 <script>window.CAD_LABELS = {{ t|tojson }};</script>
+<script src="{{ asset('/static/recipient-picker.js') }}"></script>
 <script src="{{ asset('/static/network.js') }}"></script>
 <script src="{{ asset('/static/speed-test.js') }}"></script>
 {% endblock %}

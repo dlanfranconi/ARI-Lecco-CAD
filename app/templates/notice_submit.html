@@ -11,10 +11,13 @@
     </label>
     <label>{{ t.notice_message }}<textarea id="notice-message" class="notice-message" name="message" rows="6"></textarea></label>
     <label>{{ t.notify_recipients }}
-      <div class="recipient-checks">
-        <label><input type="checkbox" name="broadcast_all" value="1" class="recipient-special" data-recipient-mode="broadcast"> {{ t.send_to_broadcast_all }}</label>
-        <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" checked> {{ t.send_to_announcer }}</label>
-        {% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" class="recipient-individual"> {{ u.display_name }}</label>{% endfor %}
+      <div class="recipient-picker">
+        <button type="button" class="recipient-picker-toggle">{{ t.send_to_announcer }}</button>
+        <div class="recipient-checks" hidden>
+          <label><input type="checkbox" name="broadcast_all" value="1" class="recipient-special" data-recipient-mode="broadcast"> {{ t.send_to_broadcast_all }}</label>
+          <label><input type="checkbox" class="recipient-special" data-recipient-mode="announcer" checked> {{ t.send_to_announcer }}</label>
+          {% for u in users_list %}<label><input type="checkbox" name="notify_user_ids" value="{{ u.id }}" class="recipient-individual"> {{ u.display_name }}</label>{% endfor %}
+        </div>
       </div>
     </label>
     <button>{{ t.send_notice }}</button>
@@ -31,4 +34,4 @@
   {% endif %}
 </section>
 {% endblock %}
-{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/notice-recipients.js') }}"></script>{% endblock %}
+{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="{{ asset('/static/notice-compose.js') }}"></script><script src="{{ asset('/static/notice-recipients.js') }}"></script><script src="{{ asset('/static/recipient-picker.js') }}"></script>{% endblock %}
