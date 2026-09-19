@@ -251,6 +251,29 @@ def _migrate(conn: sqlite3.Connection) -> None:
         if oldest_admin:
             conn.execute("UPDATE users SET role = 'superadmin' WHERE id = ?", (oldest_admin["id"],))
 
+    # The Setup page's drag-and-drop box order used to be one shared
+    # arrangement for everyone; it's now saved separately per role x app
+    # mode (superadmin/admin x race/cad), since which boxes even exist
+    # differs between them. Seed all 4 buckets from whatever was already
+    # saved under the old single key, so upgrading doesn't throw away a
+    # layout someone already arranged -- each bucket can still be
+    # re-arranged independently afterwards.
+    legacy_order = conn.execute("SELECT value FROM app_settings WHERE key = 'setup_box_order'").fetchone()
+    legacy_span = conn.execute("SELECT value FROM app_settings WHERE key = 'setup_full_span_boxes'").fetchone()
+    if legacy_order or legacy_span:
+        for bucket in ("admin_race", "admin_cad", "superadmin_race", "superadmin_cad"):
+            if legacy_order:
+                conn.execute(
+                    "INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)",
+                    (f"setup_box_order_{bucket}", legacy_order["value"]),
+                )
+            if legacy_span:
+                conn.execute(
+                    "INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)",
+                    (f"setup_full_span_boxes_{bucket}", legacy_span["value"]),
+                )
+        conn.execute("DELETE FROM app_settings WHERE key IN ('setup_box_order', 'setup_full_span_boxes')")
+
     tac_cols = {item[1] for item in conn.execute("PRAGMA table_info(tactical_callsigns)")}
     if "location_preposition" not in tac_cols:
         conn.execute("ALTER TABLE tactical_callsigns ADD COLUMN location_preposition TEXT DEFAULT ''")

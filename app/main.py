@@ -196,12 +196,25 @@ def current_public_url() -> str:
     return setting("public_url", "")
 
 
-def current_setup_box_order() -> list[list[str]] | None:
+def setup_box_order_bucket(user: Any, race_mode: bool) -> str:
+    # Which boxes even exist on Setup differs by role (superadmin sees
+    # General/APRS/Network/full Users management, a plain admin doesn't)
+    # and by app mode (Athletes/Runner Import only exist in race mode) --
+    # a single shared arrangement would mean whichever combination someone
+    # last dragged into shape "wins" and the other three see a layout that
+    # was never actually arranged for them. Each of the 4 combinations
+    # gets its own saved order instead.
+    role_bucket = "superadmin" if user and user["role"] == "superadmin" else "admin"
+    mode_bucket = "race" if race_mode else "cad"
+    return f"{role_bucket}_{mode_bucket}"
+
+
+def current_setup_box_order(bucket: str) -> list[list[str]] | None:
     # Admin-defined arrangement of the small Setup panels (drag-and-drop
     # "Riordina caselle" on the Configuration page) -- None means "use the
     # template's own default order", so a fresh install needs no migration
     # or seed value here.
-    raw = setting("setup_box_order", "")
+    raw = setting(f"setup_box_order_{bucket}", "")
     if not raw:
         return None
     try:
@@ -213,13 +226,13 @@ def current_setup_box_order() -> list[list[str]] | None:
     return None
 
 
-def current_setup_full_span_boxes() -> list[str]:
+def current_setup_full_span_boxes(bucket: str) -> list[str]:
     # Which boxes are toggled to full width within the lower reorder zone
     # (default: Tactical Callsigns/All Users/Athletes, since those hold
     # wide data tables) -- None stored yet means "use the template's own
     # defaults" rather than forcing every box back to half width.
     default = ["tactical_callsigns", "all_users", "athletes", "exports"]
-    raw = setting("setup_full_span_boxes", "")
+    raw = setting(f"setup_full_span_boxes_{bucket}", "")
     if not raw:
         return default
     try:
@@ -373,10 +386,12 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("mdns_hostname", current_mdns_hostname())
     context.setdefault("public_url", current_public_url())
-    context.setdefault("setup_box_order", current_setup_box_order())
-    context.setdefault("setup_full_span_boxes", current_setup_full_span_boxes())
-    context.setdefault("race_mode", race_mode_enabled())
-    context.setdefault("app_mode", "race" if race_mode_enabled() else "cad")
+    race_mode = race_mode_enabled()
+    setup_bucket = setup_box_order_bucket(user, race_mode)
+    context.setdefault("setup_box_order", current_setup_box_order(setup_bucket))
+    context.setdefault("setup_full_span_boxes", current_setup_full_span_boxes(setup_bucket))
+    context.setdefault("race_mode", race_mode)
+    context.setdefault("app_mode", "race" if race_mode else "cad")
     context.setdefault("network_monitor_poll_seconds", current_network_monitor_poll_seconds())
     context.setdefault("network_monitor_alert_after_seconds", current_network_monitor_alert_after_seconds())
     context.setdefault(
@@ -1082,7 +1097,7 @@ async def _upload_logo(logo: UploadFile, stem: str, setting_key: str) -> Redirec
 
 
 @app.post("/setup/box-order")
-async def save_setup_box_order(request: Request, _: Any = Depends(require_admin)) -> dict[str, bool]:
+async def save_setup_box_order(request: Request, admin: Any = Depends(require_admin)) -> dict[str, bool]:
     data = await request.json()
     columns = data.get("columns")
     valid_boxes = {
@@ -1092,11 +1107,12 @@ async def save_setup_box_order(request: Request, _: Any = Depends(require_admin)
     }
     if not isinstance(columns, list) or not all(isinstance(col, list) for col in columns):
         raise HTTPException(status_code=400, detail="Invalid layout")
+    bucket = setup_box_order_bucket(admin, race_mode_enabled())
     cleaned = [[str(box) for box in col if str(box) in valid_boxes] for col in columns]
-    save_setting("setup_box_order", json.dumps(cleaned))
+    save_setting(f"setup_box_order_{bucket}", json.dumps(cleaned))
     full_span = data.get("full_span")
     if isinstance(full_span, list):
-        save_setting("setup_full_span_boxes", json.dumps([str(box) for box in full_span if str(box) in valid_boxes]))
+        save_setting(f"setup_full_span_boxes_{bucket}", json.dumps([str(box) for box in full_span if str(box) in valid_boxes]))
     return {"ok": True}
 
 
