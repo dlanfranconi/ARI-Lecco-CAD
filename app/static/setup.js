@@ -26,8 +26,24 @@ if (tacFilter) {
 }
 
 
-// Long lists (Users, Athletes, Archive) can get very long with a busy
-// roster -- a collapse toggle next to each title keeps the page scannable.
+// Archive: one dropdown to pick a snapshot instead of a card per archive,
+// with a single fixed set of View/Download/Delete controls that follow
+// whichever one is currently selected.
+const archiveSelect = document.getElementById("archive-select");
+if (archiveSelect) {
+  const viewLink = document.getElementById("archive-view-link");
+  const downloadLink = document.getElementById("archive-download-link");
+  const deleteForm = document.getElementById("archive-delete-form");
+  archiveSelect.addEventListener("change", () => {
+    const id = archiveSelect.value;
+    if (viewLink) viewLink.href = `/archive/${id}`;
+    if (downloadLink) downloadLink.href = `/archive/${id}/download`;
+    if (deleteForm) deleteForm.action = `/archive/${id}/delete`;
+  });
+}
+
+// Long lists (Users, Athletes) can get very long with a busy roster -- a
+// collapse toggle next to each title keeps the page scannable.
 // Remembered per browser via localStorage since it's a pure viewing
 // convenience, not something that needs to sync across devices/viewers.
 document.querySelectorAll(".list-toggle").forEach((button) => {

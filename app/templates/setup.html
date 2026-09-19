@@ -335,9 +335,18 @@
 
     <section class="panel" data-box="archive">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.archive }} <button type="button" class="list-toggle secondary" data-target="archive-list" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h2>
+      <h2>{{ t.archive }}</h2>
       <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
-      <div class="cards" id="archive-list">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
+      {% if archives %}
+      <label>{{ t.select_archive }}
+        <select id="archive-select">{% for archive in archives %}<option value="{{ archive.id }}">{{ archive.race_name }} &mdash; {{ format_dt(archive.archived_at) }} ({{ archive.reason }})</option>{% endfor %}</select>
+      </label>
+      <div class="actions">
+        <a id="archive-view-link" class="button secondary" href="/archive/{{ archives[0].id }}">{{ t.view_archive }}</a>
+        <a id="archive-download-link" class="button secondary" href="/archive/{{ archives[0].id }}/download">{{ t.download_archive }}</a>
+        <form method="post" id="archive-delete-form" action="/archive/{{ archives[0].id }}/delete" data-confirm="{{ t.delete_archive_confirm }}"><button class="danger">{{ t.delete_archive }}</button></form>
+      </div>
+      {% endif %}
     </section>
 
   </div>
