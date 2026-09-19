@@ -986,28 +986,32 @@ async def update_settings(
     # submitted form -- Setup splits these across several independent
     # panels/forms, so saving one doesn't reset the others back to their
     # hardcoded defaults just because that panel's <form> never included
-    # those fields. Only Appearance's color scheme is admin-editable here;
-    # General/APRS/Network all moved to /setup/settings/restricted.
+    # those fields. Appearance's color scheme and the race/CAD mode toggle
+    # are admin-editable here; the rest of General plus APRS/Network moved
+    # to /setup/settings/restricted (superadmin-only).
     color_scheme: str | None = Form(None),
+    app_mode: str | None = Form(None),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     if color_scheme is not None:
         save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
+    if app_mode is not None:
+        save_setting("app_mode", "cad" if app_mode == "cad" else "race")
     return RedirectResponse("/setup", status_code=303)
 
 
 @app.post("/setup/settings/restricted")
 async def update_restricted_settings(
     # General/APRS/Network are superadmin-only -- between them they cover
-    # the app-wide language/timezone/mode, the aprs.fi API key, and what
+    # the app-wide language/timezone, the aprs.fi API key, and what
     # address/hostname the server answers on, which is more than a plain
-    # admin needs to touch day-to-day.
+    # admin needs to touch day-to-day. app_mode is handled by the
+    # admin-open /setup/settings instead (see above).
     language: str | None = Form(None),
     app_timezone: str | None = Form(None),
     app_locale: str | None = Form(None),
     ntp_server: str | None = Form(None),
     athlete_name_display: str | None = Form(None),
-    app_mode: str | None = Form(None),
     aprsfi_api_key: str | None = Form(None),
     aprs_poll_seconds: str | None = Form(None),
     mdns_hostname: str | None = Form(None),
@@ -1026,8 +1030,6 @@ async def update_restricted_settings(
         save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
     if athlete_name_display is not None:
         save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
-    if app_mode is not None:
-        save_setting("app_mode", "cad" if app_mode == "cad" else "race")
     if aprsfi_api_key is not None:
         save_setting("aprsfi_api_key", aprsfi_api_key.strip())
     if aprs_poll_seconds is not None:
@@ -1086,6 +1088,7 @@ async def save_setup_box_order(request: Request, _: Any = Depends(require_admin)
     valid_boxes = {
         "general", "appearance", "network", "logo", "race_name", "aprs", "logo2", "notification_sound",
         "tactical_callsigns", "all_users", "exports", "full_backup", "runner_import", "archive", "athletes",
+        "app_mode",
     }
     if not isinstance(columns, list) or not all(isinstance(col, list) for col in columns):
         raise HTTPException(status_code=400, detail="Invalid layout")

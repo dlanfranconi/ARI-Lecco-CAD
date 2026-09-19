@@ -172,6 +172,19 @@
   </div>
 
   <div class="stack">
+    <form method="post" action="/setup/settings" class="panel" data-box="app_mode">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
+      <h2>{{ t.app_mode }}</h2>
+      <label>{{ t.app_mode }}
+        <select name="app_mode">
+          <option value="race" {% if app_mode == 'race' %}selected{% endif %}>{{ t.app_mode_race }}</option>
+          <option value="cad" {% if app_mode == 'cad' %}selected{% endif %}>{{ t.app_mode_cad }}</option>
+        </select>
+      </label>
+      <p class="meta">{{ t.app_mode_hint }}</p>
+      <button>{{ t.save_settings }}</button>
+    </form>
+
     {% if is_superadmin %}
     <form method="post" action="/setup/settings/restricted" class="panel" data-box="general">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
@@ -197,13 +210,6 @@
         </select>
       </label>
       {% endif %}
-      <label>{{ t.app_mode }}
-        <select name="app_mode">
-          <option value="race" {% if app_mode == 'race' %}selected{% endif %}>{{ t.app_mode_race }}</option>
-          <option value="cad" {% if app_mode == 'cad' %}selected{% endif %}>{{ t.app_mode_cad }}</option>
-        </select>
-      </label>
-      <p class="meta">{{ t.app_mode_hint }}</p>
       <button>{{ t.save_settings }}</button>
     </form>
 
