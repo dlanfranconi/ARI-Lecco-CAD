@@ -1198,9 +1198,8 @@ async def add_user(
 
 @app.post("/setup/users/import")
 async def import_users(file: UploadFile = File(...), _: Any = Depends(require_superadmin)) -> RedirectResponse:
-    try:
-        content = (await file.read()).decode("utf-8-sig")
-    except UnicodeDecodeError:
+    content = decode_csv_upload(await file.read())
+    if content is None:
         params = urlencode({"users_import_error": "decode"})
         return RedirectResponse(f"/setup?{params}", status_code=303)
     reader = csv_reader_for_content(content)
@@ -2146,6 +2145,24 @@ def csv_value(item: dict[str, str], *names: str) -> str:
     return ""
 
 
+def decode_csv_upload(raw: bytes) -> str | None:
+    # Excel on Windows (the realistic source for a hand-edited athlete/user
+    # list) saves CSV as Windows-1252 by default, not UTF-8 -- straight
+    # utf-8-sig decoding then fails on ANY accented character (città,
+    # cognome, ...), which was the common case, not the exception. cp1252
+    # maps every byte value to a character, so it never raises; falling
+    # back to it here means the "save as UTF-8" error basically only fires
+    # for a genuinely non-text upload.
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    try:
+        return raw.decode("cp1252")
+    except UnicodeDecodeError:
+        return None
+
+
 def csv_reader_for_content(content: str) -> csv.DictReader:
     sample = content[:4096]
     try:
@@ -2165,9 +2182,8 @@ def split_runner_name(name: str) -> tuple[str, str]:
 
 @app.post("/setup/runners/import")
 async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
-    try:
-        content = (await file.read()).decode("utf-8-sig")
-    except UnicodeDecodeError:
+    content = decode_csv_upload(await file.read())
+    if content is None:
         params = urlencode({"runner_import_error": "decode"})
         return RedirectResponse(f"/setup?{params}", status_code=303)
     reader = csv_reader_for_content(content)
