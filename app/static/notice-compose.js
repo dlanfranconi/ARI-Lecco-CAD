@@ -89,6 +89,9 @@ function initRunnerComposer(root) {
     runnerList.querySelectorAll(".runner-position").forEach((input) => input.addEventListener("input", composeMessage));
   }
 
+  // Select the existing value on focus so tapping in and typing/pasting a
+  // new bib replaces it outright, instead of appending to the old one.
+  bib.addEventListener("focus", () => bib.select());
   bib.addEventListener("change", lookupRunner);
   bib.addEventListener("blur", lookupRunner);
   checkpoint.addEventListener("change", composeMessage);

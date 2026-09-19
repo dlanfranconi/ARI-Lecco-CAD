@@ -70,7 +70,13 @@ function initOperatorCombobox() {
     syncId();
     renderSuggestions();
   });
-  input.addEventListener("focus", renderSuggestions);
+  input.addEventListener("focus", () => {
+    // Select the existing text so tapping into an already-filled field and
+    // typing/pasting a new name replaces it outright, instead of appending
+    // to or requiring a manual select-all of the old value first.
+    input.select();
+    renderSuggestions();
+  });
   input.addEventListener("blur", () => {
     syncId();
     hideSuggestions();
