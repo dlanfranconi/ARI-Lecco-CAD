@@ -316,21 +316,28 @@ def require_login(request: Request) -> Any:
 
 def require_admin(request: Request) -> Any:
     user = require_login(request)
-    if user["role"] != "admin":
+    if user["role"] not in {"admin", "superadmin"}:
         raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def require_superadmin(request: Request) -> Any:
+    user = require_login(request)
+    if user["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin access required")
     return user
 
 
 def require_user_or_admin(request: Request) -> Any:
     user = require_login(request)
-    if user["role"] not in {"admin", "user"}:
+    if user["role"] not in {"admin", "superadmin", "user"}:
         raise HTTPException(status_code=403, detail="User access required")
     return user
 
 
 def require_notice_view(request: Request) -> Any:
     user = require_login(request)
-    if user["role"] not in {"admin", "user"}:
+    if user["role"] not in {"admin", "superadmin", "user"}:
         raise HTTPException(status_code=403, detail="Notice access required")
     return user
 
@@ -340,7 +347,8 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     user = current_user(request)
     context.setdefault("current_user", user)
     context.setdefault("dispatch_user", user["username"] if user else None)
-    context.setdefault("is_admin", bool(user and user["role"] == "admin"))
+    context.setdefault("is_admin", bool(user and user["role"] in {"admin", "superadmin"}))
+    context.setdefault("is_superadmin", bool(user and user["role"] == "superadmin"))
     context.setdefault("lang", lang)
     context.setdefault("t", TRANSLATIONS[lang])
     context.setdefault("format_dt", format_dt)
@@ -373,7 +381,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("network_monitor_alert_after_seconds", current_network_monitor_alert_after_seconds())
     context.setdefault(
         "users_list",
-        rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name") if user and user["role"] == "admin" else [],
+        rows("SELECT id, display_name FROM users WHERE active = 1 ORDER BY display_name") if user and user["role"] in {"admin", "superadmin"} else [],
     )
     # Normalize to plain dicts regardless of who set it above -- callers pass
     # raw sqlite3.Row lists, which base.html's `users_list|tojson` (for the
@@ -941,15 +949,31 @@ async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(r
 
 
 @app.get("/setup", response_class=HTMLResponse)
-async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLResponse:
-    users = rows(
-        """
-        SELECT users.*, aprs_stations.callsign AS aprs_callsign
-        FROM users
-        LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-        ORDER BY users.active DESC, users.role, users.display_name
-        """
-    )
+async def setup(request: Request, admin: Any = Depends(require_admin)) -> HTMLResponse:
+    # Full user management (add/edit anyone, roles, CSV import/export) is
+    # superadmin-only -- a plain admin only ever sees/edits their own
+    # account, so don't even fetch everyone else's data for them.
+    if admin["role"] == "superadmin":
+        users = rows(
+            """
+            SELECT users.*, aprs_stations.callsign AS aprs_callsign
+            FROM users
+            LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
+            ORDER BY users.active DESC, users.role, users.display_name
+            """
+        )
+        own_user = None
+    else:
+        users = []
+        own_user = row(
+            """
+            SELECT users.*, aprs_stations.callsign AS aprs_callsign
+            FROM users
+            LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
+            WHERE users.id = ?
+            """,
+            (admin["id"],),
+        )
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
     tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
     archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
@@ -961,7 +985,7 @@ async def setup(request: Request, _: Any = Depends(require_admin)) -> HTMLRespon
             CASE WHEN bib_number GLOB '[0-9]*' AND bib_number NOT GLOB '*[^0-9]*' THEN CAST(bib_number AS INTEGER) END,
             bib_number
     """)
-    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
+    return page(request, "setup.html", users=users, own_user=own_user, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
 
 
 COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
@@ -971,8 +995,8 @@ COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
 async def update_settings(
     # Every field is optional and only written when actually present in the
     # submitted form -- Setup splits these across several independent
-    # panels/forms (General, Network, APRS) so saving one doesn't reset the
-    # others back to their hardcoded defaults just because that panel's
+    # panels/forms (General, Appearance, ...) so saving one doesn't reset
+    # the others back to their hardcoded defaults just because that panel's
     # <form> never included those fields.
     language: str | None = Form(None),
     app_timezone: str | None = Form(None),
@@ -981,12 +1005,6 @@ async def update_settings(
     athlete_name_display: str | None = Form(None),
     color_scheme: str | None = Form(None),
     app_mode: str | None = Form(None),
-    aprsfi_api_key: str | None = Form(None),
-    aprs_poll_seconds: str | None = Form(None),
-    mdns_hostname: str | None = Form(None),
-    public_url: str | None = Form(None),
-    network_monitor_poll_seconds: str | None = Form(None),
-    network_monitor_alert_after_seconds: str | None = Form(None),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     if language is not None:
@@ -1003,6 +1021,22 @@ async def update_settings(
         save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
     if app_mode is not None:
         save_setting("app_mode", "cad" if app_mode == "cad" else "race")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/settings/restricted")
+async def update_restricted_settings(
+    # APRS and Network settings are superadmin-only -- they expose the
+    # aprs.fi API key and control what address/hostname the server answers
+    # on, which is more than a plain admin needs to touch day-to-day.
+    aprsfi_api_key: str | None = Form(None),
+    aprs_poll_seconds: str | None = Form(None),
+    mdns_hostname: str | None = Form(None),
+    public_url: str | None = Form(None),
+    network_monitor_poll_seconds: str | None = Form(None),
+    network_monitor_alert_after_seconds: str | None = Form(None),
+    _: Any = Depends(require_superadmin),
+) -> RedirectResponse:
     if aprsfi_api_key is not None:
         save_setting("aprsfi_api_key", aprsfi_api_key.strip())
     if aprs_poll_seconds is not None:
@@ -1149,11 +1183,11 @@ async def add_user(
     password: str = Form(""),
     role: str = Form("user"),
     in_speaker_group: bool = Form(False),
-    _: Any = Depends(require_admin),
+    _: Any = Depends(require_superadmin),
 ) -> RedirectResponse:
     clean_username = username.strip() or None
     password_hash = hash_password(password) if password else ""
-    role = role if role in {"admin", "user", "viewer"} else "user"
+    role = role if role in {"superadmin", "admin", "user", "viewer"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
@@ -1169,7 +1203,7 @@ async def add_user(
 
 
 @app.post("/setup/users/import")
-async def import_users(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def import_users(file: UploadFile = File(...), _: Any = Depends(require_superadmin)) -> RedirectResponse:
     try:
         content = (await file.read()).decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -1193,7 +1227,7 @@ async def import_users(file: UploadFile = File(...), _: Any = Depends(require_ad
             dstar_callsign = csv_value(item, "dstar callsign", "dstar_callsign", "d-star", "dstar")
             password = csv_value(item, "password", "pass", "password")
             role_raw = csv_value(item, "role", "ruolo")
-            role = role_raw if role_raw in {"admin", "user", "viewer"} else "user"
+            role = role_raw if role_raw in {"superadmin", "admin", "user", "viewer"} else "user"
             speaker_raw = csv_value(item, "in speaker group", "speaker group", "gruppo speaker", "annunciatore").strip().lower()
             in_speaker_group = speaker_raw in {"1", "true", "yes", "si", "sì", "x"}
             active_raw = csv_value(item, "active", "attivo").strip().lower()
@@ -1206,10 +1240,10 @@ async def import_users(file: UploadFile = File(...), _: Any = Depends(require_ad
 
             existing = row("SELECT id, role FROM users WHERE username = ?", (clean_username,)) if clean_username else None
             if existing:
-                if existing["role"] == "admin" and role != "admin":
-                    admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").fetchone()["count"]
-                    if admin_count <= 1:
-                        role = "admin"
+                if existing["role"] == "superadmin" and role != "superadmin":
+                    superadmin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin' AND active = 1").fetchone()["count"]
+                    if superadmin_count <= 1:
+                        role = "superadmin"
                 conn.execute(
                     """
                     UPDATE users
@@ -1237,25 +1271,25 @@ async def import_users(file: UploadFile = File(...), _: Any = Depends(require_ad
 
 
 @app.post("/setup/users/{user_id}/toggle")
-async def toggle_user(user_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+async def toggle_user(user_id: int, _: Any = Depends(require_superadmin)) -> RedirectResponse:
     with connect() as conn:
         conn.execute("UPDATE users SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (user_id,))
     return RedirectResponse("/setup", status_code=303)
 
 
 @app.post("/setup/users/{user_id}/action")
-async def user_action(user_id: int, action: str = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+async def user_action(user_id: int, action: str = Form(...), _: Any = Depends(require_superadmin)) -> RedirectResponse:
     with connect() as conn:
         if action == "delete":
             target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
-            admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").fetchone()["count"]
-            if target and target["role"] == "admin" and admin_count <= 1:
+            superadmin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin' AND active = 1").fetchone()["count"]
+            if target and target["role"] == "superadmin" and superadmin_count <= 1:
                 return RedirectResponse("/setup", status_code=303)
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         elif action == "disable":
             target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
-            admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").fetchone()["count"]
-            if target and target["role"] == "admin" and admin_count <= 1:
+            superadmin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin' AND active = 1").fetchone()["count"]
+            if target and target["role"] == "superadmin" and superadmin_count <= 1:
                 return RedirectResponse("/setup", status_code=303)
             conn.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
         elif action == "enable":
@@ -1276,10 +1310,19 @@ async def update_user(
     password: str = Form(""),
     role: str = Form("user"),
     in_speaker_group: bool = Form(False),
-    _: Any = Depends(require_admin),
+    admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
+    # A plain admin (not superadmin) can only edit their own account, and
+    # can never change their own role -- superadmin manages everyone else's
+    # accounts and roles from the full Users panel.
+    if admin["role"] != "superadmin":
+        if admin["id"] != user_id:
+            raise HTTPException(status_code=403, detail="You can only edit your own account")
+        existing_role = row("SELECT role FROM users WHERE id = ?", (user_id,))
+        role = existing_role["role"] if existing_role else admin["role"]
+    else:
+        role = role if role in {"superadmin", "admin", "user", "viewer"} else "user"
     clean_username = username.strip() or None
-    role = role if role in {"admin", "user", "viewer"} else "user"
     with connect() as conn:
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
@@ -1390,7 +1433,7 @@ def combined_latest_positions() -> list[dict[str, object]]:
 
 @app.get("/notices", response_class=HTMLResponse)
 async def notices(request: Request, user: Any = Depends(require_notice_view)) -> HTMLResponse:
-    pending = rows("SELECT * FROM bulletins WHERE status = 'pending' AND hidden_at IS NULL ORDER BY id DESC") if user["role"] == "admin" else []
+    pending = rows("SELECT * FROM bulletins WHERE status = 'pending' AND hidden_at IS NULL ORDER BY id DESC") if user["role"] in {"admin", "superadmin"} else []
     approved = rows("SELECT * FROM bulletins WHERE status = 'approved' AND hidden_at IS NULL ORDER BY id DESC LIMIT 50")
     recipient_rows = rows(
         """
@@ -1875,7 +1918,7 @@ async def export_dstar_geojson(_: Any = Depends(require_admin)) -> StreamingResp
 
 
 @app.get("/export/users.csv")
-async def export_users(_: Any = Depends(require_admin)) -> StreamingResponse:
+async def export_users(_: Any = Depends(require_superadmin)) -> StreamingResponse:
     users = rows(
         """
         SELECT users.*, aprs_stations.callsign AS aprs_callsign

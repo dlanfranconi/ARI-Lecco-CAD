@@ -44,6 +44,7 @@
       </div>
     </section>
 
+    {% if is_superadmin %}
     <section class="panel full-span" data-box="all_users">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.all_users }}</h2>
@@ -71,7 +72,7 @@
                 <td><input name="dstar_callsign"></td>
                 <td><input name="username"></td>
                 <td><input name="password" type="password"></td>
-                <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="viewer">{{ t.viewer_role }}</option></select></td>
+                <td><select name="role"><option value="user">{{ t.standard_user }}</option><option value="admin">{{ t.admin }}</option><option value="superadmin">{{ t.superadmin }}</option><option value="viewer">{{ t.viewer_role }}</option></select></td>
                 <td><input type="checkbox" name="in_speaker_group" checked></td>
                 <td>{{ t.active }}</td>
                 <td><button>{{ t.add }}</button></td>
@@ -89,7 +90,7 @@
                 <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
                 <td><input name="username" value="{{ user.username or '' }}"></td>
                 <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
-                <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>{{ t.viewer_role }}</option></select></td>
+                <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="superadmin" {% if user.role == 'superadmin' %}selected{% endif %}>{{ t.superadmin }}</option><option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>{{ t.viewer_role }}</option></select></td>
                 <td><input type="checkbox" name="in_speaker_group" {% if user.in_speaker_group %}checked{% endif %}></td>
                 <td>{{ t.active if user.active else t.disabled }}</td>
                 <td><button>{{ t.save }}</button></td>
@@ -109,6 +110,27 @@
         </table>
       </div>
     </section>
+    {% elif own_user %}
+    <section class="panel" data-box="all_users">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
+      <h2>{{ t.your_profile }}</h2>
+      <p class="meta">{{ t.your_profile_hint }}</p>
+      <form method="post" action="/setup/users/{{ own_user.id }}">
+        <label>{{ t.display_name }}<input name="display_name" value="{{ own_user.display_name }}" required></label>
+        <label>{{ t.operator_callsign }}<input name="operator_callsign" value="{{ own_user.operator_callsign }}"></label>
+        <label>{{ t.tactical_callsign }}
+          <select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if own_user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select>
+        </label>
+        <label>{{ t.default_location }}<input name="default_location" value="{{ own_user.default_location }}"></label>
+        <label>APRS<input name="aprs_callsign" value="{{ own_user.aprs_callsign or '' }}" placeholder="I1ABC-9"></label>
+        <label>D-STAR<input name="dstar_callsign" value="{{ own_user.dstar_callsign }}"></label>
+        <label>{{ t.username }}<input name="username" value="{{ own_user.username or '' }}"></label>
+        <label>{{ t.password }}<input name="password" type="password" placeholder="{{ t.password_hint }}"></label>
+        <label class="checkbox-row"><input type="checkbox" name="in_speaker_group" {% if own_user.in_speaker_group %}checked{% endif %}> {{ t.speaker_group }}</label>
+        <button>{{ t.save }}</button>
+      </form>
+    </section>
+    {% endif %}
 
     {% if race_mode %}
     <section class="panel full-span" data-box="athletes">
@@ -195,7 +217,8 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    <form method="post" action="/setup/settings" class="panel" data-box="aprs">
+    {% if is_superadmin %}
+    <form method="post" action="/setup/settings/restricted" class="panel" data-box="aprs">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.aprs_settings }}</h2>
       <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
@@ -203,11 +226,13 @@
       <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
       <button>{{ t.save_settings }}</button>
     </form>
+    {% endif %}
 
   </div>
 
   <div class="stack">
-    <form method="post" action="/setup/settings" class="panel" data-box="network">
+    {% if is_superadmin %}
+    <form method="post" action="/setup/settings/restricted" class="panel" data-box="network">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.network_settings }}</h2>
       {% if request.query_params.get("hostname_restart") %}<p class="success">{{ t.hostname_restart_notice }}</p>{% endif %}
@@ -220,6 +245,7 @@
       <p class="meta">{{ t.network_monitor_alert_after_hint }}</p>
       <button>{{ t.save_settings }}</button>
     </form>
+    {% endif %}
 
     <section class="panel" data-box="notification_sound">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>

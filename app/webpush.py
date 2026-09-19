@@ -72,7 +72,7 @@ def _send_one(sub_row: dict, payload: dict) -> None:
 
 def push_to_admins(payload: dict) -> None:
     subs = rows(
-        "SELECT ps.* FROM push_subscriptions ps INNER JOIN users u ON u.id = ps.user_id WHERE u.role = 'admin' AND u.active = 1"
+        "SELECT ps.* FROM push_subscriptions ps INNER JOIN users u ON u.id = ps.user_id WHERE u.role IN ('admin', 'superadmin') AND u.active = 1"
     )
     for sub in subs:
         _send_one(sub, payload)

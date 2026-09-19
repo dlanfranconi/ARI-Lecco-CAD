@@ -240,6 +240,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
     # user rather than losing its login entirely.
     conn.execute("UPDATE users SET role = 'user' WHERE role = 'announcer'")
 
+    # Introduced a "superadmin" tier above "admin" for user-account and
+    # APRS/network settings management. Promote the longest-standing
+    # existing admin automatically so upgrading an already-populated
+    # install doesn't lock everyone out of those Setup sections until
+    # someone hand-edits the database -- a fresh install seeds its first
+    # account straight into "superadmin" instead (see _seed_admin).
+    if not conn.execute("SELECT 1 FROM users WHERE role = 'superadmin' LIMIT 1").fetchone():
+        oldest_admin = conn.execute("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").fetchone()
+        if oldest_admin:
+            conn.execute("UPDATE users SET role = 'superadmin' WHERE id = ?", (oldest_admin["id"],))
+
     tac_cols = {item[1] for item in conn.execute("PRAGMA table_info(tactical_callsigns)")}
     if "location_preposition" not in tac_cols:
         conn.execute("ALTER TABLE tactical_callsigns ADD COLUMN location_preposition TEXT DEFAULT ''")
@@ -304,12 +315,12 @@ def _seed_admin(conn: sqlite3.Connection) -> None:
     user_count = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()["count"]
     if user_count == 0:
         conn.execute(
-            "INSERT INTO users (display_name, username, password_hash, role, active, must_change_password) VALUES ('dispatch', 'dispatch', ?, 'admin', 1, 1)",
+            "INSERT INTO users (display_name, username, password_hash, role, active, must_change_password) VALUES ('dispatch', 'dispatch', ?, 'superadmin', 1, 1)",
             (hash_password("dispatch"),),
         )
         return
 
-    legacy = conn.execute("SELECT id, password_hash FROM users WHERE username = 'dispatch' AND role = 'admin' LIMIT 1").fetchone()
+    legacy = conn.execute("SELECT id, password_hash FROM users WHERE username = 'dispatch' AND role IN ('admin', 'superadmin') LIMIT 1").fetchone()
     if legacy and verify_password("change-me", legacy["password_hash"]) and not verify_password("dispatch", legacy["password_hash"]):
         conn.execute("UPDATE users SET password_hash = ?, active = 1 WHERE id = ?", (hash_password("dispatch"), legacy["id"]))
 
