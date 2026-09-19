@@ -2015,9 +2015,10 @@ def archive_current_race(reason: str) -> int | None:
         return cur.lastrowid
 
 
-def download_redirect(archive_id: int | None, filename: str) -> RedirectResponse:
+def download_redirect(archive_id: int | None, filename: str, fallback_query: str = "") -> RedirectResponse:
     if not archive_id:
-        return RedirectResponse("/setup", status_code=303)
+        suffix = f"?{fallback_query}" if fallback_query else ""
+        return RedirectResponse(f"/setup{suffix}", status_code=303)
     suffix = f"?filename={filename}" if filename else ""
     return RedirectResponse(f"/archive/{archive_id}/download{suffix}", status_code=303)
 
@@ -2046,23 +2047,25 @@ async def clear_race(action: str = Form(""), confirm: str = Form(""), archive_fi
 
 @app.post("/setup/race")
 async def update_race_name(race_name: str = Form(...), archive_filename: str = Form(""), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    old_name = setting("race_name", "")
-    if old_name and race_name != old_name:
-        if setting("race_started_at", ""):
-            stop_race_timer_with_log(admin)
-        archive_id = archive_current_race("new_race")
-        with connect() as conn:
-            conn.execute("DELETE FROM log_entries")
-            conn.execute("DELETE FROM bulletins")
-            conn.execute("DELETE FROM aprs_positions")
-            conn.execute("DELETE FROM dstar_positions")
-        save_setting("race_started_at", "")
-        save_setting("race_stopped_crono", "")
-        save_setting("race_name", race_name)
-        await broadcast_race_timer_changed("reset", "")
-        return download_redirect(archive_id, archive_filename)
+    # "Avvia nuovo evento" is an explicit action, not just a rename -- it
+    # always stops the timer, archives the current logs/notices/positions,
+    # and starts fresh, regardless of whether the typed name actually
+    # differs from the current one (a user re-submitting the same name
+    # expecting a reset is a very easy mistake to make otherwise). Athletes
+    # and user accounts are untouched.
+    if setting("race_started_at", ""):
+        stop_race_timer_with_log(admin)
+    archive_id = archive_current_race("new_race")
+    with connect() as conn:
+        conn.execute("DELETE FROM log_entries")
+        conn.execute("DELETE FROM bulletins")
+        conn.execute("DELETE FROM aprs_positions")
+        conn.execute("DELETE FROM dstar_positions")
+    save_setting("race_started_at", "")
+    save_setting("race_stopped_crono", "")
     save_setting("race_name", race_name)
-    return RedirectResponse("/setup", status_code=303)
+    await broadcast_race_timer_changed("reset", "")
+    return download_redirect(archive_id, archive_filename, fallback_query="new_event=1")
 
 
 @app.post("/setup/tactical-callsigns")

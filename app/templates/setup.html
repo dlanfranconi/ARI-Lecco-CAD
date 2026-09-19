@@ -244,9 +244,10 @@
       {% if notification_sound_url %}<form method="post" action="/setup/notification-sound/delete"><button class="danger">{{ t.remove_notification_sound }}</button></form>{% endif %}
     </section>
 
-    <form method="post" action="/setup/race" class="panel" data-box="race_name">
+    <form method="post" action="/setup/race" class="panel" data-box="race_name" data-confirm="{{ t.start_new_race_confirm if race_mode else t.start_new_event_confirm }}">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.race_name if race_mode else t.event_name }}</h1>
+      {% if request.query_params.get("new_event") %}<p class="success">{{ t.new_race_started if race_mode else t.new_event_started }}</p>{% endif %}
       <label>{{ t.race_name if race_mode else t.event_name }}<input name="race_name" value="{{ race_name }}" required></label>
       <label>{{ t.archive_filename }}<input name="archive_filename" placeholder="race-archive.json"></label>
       <button>{{ t.start_new_race if race_mode else t.start_new_event }}</button>
