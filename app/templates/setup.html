@@ -46,7 +46,7 @@
 
     <section class="panel full-span" data-box="all_users">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.all_users }}</h2>
+      <h2>{{ t.all_users }} <button type="button" class="list-toggle secondary" data-target="all-users-table" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h2>
       {% if not is_superadmin %}<p class="meta">{{ t.users_admin_hint }}</p>{% endif %}
       {% if is_superadmin %}
       {% if request.query_params.get("users_import_error") == "decode" %}<p class="error">{{ t.users_import_decode_error }}</p>{% endif %}
@@ -60,7 +60,7 @@
       <label>{{ t.select_user_to_edit }}
         <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
       </label>
-      <div class="table-wrap">
+      <div class="table-wrap" id="all-users-table">
         <table class="setup-table">
           <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th>{% if is_superadmin %}<th>{{ t.password }}</th>{% endif %}<th>{{ t.role }}</th><th>{{ t.speaker_group }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
           <tbody>
@@ -124,11 +124,11 @@
     {% if race_mode %}
     <section class="panel full-span" data-box="athletes">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.athletes }}</h2>
+      <h2>{{ t.athletes }} <button type="button" class="list-toggle secondary" data-target="athletes-table" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h2>
       <label>{{ t.select_athlete_to_edit }}
         <select id="runner-filter"><option value="">{{ t.all_athletes }}</option>{% for runner in runners %}<option value="runner-{{ runner.id }}">{{ runner.bib_number }} / {{ runner.full_name or runner.name }}</option>{% endfor %}</select>
       </label>
-      <div class="table-wrap">
+      <div class="table-wrap" id="athletes-table">
         <table class="setup-table">
           <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.first_name }}</th><th>{{ t.last_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
           <tbody>
@@ -335,9 +335,9 @@
 
     <section class="panel" data-box="archive">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.archive }}</h2>
+      <h2>{{ t.archive }} <button type="button" class="list-toggle secondary" data-target="archive-list" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h2>
       <form method="post" action="/archive/import" enctype="multipart/form-data"><label>{{ t.import_archive }}<input type="file" name="file" accept=".json" required></label><button>{{ t.import_archive }}</button></form>
-      <div class="cards">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
+      <div class="cards" id="archive-list">{% for archive in archives %}<article class="card"><strong>{{ archive.race_name }}</strong><p class="meta">{{ format_dt(archive.archived_at) }} {{ archive.reason }}</p><a class="button secondary" href="/archive/{{ archive.id }}">{{ t.view_archive }}</a><a class="button secondary" href="/archive/{{ archive.id }}/download">{{ t.download_archive }}</a><form method="post" action="/archive/{{ archive.id }}/delete"><button class="danger">{{ t.delete_archive }}</button></form></article>{% endfor %}</div>
     </section>
 
   </div>

@@ -148,6 +148,7 @@ a { color: inherit; }
 .login-actions { display: flex; gap: 8px; }
 .login-actions > * { flex: 1; }
 h1, h2 { margin: 0 0 14px; }
+.list-toggle { min-height: auto; padding: 3px 10px; font-size: 12px; font-weight: 400; vertical-align: middle; margin-left: 4px; }
 label { display: grid; gap: 6px; margin-bottom: 12px; font-weight: 700; }
 input, select, textarea {
   width: 100%;

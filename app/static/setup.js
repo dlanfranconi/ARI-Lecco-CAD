@@ -26,6 +26,38 @@ if (tacFilter) {
 }
 
 
+// Long lists (Users, Athletes, Archive) can get very long with a busy
+// roster -- a collapse toggle next to each title keeps the page scannable.
+// Remembered per browser via localStorage since it's a pure viewing
+// convenience, not something that needs to sync across devices/viewers.
+document.querySelectorAll(".list-toggle").forEach((button) => {
+  const target = document.getElementById(button.dataset.target || "");
+  if (!target) return;
+  const showLabel = button.dataset.showLabel || button.textContent;
+  const hideLabel = button.dataset.hideLabel || button.textContent;
+  const storageKey = `cad-setup-collapsed-${button.dataset.target}`;
+  const applyState = (collapsed) => {
+    target.hidden = collapsed;
+    button.textContent = collapsed ? showLabel : hideLabel;
+  };
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(storageKey) === "1";
+  } catch (_) {
+    // Storage unavailable; default to expanded.
+  }
+  applyState(collapsed);
+  button.addEventListener("click", () => {
+    const nextCollapsed = !target.hidden;
+    applyState(nextCollapsed);
+    try {
+      localStorage.setItem(storageKey, nextCollapsed ? "1" : "0");
+    } catch (_) {
+      // Storage unavailable; state just won't persist across reloads.
+    }
+  });
+});
+
 document.querySelectorAll(".row-action-form").forEach((form) => {
   form.addEventListener("submit", (event) => {
     const action = form.querySelector('select[name="action"]')?.value;
