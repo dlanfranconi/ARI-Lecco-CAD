@@ -1920,6 +1920,17 @@ async def export_dstar_geojson(_: Any = Depends(require_admin)) -> StreamingResp
     return geojson_response("dstar_waypoints.geojson", rows("SELECT *, 'D-STAR' AS source FROM dstar_positions ORDER BY callsign, id"))
 
 
+@app.get("/export/runners.csv")
+async def export_runners(_: Any = Depends(require_admin)) -> StreamingResponse:
+    # Same column names /setup/runners/import already recognizes, so the
+    # export doubles as a fill-in-and-reimport template when the list is
+    # still empty -- it's just the CSV header row in that case.
+    runners = rows("SELECT bib_number, first_name, last_name, hometown, active FROM runners ORDER BY active DESC, bib_number")
+    fields = ["bib_number", "first_name", "last_name", "hometown", "active"]
+    data = [{field: runner[field] for field in fields} for runner in runners]
+    return csv_response("athletes.csv", data, fieldnames=fields)
+
+
 @app.get("/export/users.csv")
 async def export_users(_: Any = Depends(require_superadmin)) -> StreamingResponse:
     users = rows(
@@ -1986,10 +1997,13 @@ def geojson_response(filename: str, data: list[Any]) -> StreamingResponse:
     return StreamingResponse(io.StringIO(json.dumps({"type": "FeatureCollection", "features": features}, indent=2)), media_type="application/geo+json", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
-def csv_response(filename: str, data: list[Any]) -> StreamingResponse:
+def csv_response(filename: str, data: list[Any], fieldnames: list[str] | None = None) -> StreamingResponse:
     output = io.StringIO()
-    if data:
-        writer = csv.DictWriter(output, fieldnames=data[0].keys())
+    # fieldnames lets a caller still get a (header-only) CSV -- useful as an
+    # import template -- when data is empty and there's no row to infer
+    # column names from.
+    if data or fieldnames:
+        writer = csv.DictWriter(output, fieldnames=fieldnames or list(data[0].keys()))
         writer.writeheader()
         for item in data:
             writer.writerow(dict(item))

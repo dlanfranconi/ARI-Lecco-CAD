@@ -299,6 +299,8 @@
       <h2>{{ t.runner_import }}</h2>
       {% if request.query_params.get("runner_import_error") == "decode" %}<p class="error">{{ t.runner_import_decode_error }}</p>{% endif %}
       {% if request.query_params.get("runner_imported") is not none %}<p class="success">{{ t.runner_import_result.format(imported=request.query_params.get("runner_imported"), removed=request.query_params.get("runner_removed", "0"), skipped=request.query_params.get("runner_skipped", "0")) }}</p>{% endif %}
+      <div class="actions"><a class="button secondary" href="/export/runners.csv">{{ t.export_athletes_csv }}</a></div>
+      <p class="meta">{{ t.export_athletes_csv_hint }}</p>
       <form method="post" action="/setup/runners/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
     </section>
     {% endif %}
