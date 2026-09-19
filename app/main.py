@@ -950,30 +950,19 @@ async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(r
 
 @app.get("/setup", response_class=HTMLResponse)
 async def setup(request: Request, admin: Any = Depends(require_admin)) -> HTMLResponse:
-    # Full user management (add/edit anyone, roles, CSV import/export) is
-    # superadmin-only -- a plain admin only ever sees/edits their own
-    # account, so don't even fetch everyone else's data for them.
-    if admin["role"] == "superadmin":
-        users = rows(
-            """
-            SELECT users.*, aprs_stations.callsign AS aprs_callsign
-            FROM users
-            LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-            ORDER BY users.active DESC, users.role, users.display_name
-            """
-        )
-        own_user = None
-    else:
-        users = []
-        own_user = row(
-            """
-            SELECT users.*, aprs_stations.callsign AS aprs_callsign
-            FROM users
-            LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
-            WHERE users.id = ?
-            """,
-            (admin["id"],),
-        )
+    # A plain admin can see and edit everyone's profile fields (just not
+    # roles, passwords, or deletion -- see update_user/user_action), so
+    # both roles get the full list here; the template hides the
+    # add-user row, role/password columns, delete action and CSV
+    # import/export from anyone who isn't superadmin.
+    users = rows(
+        """
+        SELECT users.*, aprs_stations.callsign AS aprs_callsign
+        FROM users
+        LEFT JOIN aprs_stations ON aprs_stations.id = users.aprs_station_id
+        ORDER BY users.active DESC, users.role, users.display_name
+        """
+    )
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
     tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
     archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
@@ -985,7 +974,7 @@ async def setup(request: Request, admin: Any = Depends(require_admin)) -> HTMLRe
             CASE WHEN bib_number GLOB '[0-9]*' AND bib_number NOT GLOB '*[^0-9]*' THEN CAST(bib_number AS INTEGER) END,
             bib_number
     """)
-    return page(request, "setup.html", users=users, own_user=own_user, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
+    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
 
 
 COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
@@ -995,17 +984,37 @@ COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
 async def update_settings(
     # Every field is optional and only written when actually present in the
     # submitted form -- Setup splits these across several independent
-    # panels/forms (General, Appearance, ...) so saving one doesn't reset
-    # the others back to their hardcoded defaults just because that panel's
-    # <form> never included those fields.
+    # panels/forms, so saving one doesn't reset the others back to their
+    # hardcoded defaults just because that panel's <form> never included
+    # those fields. Only Appearance's color scheme is admin-editable here;
+    # General/APRS/Network all moved to /setup/settings/restricted.
+    color_scheme: str | None = Form(None),
+    _: Any = Depends(require_admin),
+) -> RedirectResponse:
+    if color_scheme is not None:
+        save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/settings/restricted")
+async def update_restricted_settings(
+    # General/APRS/Network are superadmin-only -- between them they cover
+    # the app-wide language/timezone/mode, the aprs.fi API key, and what
+    # address/hostname the server answers on, which is more than a plain
+    # admin needs to touch day-to-day.
     language: str | None = Form(None),
     app_timezone: str | None = Form(None),
     app_locale: str | None = Form(None),
     ntp_server: str | None = Form(None),
     athlete_name_display: str | None = Form(None),
-    color_scheme: str | None = Form(None),
     app_mode: str | None = Form(None),
-    _: Any = Depends(require_admin),
+    aprsfi_api_key: str | None = Form(None),
+    aprs_poll_seconds: str | None = Form(None),
+    mdns_hostname: str | None = Form(None),
+    public_url: str | None = Form(None),
+    network_monitor_poll_seconds: str | None = Form(None),
+    network_monitor_alert_after_seconds: str | None = Form(None),
+    _: Any = Depends(require_superadmin),
 ) -> RedirectResponse:
     if language is not None:
         save_setting("language", normalize_language(language))
@@ -1017,26 +1026,8 @@ async def update_settings(
         save_setting("ntp_server", ntp_server.strip() or settings.ntp_server)
     if athlete_name_display is not None:
         save_setting("athlete_name_display", athlete_name_display if athlete_name_display in {"first", "full"} else "full")
-    if color_scheme is not None:
-        save_setting("color_scheme", color_scheme if color_scheme in COLOR_SCHEMES else "teal")
     if app_mode is not None:
         save_setting("app_mode", "cad" if app_mode == "cad" else "race")
-    return RedirectResponse("/setup", status_code=303)
-
-
-@app.post("/setup/settings/restricted")
-async def update_restricted_settings(
-    # APRS and Network settings are superadmin-only -- they expose the
-    # aprs.fi API key and control what address/hostname the server answers
-    # on, which is more than a plain admin needs to touch day-to-day.
-    aprsfi_api_key: str | None = Form(None),
-    aprs_poll_seconds: str | None = Form(None),
-    mdns_hostname: str | None = Form(None),
-    public_url: str | None = Form(None),
-    network_monitor_poll_seconds: str | None = Form(None),
-    network_monitor_alert_after_seconds: str | None = Form(None),
-    _: Any = Depends(require_superadmin),
-) -> RedirectResponse:
     if aprsfi_api_key is not None:
         save_setting("aprsfi_api_key", aprsfi_api_key.strip())
     if aprs_poll_seconds is not None:
@@ -1271,23 +1262,31 @@ async def import_users(file: UploadFile = File(...), _: Any = Depends(require_su
 
 
 @app.post("/setup/users/{user_id}/toggle")
-async def toggle_user(user_id: int, _: Any = Depends(require_superadmin)) -> RedirectResponse:
+async def toggle_user(user_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
     with connect() as conn:
         conn.execute("UPDATE users SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (user_id,))
     return RedirectResponse("/setup", status_code=303)
 
 
 @app.post("/setup/users/{user_id}/action")
-async def user_action(user_id: int, action: str = Form(...), _: Any = Depends(require_superadmin)) -> RedirectResponse:
+async def user_action(user_id: int, action: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
+    is_superadmin = admin["role"] == "superadmin"
     with connect() as conn:
+        target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+        # A plain admin can disable/enable other accounts for day-to-day
+        # housekeeping, but never a superadmin's -- that would let an admin
+        # lock a superadmin out without ever being able to promote a
+        # replacement. Deleting anyone is superadmin-only, full stop.
+        if target and target["role"] == "superadmin" and not is_superadmin:
+            return RedirectResponse("/setup", status_code=303)
         if action == "delete":
-            target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not is_superadmin:
+                raise HTTPException(status_code=403, detail="Superadmin access required")
             superadmin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin' AND active = 1").fetchone()["count"]
             if target and target["role"] == "superadmin" and superadmin_count <= 1:
                 return RedirectResponse("/setup", status_code=303)
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         elif action == "disable":
-            target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
             superadmin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin' AND active = 1").fetchone()["count"]
             if target and target["role"] == "superadmin" and superadmin_count <= 1:
                 return RedirectResponse("/setup", status_code=303)
@@ -1312,16 +1311,17 @@ async def update_user(
     in_speaker_group: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    # A plain admin (not superadmin) can only edit their own account, and
-    # can never change their own role -- superadmin manages everyone else's
-    # accounts and roles from the full Users panel.
-    if admin["role"] != "superadmin":
-        if admin["id"] != user_id:
-            raise HTTPException(status_code=403, detail="You can only edit your own account")
-        existing_role = row("SELECT role FROM users WHERE id = ?", (user_id,))
-        role = existing_role["role"] if existing_role else admin["role"]
-    else:
+    # A plain admin can update anyone's profile fields, but never a role
+    # (self-promotion or promoting/demoting someone else) or a password
+    # (their own password change goes through /change-password instead) --
+    # both stay superadmin-only.
+    is_superadmin = admin["role"] == "superadmin"
+    if is_superadmin:
         role = role if role in {"superadmin", "admin", "user", "viewer"} else "user"
+    else:
+        existing_role = row("SELECT role FROM users WHERE id = ?", (user_id,))
+        role = existing_role["role"] if existing_role else "user"
+        password = ""
     clean_username = username.strip() or None
     with connect() as conn:
         if tactical_callsign:

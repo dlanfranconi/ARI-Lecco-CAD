@@ -44,10 +44,11 @@
       </div>
     </section>
 
-    {% if is_superadmin %}
     <section class="panel full-span" data-box="all_users">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.all_users }}</h2>
+      {% if not is_superadmin %}<p class="meta">{{ t.users_admin_hint }}</p>{% endif %}
+      {% if is_superadmin %}
       {% if request.query_params.get("users_import_error") == "decode" %}<p class="error">{{ t.users_import_decode_error }}</p>{% endif %}
       {% if request.query_params.get("users_imported") is not none %}<p class="success">{{ t.users_import_result.format(imported=request.query_params.get("users_imported"), updated=request.query_params.get("users_updated", "0"), skipped=request.query_params.get("users_skipped", "0")) }}</p>{% endif %}
       <div class="actions">
@@ -55,13 +56,15 @@
         <form method="post" action="/setup/users/import" enctype="multipart/form-data"><label>CSV<input type="file" name="file" accept=".csv" required></label><button>{{ t.import_csv }}</button></form>
       </div>
       <p class="meta">{{ t.users_import_hint }}</p>
+      {% endif %}
       <label>{{ t.select_user_to_edit }}
         <select id="user-filter"><option value="">{{ t.all_users }}</option>{% for user in users %}<option value="user-{{ user.id }}">{{ user.display_name }} / {{ user.operator_callsign }} / {{ user.tactical_callsign }}</option>{% endfor %}</select>
       </label>
       <div class="table-wrap">
         <table class="setup-table">
-          <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th><th>{{ t.password }}</th><th>{{ t.role }}</th><th>{{ t.speaker_group }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
+          <thead><tr><th>{{ t.display_name }}</th><th>{{ t.operator_callsign }}</th><th>{{ t.tactical_callsign }}</th><th>{{ t.default_location }}</th><th>APRS</th><th>D-STAR</th><th>{{ t.username }}</th>{% if is_superadmin %}<th>{{ t.password }}</th>{% endif %}<th>{{ t.role }}</th><th>{{ t.speaker_group }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
           <tbody>
+            {% if is_superadmin %}
             <tr>
               <form method="post" action="/setup/users">
                 <td><input name="display_name" required></td>
@@ -79,6 +82,7 @@
                 <td></td>
               </form>
             </tr>
+            {% endif %}
             {% for user in users %}
             <tr class="user-row" id="user-{{ user.id }}">
               <form method="post" action="/setup/users/{{ user.id }}">
@@ -89,20 +93,26 @@
                 <td><input name="aprs_callsign" value="{{ user.aprs_callsign or '' }}" placeholder="I1ABC-9"></td>
                 <td><input name="dstar_callsign" value="{{ user.dstar_callsign }}"></td>
                 <td><input name="username" value="{{ user.username or '' }}"></td>
-                <td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>
+                {% if is_superadmin %}<td><input name="password" type="password" placeholder="{{ t.password_hint }}"></td>{% endif %}
+                {% if is_superadmin %}
                 <td><select name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>{{ t.standard_user }}</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t.admin }}</option><option value="superadmin" {% if user.role == 'superadmin' %}selected{% endif %}>{{ t.superadmin }}</option><option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>{{ t.viewer_role }}</option></select></td>
+                {% else %}
+                <td>{{ t.superadmin if user.role == 'superadmin' else t.admin if user.role == 'admin' else t.viewer_role if user.role == 'viewer' else t.standard_user }}</td>
+                {% endif %}
                 <td><input type="checkbox" name="in_speaker_group" {% if user.in_speaker_group %}checked{% endif %}></td>
                 <td>{{ t.active if user.active else t.disabled }}</td>
                 <td><button>{{ t.save }}</button></td>
               </form>
               <td>
+                {% if is_superadmin or user.role != 'superadmin' %}
                 <form method="post" action="/setup/users/{{ user.id }}/action" class="row-action-form" data-delete-confirm="{{ t.delete_user_confirm }}">
                   <select name="action">
                     {% if user.active %}<option value="disable">{{ t.disable }}</option>{% else %}<option value="enable">{{ t.enable }}</option>{% endif %}
-                    <option value="delete">{{ t.delete }}</option>
+                    {% if is_superadmin %}<option value="delete">{{ t.delete }}</option>{% endif %}
                   </select>
                   <button class="secondary">{{ t.apply }}</button>
                 </form>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -110,27 +120,6 @@
         </table>
       </div>
     </section>
-    {% elif own_user %}
-    <section class="panel" data-box="all_users">
-      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h2>{{ t.your_profile }}</h2>
-      <p class="meta">{{ t.your_profile_hint }}</p>
-      <form method="post" action="/setup/users/{{ own_user.id }}">
-        <label>{{ t.display_name }}<input name="display_name" value="{{ own_user.display_name }}" required></label>
-        <label>{{ t.operator_callsign }}<input name="operator_callsign" value="{{ own_user.operator_callsign }}"></label>
-        <label>{{ t.tactical_callsign }}
-          <select name="tactical_callsign"><option value=""></option>{% for tac in tactical_callsigns %}<option value="{{ tac.name }}" {% if own_user.tactical_callsign == tac.name %}selected{% endif %}>{{ tac.name }}{% if tac.location_preposition %} ({{ tac.location_preposition }}){% endif %}</option>{% endfor %}</select>
-        </label>
-        <label>{{ t.default_location }}<input name="default_location" value="{{ own_user.default_location }}"></label>
-        <label>APRS<input name="aprs_callsign" value="{{ own_user.aprs_callsign or '' }}" placeholder="I1ABC-9"></label>
-        <label>D-STAR<input name="dstar_callsign" value="{{ own_user.dstar_callsign }}"></label>
-        <label>{{ t.username }}<input name="username" value="{{ own_user.username or '' }}"></label>
-        <label>{{ t.password }}<input name="password" type="password" placeholder="{{ t.password_hint }}"></label>
-        <label class="checkbox-row"><input type="checkbox" name="in_speaker_group" {% if own_user.in_speaker_group %}checked{% endif %}> {{ t.speaker_group }}</label>
-        <button>{{ t.save }}</button>
-      </form>
-    </section>
-    {% endif %}
 
     {% if race_mode %}
     <section class="panel full-span" data-box="athletes">
@@ -183,7 +172,8 @@
   </div>
 
   <div class="stack">
-    <form method="post" action="/setup/settings" class="panel" data-box="general">
+    {% if is_superadmin %}
+    <form method="post" action="/setup/settings/restricted" class="panel" data-box="general">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h1>{{ t.setup }}</h1>
       <label>{{ t.language }}
@@ -217,7 +207,6 @@
       <button>{{ t.save_settings }}</button>
     </form>
 
-    {% if is_superadmin %}
     <form method="post" action="/setup/settings/restricted" class="panel" data-box="aprs">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.aprs_settings }}</h2>
