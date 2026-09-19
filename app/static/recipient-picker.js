@@ -2,13 +2,13 @@
 // (`.recipient-picker`) with a button summarizing the current selection --
 // purely presentational, the checkboxes underneath (and whatever else
 // listens to their change events, e.g. notice-recipients.js) are untouched.
-const labels = window.CAD_LABELS || {};
+const recipientPickerLabels = window.CAD_LABELS || {};
 
 function summarizeRecipients(panel, fallback) {
   const checked = Array.from(panel.querySelectorAll('input[type="checkbox"]:checked'));
   if (!checked.length) return fallback;
   const names = checked.map((box) => box.closest("label")?.textContent.trim()).filter(Boolean);
-  if (names.length > 3) return (labels.recipients_selected_count || "{n} selected").replace("{n}", names.length);
+  if (names.length > 3) return (recipientPickerLabels.recipients_selected_count || "{n} selected").replace("{n}", names.length);
   return names.join(", ");
 }
 
