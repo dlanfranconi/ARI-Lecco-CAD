@@ -34,7 +34,7 @@ function iconFor(item) {
   const emoji = item.source === "D-STAR" ? DSTAR_ICON : (APRS_SYMBOLS[item.symbol_code] || DEFAULT_ICON);
   return L.divIcon({
     className: "aprs-marker-icon",
-    html: `<span>${emoji}</span>`,
+    html: `<span>${emoji}</span><span class="aprs-marker-label">${item.callsign}</span>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -14],
