@@ -29,8 +29,9 @@ async def poll_aprs_once() -> int:
         "format": "json",
     }
 
+    headers = {"User-Agent": "ARI-Lecco-CAD/1.7 (+https://github.com/dlanfranconi/ARI-Lecco-CAD)"}
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.get("https://api.aprs.fi/api/get", params=params)
+        response = await client.get("https://api.aprs.fi/api/get", params=params, headers=headers)
         response.raise_for_status()
         payload = response.json()
 
@@ -44,12 +45,13 @@ async def poll_aprs_once() -> int:
             station_id = station_ids.get(callsign)
             if not station_id or "lat" not in entry or "lng" not in entry:
                 continue
-            # aprs.fi's "symbol" object mirrors the APRS spec's own
-            # table+code pair (e.g. table "/", code ">" for a car) -- the
-            # same open standard every APRS client, aprs.fi included,
-            # renders its station icons from. Saving it lets the map draw
-            # a matching icon per station type instead of one generic pin.
-            symbol = entry.get("symbol") or {}
+            # aprs.fi's "symbol" field is a plain 2-character string: APRS
+            # symbol table (e.g. "/") followed by the symbol code (e.g. ">"
+            # for a car) -- the same open standard every APRS client, aprs.fi
+            # included, renders its station icons from. Saving it lets the
+            # map draw a matching icon per station type instead of one
+            # generic pin.
+            symbol = str(entry.get("symbol") or "")
             conn.execute(
                 """
                 INSERT INTO aprs_positions
@@ -66,8 +68,8 @@ async def poll_aprs_once() -> int:
                     _float_or_none(entry.get("altitude")),
                     entry.get("comment", ""),
                     entry.get("time", ""),
-                    str(symbol.get("table", "")),
-                    str(symbol.get("symbol", "")),
+                    symbol[:1],
+                    symbol[1:2],
                 ),
             )
             count += 1
