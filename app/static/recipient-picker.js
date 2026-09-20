@@ -59,7 +59,19 @@ function closeAllPanels() {
 document.addEventListener("click", closeAllPanels);
 // position:fixed panels don't track the page scrolling underneath them --
 // close instead of leaving one visually detached from its toggle button.
-window.addEventListener("scroll", closeAllPanels, { passive: true, capture: true });
+// Scroll events are capture-only (non-bubbling), so this still sees scrolls
+// from anywhere, including the panel's own internally-scrollable checkbox
+// list -- skip those so scrolling through a long list doesn't close it.
+window.addEventListener(
+  "scroll",
+  (event) => {
+    document.querySelectorAll(".recipient-picker .recipient-checks").forEach((panel) => {
+      if (panel.contains(event.target)) return;
+      panel.hidden = true;
+    });
+  },
+  { passive: true, capture: true }
+);
 
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".recipient-picker").forEach(initRecipientPickerToggle);
