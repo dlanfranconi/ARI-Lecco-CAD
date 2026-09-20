@@ -80,6 +80,8 @@ def init_db() -> None:
                 altitude REAL,
                 comment TEXT DEFAULT '',
                 aprs_time TEXT DEFAULT '',
+                symbol_table TEXT DEFAULT '',
+                symbol_code TEXT DEFAULT '',
                 fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(station_id) REFERENCES aprs_stations(id) ON DELETE CASCADE
             );
@@ -285,6 +287,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "last_name" not in runner_cols:
         conn.execute("ALTER TABLE runners ADD COLUMN last_name TEXT DEFAULT ''")
         conn.execute("UPDATE runners SET last_name = CASE WHEN instr(name, ' ') > 0 THEN substr(name, instr(name, ' ') + 1) ELSE '' END WHERE last_name = ''")
+
+    aprs_pos_cols = {item[1] for item in conn.execute("PRAGMA table_info(aprs_positions)")}
+    if "symbol_table" not in aprs_pos_cols:
+        conn.execute("ALTER TABLE aprs_positions ADD COLUMN symbol_table TEXT DEFAULT ''")
+    if "symbol_code" not in aprs_pos_cols:
+        conn.execute("ALTER TABLE aprs_positions ADD COLUMN symbol_code TEXT DEFAULT ''")
 
     log_cols = {item[1] for item in conn.execute("PRAGMA table_info(log_entries)")}
     for column, sql in {

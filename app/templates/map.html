@@ -4,14 +4,26 @@
 <section class="panel">
   <div class="section-title">
     <h1>{{ t.aprs_map }}</h1>
+    <label class="trail-duration-label">{{ t.trail_duration }}
+      <select id="trail-duration">
+        <option value="15">{{ t.trail_15min }}</option>
+        <option value="30">{{ t.trail_30min }}</option>
+        <option value="45">{{ t.trail_45min }}</option>
+        <option value="60" selected>{{ t.trail_1h }}</option>
+        <option value="120">{{ t.trail_2h }}</option>
+        <option value="180">{{ t.trail_3h }}</option>
+        <option value="360">{{ t.trail_6h }}</option>
+        <option value="780">{{ t.trail_13h }}</option>
+      </select>
+    </label>
     {% if is_admin %}<form method="post" action="/aprs/poll"><button class="secondary">{{ t.poll_now }}</button></form>{% endif %}
   </div>
   {% if not aprs_enabled %}<p class="warning">{{ t.aprs_key_missing }}</p>{% endif %}
   <div id="map"></div>
 </section>
 <section class="panel">
-  <h2>{{ t.latest_positions }}</h2>
+  <h2 id="latest-positions-heading" data-label="{{ t.latest_positions }}">{{ t.latest_positions }}</h2>
   <div id="position-list" class="cards"></div>
 </section>
 {% endblock %}
-{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{{ asset('/static/map.js') }}"></script>{% endblock %}
+{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{{ asset('/static/map.js') }}"></script>{% endblock %}

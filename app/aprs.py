@@ -44,11 +44,17 @@ async def poll_aprs_once() -> int:
             station_id = station_ids.get(callsign)
             if not station_id or "lat" not in entry or "lng" not in entry:
                 continue
+            # aprs.fi's "symbol" object mirrors the APRS spec's own
+            # table+code pair (e.g. table "/", code ">" for a car) -- the
+            # same open standard every APRS client, aprs.fi included,
+            # renders its station icons from. Saving it lets the map draw
+            # a matching icon per station type instead of one generic pin.
+            symbol = entry.get("symbol") or {}
             conn.execute(
                 """
                 INSERT INTO aprs_positions
-                    (station_id, callsign, lat, lon, speed, course, altitude, comment, aprs_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (station_id, callsign, lat, lon, speed, course, altitude, comment, aprs_time, symbol_table, symbol_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     station_id,
@@ -60,6 +66,8 @@ async def poll_aprs_once() -> int:
                     _float_or_none(entry.get("altitude")),
                     entry.get("comment", ""),
                     entry.get("time", ""),
+                    str(symbol.get("table", "")),
+                    str(symbol.get("symbol", "")),
                 ),
             )
             count += 1

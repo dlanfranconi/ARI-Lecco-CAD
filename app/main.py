@@ -286,6 +286,19 @@ def current_language() -> str:
     return normalize_language(setting("language", "en"))
 
 
+def format_epoch(value: str | None) -> str:
+    # aprs.fi's "time"/"lasttime" fields are Unix epoch seconds -- this is
+    # the station's own last-reported position time (what aprs.fi itself
+    # shows), as opposed to fetched_at, which is only when we last polled.
+    if not value:
+        return ""
+    try:
+        ts = int(float(value))
+    except (TypeError, ValueError):
+        return ""
+    return format_dt(datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
+
+
 def format_dt(value: str | None) -> str:
     if not value:
         return ""
@@ -1433,7 +1446,7 @@ async def api_map(_: Any = Depends(require_user_or_admin)) -> list[dict[str, obj
 def combined_latest_positions() -> list[dict[str, object]]:
     aprs_latest = rows(
         """
-        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, s.label, 'APRS' AS source
+        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, p.aprs_time, p.symbol_table, p.symbol_code, s.label, 'APRS' AS source
         FROM aprs_positions p
         JOIN (SELECT station_id, MAX(id) AS id FROM aprs_positions GROUP BY station_id) latest ON latest.id = p.id
         LEFT JOIN aprs_stations s ON s.id = p.station_id
@@ -1441,12 +1454,41 @@ def combined_latest_positions() -> list[dict[str, object]]:
     )
     dstar_latest = rows(
         """
-        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, '' AS label, 'D-STAR' AS source
+        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, '' AS aprs_time, '' AS symbol_table, '' AS symbol_code, '' AS label, 'D-STAR' AS source
         FROM dstar_positions p
         JOIN (SELECT UPPER(callsign) AS callsign_key, MAX(id) AS id FROM dstar_positions GROUP BY UPPER(callsign)) latest ON latest.id = p.id
         """
     )
-    return [dict(item) for item in [*aprs_latest, *dstar_latest]]
+    combined = [dict(item) for item in [*aprs_latest, *dstar_latest]]
+    for item in combined:
+        # Station's own last-reported time (matches what aprs.fi itself
+        # shows) for APRS; D-STAR's ingest payload has no reliable epoch
+        # field to convert the same way, so it keeps showing fetched_at.
+        item["station_time"] = format_epoch(item["aprs_time"]) if item["source"] == "APRS" else format_dt(item["fetched_at"])
+    return combined
+
+
+TRAIL_DURATION_MINUTES = {15, 30, 45, 60, 120, 180, 360, 780}
+
+
+@app.get("/api/map/trails")
+async def api_map_trails(minutes: int = 60, _: Any = Depends(require_user_or_admin)) -> dict[str, list[list[float]]]:
+    minutes = minutes if minutes in TRAIL_DURATION_MINUTES else 60
+    cutoff = f"-{minutes} minutes"
+    aprs_points = rows(
+        "SELECT callsign, lat, lon FROM aprs_positions WHERE fetched_at >= datetime('now', ?) ORDER BY callsign, id ASC",
+        (cutoff,),
+    )
+    dstar_points = rows(
+        "SELECT UPPER(callsign) AS callsign, lat, lon FROM dstar_positions WHERE fetched_at >= datetime('now', ?) ORDER BY callsign, id ASC",
+        (cutoff,),
+    )
+    trails: dict[str, list[list[float]]] = {}
+    for row in aprs_points:
+        trails.setdefault(f"APRS:{row['callsign']}", []).append([row["lat"], row["lon"]])
+    for row in dstar_points:
+        trails.setdefault(f"D-STAR:{row['callsign']}", []).append([row["lat"], row["lon"]])
+    return trails
 
 
 @app.get("/notices", response_class=HTMLResponse)
