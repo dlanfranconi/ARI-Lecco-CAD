@@ -430,6 +430,7 @@ def notice_payload(item: Any) -> dict[str, object]:
         r["user_id"] for r in rows("SELECT user_id FROM bulletin_recipients WHERE bulletin_id = ?", (data["id"],))
     ]
     data["broadcast_all"] = bool(data.get("broadcast_all"))
+    data["speaker_audience"] = bool(data.get("speaker_audience"))
     return data
 
 
@@ -763,6 +764,7 @@ async def create_log(
     forward_bulletin: str | None = Form(None),
     notify_user_ids: list[str] = Form([]),
     broadcast_all: bool = Form(False),
+    speaker_audience: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     user = resolve_operator(user_id, user_lookup)
@@ -784,8 +786,8 @@ async def create_log(
                 cur = conn.execute(
                     """
                     INSERT INTO bulletins
-                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, submitted_by_user_id, approved_by_user_id)
-                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?)
+                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, speaker_audience, submitted_by_user_id, approved_by_user_id)
+                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
                     """,
                     (
                         label,
@@ -798,6 +800,7 @@ async def create_log(
                         joined_group_crono(group, runner_crono, effective_crono),
                         admin["username"],
                         broadcast_all,
+                        speaker_audience,
                         admin["id"],
                         admin["id"],
                     ),
@@ -922,6 +925,7 @@ async def direct_notice(
     runner_position: list[str] = Form([]),
     notify_user_ids: list[str] = Form([]),
     broadcast_all: bool = Form(False),
+    speaker_audience: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -935,8 +939,8 @@ async def direct_notice(
             cur = conn.execute(
                 """
                 INSERT INTO bulletins
-                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, submitted_by_user_id, approved_by_user_id)
-                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?)
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, speaker_audience, submitted_by_user_id, approved_by_user_id)
+                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
                 """,
                 (
                     admin["display_name"],
@@ -949,6 +953,7 @@ async def direct_notice(
                     joined_group_crono(group, runner_crono, effective_crono),
                     admin["username"],
                     broadcast_all,
+                    speaker_audience,
                     admin["id"],
                     admin["id"],
                 ),
@@ -973,7 +978,7 @@ async def direct_notice(
 
 @app.post("/bulletins/direct")
 async def direct_bulletin_alias(message: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
-    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], runner_position=[], notify_user_ids=[], broadcast_all=False, admin=admin)
+    return await direct_notice(message=message, runner_bib="", checkpoint="", crono_time="", runner_crono=[], runner_position=[], notify_user_ids=[], broadcast_all=False, speaker_audience=True, admin=admin)
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -1194,6 +1199,20 @@ def aprs_station_id_for_callsign(conn: Any, callsign: str) -> int | None:
     return int(station["id"]) if station else None
 
 
+def deactivate_station_if_orphaned(conn: Any, station_id: int | None) -> None:
+    # Removing/disabling a user shouldn't leave their tracker still being
+    # polled and shown on the map -- but only turn the station off if no
+    # other active user still points at it (a station can outlive any one
+    # user, e.g. handed to someone else later).
+    if not station_id:
+        return
+    still_used = conn.execute(
+        "SELECT COUNT(*) AS count FROM users WHERE aprs_station_id = ? AND active = 1", (station_id,)
+    ).fetchone()["count"]
+    if not still_used:
+        conn.execute("UPDATE aprs_stations SET active = 0 WHERE id = ?", (station_id,))
+
+
 @app.post("/setup/users")
 async def add_user(
     display_name: str = Form(...),
@@ -1303,7 +1322,7 @@ async def toggle_user(user_id: int, _: Any = Depends(require_admin)) -> Redirect
 async def user_action(user_id: int, action: str = Form(...), admin: Any = Depends(require_admin)) -> RedirectResponse:
     is_superadmin = admin["role"] == "superadmin"
     with connect() as conn:
-        target = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+        target = conn.execute("SELECT role, aprs_station_id FROM users WHERE id = ?", (user_id,)).fetchone()
         # A plain admin can disable/enable other accounts for day-to-day
         # housekeeping, but never a superadmin's -- that would let an admin
         # lock a superadmin out without ever being able to promote a
@@ -1317,13 +1336,17 @@ async def user_action(user_id: int, action: str = Form(...), admin: Any = Depend
             if target and target["role"] == "superadmin" and superadmin_count <= 1:
                 return RedirectResponse("/setup", status_code=303)
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            deactivate_station_if_orphaned(conn, target["aprs_station_id"] if target else None)
         elif action == "disable":
             superadmin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin' AND active = 1").fetchone()["count"]
             if target and target["role"] == "superadmin" and superadmin_count <= 1:
                 return RedirectResponse("/setup", status_code=303)
             conn.execute("UPDATE users SET active = 0 WHERE id = ?", (user_id,))
+            deactivate_station_if_orphaned(conn, target["aprs_station_id"] if target else None)
         elif action == "enable":
             conn.execute("UPDATE users SET active = 1 WHERE id = ?", (user_id,))
+            if target and target["aprs_station_id"]:
+                conn.execute("UPDATE aprs_stations SET active = 1 WHERE id = ?", (target["aprs_station_id"],))
     return RedirectResponse("/setup", status_code=303)
 
 
@@ -1449,7 +1472,7 @@ def combined_latest_positions() -> list[dict[str, object]]:
         SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, p.aprs_time, p.symbol_table, p.symbol_code, s.label, 'APRS' AS source
         FROM aprs_positions p
         JOIN (SELECT station_id, MAX(id) AS id FROM aprs_positions GROUP BY station_id) latest ON latest.id = p.id
-        LEFT JOIN aprs_stations s ON s.id = p.station_id
+        JOIN aprs_stations s ON s.id = p.station_id AND s.active = 1
         """
     )
     dstar_latest = rows(
@@ -1476,7 +1499,13 @@ async def api_map_trails(minutes: int = 60, _: Any = Depends(require_user_or_adm
     minutes = minutes if minutes in TRAIL_DURATION_MINUTES else 60
     cutoff = f"-{minutes} minutes"
     aprs_points = rows(
-        "SELECT callsign, lat, lon FROM aprs_positions WHERE fetched_at >= datetime('now', ?) ORDER BY callsign, id ASC",
+        """
+        SELECT p.callsign, p.lat, p.lon
+        FROM aprs_positions p
+        JOIN aprs_stations s ON s.id = p.station_id AND s.active = 1
+        WHERE p.fetched_at >= datetime('now', ?)
+        ORDER BY p.callsign, p.id ASC
+        """,
         (cutoff,),
     )
     dstar_points = rows(
@@ -1548,6 +1577,7 @@ async def notice_submit(
     runner_position: list[str] = Form([]),
     notify_user_ids: list[str] = Form([]),
     broadcast_all: bool = Form(False),
+    speaker_audience: bool = Form(False),
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
@@ -1560,8 +1590,8 @@ async def notice_submit(
                 return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?error=message", status_code=303)
             cur = conn.execute(
                 """
-                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, broadcast_all, submitted_by_user_id)
-                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, broadcast_all, speaker_audience, submitted_by_user_id)
+                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
                 """,
                 (
                     user["display_name"],
@@ -1573,13 +1603,14 @@ async def notice_submit(
                     checkpoint.strip(),
                     joined_group_crono(group, runner_crono, effective_crono),
                     broadcast_all,
+                    speaker_audience,
                     user["id"],
                 ),
             )
             notice_ids.append(cur.lastrowid)
             # broadcast_all takes precedence over any individually-picked
-            # recipients -- the "Send To" list makes them mutually exclusive
-            # client-side, this is just the defensive server-side mirror.
+            # recipients -- skip writing them in that case, mirroring
+            # direct_notice()/create_log().
             if not broadcast_all:
                 for recipient_id in notify_user_ids:
                     conn.execute(
@@ -1710,9 +1741,10 @@ async def approve_notice(
     crono_time: str = Form(""),
     notify_user_ids: list[str] = Form([]),
     broadcast_all: bool = Form(False),
+    speaker_audience: bool = Form(False),
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
-    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids, broadcast_all, admin["id"])
+    await approve_notice_id(notice_id, admin["username"], message.strip() or None, crono_time.strip() or None, notify_user_ids, broadcast_all, speaker_audience, admin["id"])
     return RedirectResponse("/notices", status_code=303)
 
 
@@ -1728,6 +1760,7 @@ async def api_approve_notice(notice_id: int, request: Request, admin: Any = Depe
         str(data.get("crono_time", "")).strip() or None,
         [str(uid) for uid in notify_user_ids] if notify_user_ids is not None else None,
         data.get("broadcast_all"),
+        data.get("speaker_audience"),
         admin["id"],
     )
     return {"ok": True, "notice": notice}
@@ -1740,6 +1773,7 @@ async def approve_notice_id(
     crono_time: str | None = None,
     notify_user_ids: list[str] | None = None,
     broadcast_all: bool | None = None,
+    speaker_audience: bool | None = None,
     approved_by_user_id: int | None = None,
 ) -> dict[str, object]:
     with connect() as conn:
@@ -1749,10 +1783,14 @@ async def approve_notice_id(
         conn.execute("UPDATE bulletins SET status = 'approved', approved_at = CURRENT_TIMESTAMP, approved_by = ?, approved_by_user_id = ? WHERE id = ?", (approved_by or settings.admin_username, approved_by_user_id, notice_id))
         if broadcast_all is not None:
             conn.execute("UPDATE bulletins SET broadcast_all = ? WHERE id = ?", (bool(broadcast_all), notice_id))
+        if speaker_audience is not None:
+            conn.execute("UPDATE bulletins SET speaker_audience = ? WHERE id = ?", (bool(speaker_audience), notice_id))
         # broadcast_all takes precedence over individually-picked recipients
-        # (mutually exclusive in the "Send To" UI) -- skip writing recipients
-        # in that case so a stale broadcast_all=0 update elsewhere can't
-        # resurrect an old individual routing underneath it.
+        # -- skip writing recipients in that case so a stale broadcast_all=0
+        # update elsewhere can't resurrect an old individual routing
+        # underneath it. Otherwise recipients are written regardless of
+        # speaker_audience: they're additive to the speaker default when it's
+        # on, and the sole audience when it's off (private/specific-only).
         if notify_user_ids is not None and broadcast_all is not True:
             conn.execute("DELETE FROM bulletin_recipients WHERE bulletin_id = ?", (notice_id,))
             for recipient_id in notify_user_ids:
@@ -1817,16 +1855,17 @@ async def delete_notice_id(notice_id: int, username: str = "", display_name: str
 
 
 def announcer_audience_clause(viewer: Any | None) -> tuple[str, tuple[Any, ...]]:
-    # broadcast_all reaches literally everyone regardless of login or
-    # speaker-group membership. Otherwise: logged out sees the generic
-    # speaker/broadcast board only, exactly like before; logged in sees
-    # your own routed notices, plus broadcasts too if you're a speaker-group
-    # member.
+    # broadcast_all reaches literally everyone. speaker_audience=1 reaches
+    # the Announcer/speaker-group default audience (anonymous board plus
+    # speaker-group members) with any individually-picked recipients added
+    # on top. speaker_audience=0 ("Solo selezionati" / private) reaches only
+    # the explicitly-picked recipients, hidden from the speaker board
+    # entirely -- the pre-existing "specific-only" behavior.
     if viewer is None:
-        return "(broadcast_all = 1 OR id NOT IN (SELECT bulletin_id FROM bulletin_recipients))", ()
+        return "(broadcast_all = 1 OR speaker_audience = 1)", ()
     if viewer["in_speaker_group"]:
         return (
-            "(broadcast_all = 1 OR id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?) OR id NOT IN (SELECT bulletin_id FROM bulletin_recipients))",
+            "(broadcast_all = 1 OR speaker_audience = 1 OR id IN (SELECT bulletin_id FROM bulletin_recipients WHERE user_id = ?))",
             (viewer["id"],),
         )
     return (
@@ -1905,6 +1944,7 @@ async def broadcast_approved_bulletin(notice_id: int) -> None:
         {"title": TRANSLATIONS[current_language()]["new_announcement"], "body": notice_data.get("message", ""), "url": "/announcer"},
         notice_data.get("recipient_user_ids", []),
         bool(notice_data.get("broadcast_all")),
+        bool(notice_data.get("speaker_audience")),
     )
 
 

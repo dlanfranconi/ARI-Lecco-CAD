@@ -145,7 +145,8 @@ def init_db() -> None:
                 hidden_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 approved_at TEXT,
-                approved_by TEXT DEFAULT ''
+                approved_by TEXT DEFAULT '',
+                speaker_audience INTEGER NOT NULL DEFAULT 1
             );
 
             CREATE TABLE IF NOT EXISTS monitored_devices (
@@ -321,9 +322,20 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "broadcast_all": "ALTER TABLE bulletins ADD COLUMN broadcast_all INTEGER NOT NULL DEFAULT 0",
         "submitted_by_user_id": "ALTER TABLE bulletins ADD COLUMN submitted_by_user_id INTEGER",
         "approved_by_user_id": "ALTER TABLE bulletins ADD COLUMN approved_by_user_id INTEGER",
+        "speaker_audience": "ALTER TABLE bulletins ADD COLUMN speaker_audience INTEGER NOT NULL DEFAULT 1",
     }.items():
         if column not in bulletin_cols:
             conn.execute(sql)
+    if "speaker_audience" not in bulletin_cols:
+        # Existing rows predate the Speaker+specific-recipients combo mode --
+        # under the old exclusive "Send To" UI, a non-broadcast bulletin with
+        # explicit recipients meant "specific people only, hidden from the
+        # speaker board", so backfill those as speaker_audience=0 to keep
+        # their audience unchanged. Everything else (no recipients, or
+        # broadcast) defaults to 1, which is a no-op for broadcast rows.
+        conn.execute(
+            "UPDATE bulletins SET speaker_audience = 0 WHERE broadcast_all = 0 AND id IN (SELECT DISTINCT bulletin_id FROM bulletin_recipients)"
+        )
 
     device_cols = {item[1] for item in conn.execute("PRAGMA table_info(monitored_devices)")}
     if "alert_sent" not in device_cols:

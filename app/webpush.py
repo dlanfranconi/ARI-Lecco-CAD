@@ -78,16 +78,32 @@ def push_to_admins(payload: dict) -> None:
         _send_one(sub, payload)
 
 
-def push_to_announcer_audience(payload: dict, recipient_user_ids: list[int], broadcast_all: bool) -> None:
-    # Mirrors announcer_audience_clause() in main.py: broadcast reaches
-    # every subscription; specific recipients reach only those users;
-    # otherwise (the Announcer/speaker-group default) it reaches anonymous
-    # subscribers (the public board) plus logged-in speaker-group members.
+def push_to_announcer_audience(payload: dict, recipient_user_ids: list[int], broadcast_all: bool, speaker_audience: bool = True) -> None:
+    # Mirrors announcer_audience_clause() in main.py: broadcast reaches every
+    # subscription. When speaker_audience is on, the Announcer/speaker-group
+    # default audience (anonymous subscribers, the public board, plus
+    # logged-in speaker-group members) is always reached, with any
+    # individually-picked recipients added on top -- one query with OR'd
+    # conditions so a speaker-group member who's also individually picked is
+    # only matched (and pushed to) once, not twice. When speaker_audience is
+    # off ("Solo selezionati" / private), only the explicitly-picked
+    # recipients are reached, same as the old specific-only behavior.
     if broadcast_all:
         subs = rows("SELECT * FROM push_subscriptions")
-    elif recipient_user_ids:
+    elif not speaker_audience:
+        if not recipient_user_ids:
+            return
         placeholders = ",".join("?" for _ in recipient_user_ids)
         subs = rows(f"SELECT * FROM push_subscriptions WHERE user_id IN ({placeholders})", tuple(recipient_user_ids))
+    elif recipient_user_ids:
+        placeholders = ",".join("?" for _ in recipient_user_ids)
+        subs = rows(
+            f"""
+            SELECT ps.* FROM push_subscriptions ps LEFT JOIN users u ON u.id = ps.user_id
+            WHERE ps.user_id IS NULL OR u.in_speaker_group = 1 OR ps.user_id IN ({placeholders})
+            """,
+            tuple(recipient_user_ids),
+        )
     else:
         subs = rows(
             "SELECT ps.* FROM push_subscriptions ps LEFT JOIN users u ON u.id = ps.user_id "

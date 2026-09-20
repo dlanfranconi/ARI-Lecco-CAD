@@ -1,6 +1,10 @@
 // Manages the "Send To" recipient picker on the notice submit and approve
-// forms: Announcer/Broadcast are mutually exclusive special modes, specific
-// stations are a multi-select that's mutually exclusive with both of those.
+// forms: Announcer/Broadcast are mutually exclusive with each other (exactly
+// one always active as the base audience), but specific individuals are now
+// an independent multi-select layered on top of whichever base is active --
+// picking one no longer clears the other. Deduplication for anyone who's
+// both in the base audience (e.g. a speaker-group member) and individually
+// picked happens server-side (see push_to_announcer_audience in webpush.py).
 // Also remembers the last-used selection (mode + stations) across submits so
 // back-to-back alerts to the same target don't require re-picking every
 // time -- restored only on the fresh submit form, never on an approve form
@@ -65,12 +69,11 @@ function recipientState(form) {
   const specials = form.querySelectorAll(".recipient-special");
   const individuals = Array.from(form.querySelectorAll(".recipient-individual"));
   const stationIds = individuals.filter((box) => box.checked).map((box) => box.value);
-  if (stationIds.length) return { mode: "specific", stationIds };
   let mode = "announcer";
   specials.forEach((box) => {
     if (box.checked) mode = box.dataset.recipientMode;
   });
-  return { mode, stationIds: [] };
+  return { mode, stationIds };
 }
 
 function applyRecipientState(form, state) {
@@ -80,7 +83,7 @@ function applyRecipientState(form, state) {
     box.checked = box.dataset.recipientMode === state.mode;
   });
   individuals.forEach((box) => {
-    box.checked = state.mode === "specific" && state.stationIds.includes(box.value);
+    box.checked = (state.stationIds || []).includes(box.value);
   });
 }
 
@@ -98,19 +101,6 @@ function initRecipientPicker(form) {
         return;
       }
       specials.forEach((other) => { if (other !== box) other.checked = false; });
-      individuals.forEach((other) => { other.checked = false; });
-    });
-  });
-  const announcerBox = specials.find((box) => box.dataset.recipientMode === "announcer");
-  individuals.forEach((box) => {
-    box.addEventListener("change", () => {
-      if (box.checked) {
-        specials.forEach((special) => { special.checked = false; });
-        return;
-      }
-      // Nothing left selected at all -- fall back to the Announcer default
-      // rather than leaving an ambiguous, all-unchecked state.
-      if (announcerBox && !individuals.some((other) => other.checked)) announcerBox.checked = true;
     });
   });
 

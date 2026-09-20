@@ -112,23 +112,30 @@ function isVisibleToViewer(item) {
   if (item?.broadcast_all) return true;
   const viewer = window.CAD_CURRENT_USER;
   const recipients = item?.recipient_user_ids || [];
-  if (!viewer) return recipients.length === 0;
-  return recipients.includes(viewer.id) || (recipients.length === 0 && viewer.inSpeakerGroup);
+  // speaker_audience notices always reach the Announcer/speaker-group
+  // default audience (anonymous viewers and speaker-group members), with
+  // any individually-picked recipients layered on top. A speaker_audience=0
+  // ("Solo selezionati" / private) notice reaches only those explicitly
+  // picked -- see announcer_audience_clause() in main.py for the mirror.
+  if (!viewer) return Boolean(item?.speaker_audience);
+  if (recipients.includes(viewer.id)) return true;
+  return Boolean(item?.speaker_audience) && viewer.inSpeakerGroup;
 }
 
 // Being visible on this viewer's feed doesn't always mean this viewer
-// should get the active sound+flash treatment. Broadcast and
-// specifically-addressed notices alert everyone in their audience (minus
-// whoever sent or approved that particular notice). Speaker/Announcer
-// notices (no explicit recipients, not a broadcast) only alert the actual
-// public/no-login speaker board -- any logged-in viewer just sees it show
-// up passively (still updates the on-screen bulletin and archive, no
+// should get the active sound+flash treatment. Broadcast and personally-
+// addressed notices alert their audience (minus whoever sent or approved
+// that particular notice). A Speaker/Announcer notice -- even one with
+// extra individually-picked recipients layered on top -- only actively
+// alerts the actual public/no-login speaker board and anyone personally
+// named; any other logged-in speaker-group viewer just sees it show up
+// passively (still updates the on-screen bulletin and archive, no
 // sound/flash) since that's not the physical announcer device.
 function shouldActivelyAlert(item) {
   const viewer = window.CAD_CURRENT_USER;
   if (viewer && (viewer.id === item.submitted_by_user_id || viewer.id === item.approved_by_user_id)) return false;
   if (item.broadcast_all) return true;
-  if ((item.recipient_user_ids || []).length) return true;
+  if (viewer && (item.recipient_user_ids || []).includes(viewer.id)) return true;
   return !viewer;
 }
 
