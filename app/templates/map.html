@@ -20,6 +20,7 @@
   </div>
   {% if not aprs_enabled %}<p class="warning">{{ t.aprs_key_missing }}</p>{% endif %}
   <div id="map"></div>
+  {% if aprs_enabled %}<p class="meta">{{ t.aprs_attribution }} <a href="https://aprs.fi" target="_blank" rel="noopener">aprs.fi</a></p>{% endif %}
 </section>
 <section class="panel">
   <h2 id="latest-positions-heading" data-label="{{ t.latest_positions }}">{{ t.latest_positions }}</h2>

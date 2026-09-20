@@ -18,6 +18,13 @@
     {% if logo_url %}<div class="announcer-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
     <div class="announcer-topbar">
       <div id="race-timer" class="announcer-clock" data-started-at="{{ race_started_at }}" data-started-epoch-ms="{{ race_started_epoch_ms }}">{% if current_crono %}{{ current_crono }}{% else %}00:00:00{% endif %}</div>
+      <select id="font-size-select" class="font-size-select" aria-label="{{ t.font_size }}">
+        <option value="70">70%</option>
+        <option value="85">85%</option>
+        <option value="100" selected>100%</option>
+        <option value="115">115%</option>
+        <option value="130">130%</option>
+      </select>
       <button id="sound-toggle" class="sound-toggle" type="button" aria-label="{{ t.notification_sound }}">🔔</button>
       <button id="contrast-toggle" class="contrast-toggle" type="button" aria-label="Toggle contrast">☾</button>
       {% if viewer_display_name %}

@@ -279,7 +279,7 @@ th { color: var(--muted); font-size: 13px; }
   margin-bottom: 24px;
 }
 .teleprompter {
-  font-size: clamp(52px, 10vw, 148px);
+  font-size: calc(clamp(52px, 10vw, 148px) * var(--teleprompter-scale, 1));
   line-height: 1.06;
   font-weight: 800;
   overflow-wrap: anywhere;
@@ -442,6 +442,7 @@ th { color: var(--muted); font-size: 13px; }
 .announcer .modal-panel { background: var(--dark-panel); color: #f8fbfb; border-color: rgba(255,255,255,.18); }
 .announcer.light-mode .modal-panel { background: #fff; color: #071012; }
 .sound-toggle { width: 42px; padding: 0; font-size: 22px; background: #dce6ea; color: #071012; }
+.font-size-select { min-height: auto; width: 76px; padding: 6px 8px; font-size: 14px; background: #dce6ea; color: #071012; border-radius: 6px; }
 .sound-settings-panel { display: grid; gap: 14px; }
 .sound-settings-panel label { display: grid; gap: 6px; }
 label.checkbox-row { display: flex; align-items: center; gap: 8px; }

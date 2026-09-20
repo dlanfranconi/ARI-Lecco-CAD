@@ -208,6 +208,17 @@ hasRenderedOnce = true;
 connectWs();
 setInterval(pollLatest, 30000);
 
+const fontSizeSelect = document.getElementById("font-size-select");
+const savedFontScale = localStorage.getItem("announcer-font-scale") || "100";
+document.documentElement.style.setProperty("--teleprompter-scale", Number(savedFontScale) / 100);
+if (fontSizeSelect) {
+  fontSizeSelect.value = savedFontScale;
+  fontSizeSelect.addEventListener("change", () => {
+    document.documentElement.style.setProperty("--teleprompter-scale", Number(fontSizeSelect.value) / 100);
+    localStorage.setItem("announcer-font-scale", fontSizeSelect.value);
+  });
+}
+
 const contrastToggle = document.getElementById("contrast-toggle");
 const savedContrast = localStorage.getItem("announcer-contrast");
 if (savedContrast === "light") document.body.classList.add("light-mode");
