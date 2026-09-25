@@ -271,7 +271,29 @@ th { color: var(--muted); font-size: 13px; }
   color-scheme: dark;
 }
 .announcer.light-mode { color-scheme: light; }
-.announcer main { width: 100%; text-align: center; padding: 5vw; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.announcer main { width: 100%; text-align: center; padding: 5vw; padding-bottom: calc(5vw + 44px); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.checkpoint-ticker {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: rgba(7, 16, 18, .92);
+  border-top: 2px solid var(--accent);
+  overflow: hidden;
+  white-space: nowrap;
+  z-index: 500;
+}
+.checkpoint-ticker-track { display: inline-flex; align-items: center; height: 40px; will-change: transform; }
+.checkpoint-ticker-group { display: inline-flex; align-items: baseline; gap: 12px; padding: 0 28px; white-space: nowrap; }
+.checkpoint-ticker-group strong { color: #8bd3ce; text-transform: uppercase; font-size: 13px; letter-spacing: .04em; }
+.checkpoint-ticker-entry { color: #dce6ea; font-size: 15px; }
+.checkpoint-ticker-entry .rank { color: #ffd23f; font-weight: 700; margin-right: 3px; }
+@keyframes checkpoint-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 .announcer-label {
   color: #8bd3ce;
   text-transform: uppercase;
@@ -285,10 +307,20 @@ th { color: var(--muted); font-size: 13px; }
   font-weight: 800;
   overflow-wrap: anywhere;
 }
-.teleprompter.flash { animation: teleprompter-flash 0.6s ease-in-out 3; }
+.teleprompter.flash { animation: teleprompter-flash 0.5s ease-in-out infinite; }
 @keyframes teleprompter-flash {
-  0%, 100% { color: inherit; text-shadow: none; }
-  50% { color: #ffd23f; text-shadow: 0 0 24px rgba(255, 210, 63, .85); }
+  0%, 100% { color: inherit; text-shadow: none; transform: scale(1); }
+  50% { color: #ffd23f; text-shadow: 0 0 40px rgba(255, 210, 63, 1); transform: scale(1.05); }
+}
+/* Full-screen pulse behind/over the page so a new notice is impossible to
+   miss even when the announcer's attention is on other video feeds beside
+   this one -- kept under 3 flashes/sec to stay clear of photosensitive
+   strobe thresholds. */
+.announcer-flash-overlay { position: fixed; inset: 0; background: #ffd23f; opacity: 0; pointer-events: none; z-index: 9999; }
+.announcer-flash-overlay.flash { animation: announcer-flash-overlay 0.5s ease-in-out infinite; }
+@keyframes announcer-flash-overlay {
+  0%, 100% { opacity: 0; }
+  50% { opacity: .5; }
 }
 .announcer-time { margin-top: 28px; color: #b7c7c9; font-size: 24px; }
 

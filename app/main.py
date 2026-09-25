@@ -1637,6 +1637,42 @@ async def recent_notices(request: Request) -> list[dict[str, object]]:
     ]
 
 
+CHECKPOINT_LEADERBOARD_LIMIT = 5
+
+
+@app.get("/api/checkpoint-leaderboard")
+async def checkpoint_leaderboard() -> dict[str, list[dict[str, str]]]:
+    # One row per (checkpoint, bib): if a runner's passage was logged more
+    # than once at the same checkpoint (e.g. a correction), SQLite's
+    # min()-with-bare-columns behavior picks the runner_name/hometown from
+    # whichever row actually has that earliest crono_time, so a correction
+    # doesn't count as a second, later passage.
+    passages = rows(
+        """
+        SELECT checkpoint, runner_bib, runner_name, runner_hometown, MIN(crono_time) AS crono_time,
+               (SELECT id FROM tactical_callsigns WHERE name = log_entries.checkpoint) AS checkpoint_order
+        FROM log_entries
+        WHERE checkpoint != '' AND runner_bib != '' AND crono_time != '' AND hidden_at IS NULL
+        GROUP BY checkpoint, runner_bib
+        ORDER BY checkpoint_order IS NULL, checkpoint_order, checkpoint, crono_time ASC
+        """
+    )
+    leaderboard: dict[str, list[dict[str, str]]] = {}
+    for entry in passages:
+        bucket = leaderboard.setdefault(entry["checkpoint"], [])
+        if len(bucket) >= CHECKPOINT_LEADERBOARD_LIMIT:
+            continue
+        bucket.append(
+            {
+                "bib": entry["runner_bib"],
+                "name": entry["runner_name"] or "",
+                "hometown": entry["runner_hometown"] or "",
+                "crono_time": entry["crono_time"],
+            }
+        )
+    return leaderboard
+
+
 @app.get("/api/race-timer")
 async def api_race_timer() -> dict[str, str | bool]:
     started_at = setting("race_started_at", "")

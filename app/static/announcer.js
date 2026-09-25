@@ -101,12 +101,40 @@ function renderNoticeAt(index) {
   if (noticePositionEl) noticePositionEl.textContent = `${currentIndex + 1}/${notices.length}`;
 }
 
-function flashBulletin() {
+function ensureFlashOverlay() {
+  let overlay = document.getElementById("announcer-flash-overlay");
+  if (overlay) return overlay;
+  overlay = document.createElement("div");
+  overlay.id = "announcer-flash-overlay";
+  overlay.className = "announcer-flash-overlay";
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+// The flash keeps pulsing (not just a couple of blinks) until the announcer
+// actually notices and clicks anywhere on the page, since they're often
+// watching several other video feeds at once and a brief flash is easy to
+// miss entirely. 12s is a safety cap in case nobody's there to click it at
+// all, so it doesn't strobe forever unattended.
+let flashTimeout = null;
+function stopFlash() {
   bulletinEl.classList.remove("flash");
+  document.getElementById("announcer-flash-overlay")?.classList.remove("flash");
+  if (flashTimeout) {
+    clearTimeout(flashTimeout);
+    flashTimeout = null;
+  }
+}
+function flashBulletin() {
+  stopFlash();
+  const overlay = ensureFlashOverlay();
   // Force reflow so the animation restarts if it's still mid-run.
   void bulletinEl.offsetWidth;
   bulletinEl.classList.add("flash");
+  overlay.classList.add("flash");
+  flashTimeout = setTimeout(stopFlash, 12000);
 }
+document.addEventListener("click", stopFlash);
 
 function isVisibleToViewer(item) {
   if (item?.broadcast_all) return true;
