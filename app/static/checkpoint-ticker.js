@@ -27,7 +27,8 @@ async function refreshCheckpointTicker() {
   const data = await response.json();
   const male = data.male || [];
   const female = data.female || [];
-  if (!data.checkpoint || (!male.length && !female.length)) {
+  const unspecified = data.unspecified || [];
+  if (!data.checkpoint || (!male.length && !female.length && !unspecified.length)) {
     tickerEl.hidden = true;
     trackEl.style.animation = "none";
     return;
@@ -35,7 +36,8 @@ async function refreshCheckpointTicker() {
   const html =
     `<span class="checkpoint-ticker-group"><strong>${data.checkpoint}</strong></span>` +
     tickerGroupHtml(tickerLabels.male || "M", "gender-m", male) +
-    tickerGroupHtml(tickerLabels.female || "F", "gender-f", female);
+    tickerGroupHtml(tickerLabels.female || "F", "gender-f", female) +
+    tickerGroupHtml(tickerLabels.gender_unspecified || "?", "", unspecified);
   // Duplicated once so translateX(-50%) loops seamlessly with no visible seam.
   trackEl.innerHTML = html + html;
   tickerEl.hidden = false;

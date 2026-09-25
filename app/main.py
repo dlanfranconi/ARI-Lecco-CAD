@@ -431,6 +431,11 @@ def notice_payload(item: Any) -> dict[str, object]:
     ]
     data["broadcast_all"] = bool(data.get("broadcast_all"))
     data["speaker_audience"] = bool(data.get("speaker_audience"))
+    # Recomputed live (not the stored snapshot) so a gender set/corrected in
+    # Setup after this notice was sent still shows up correctly to clients
+    # rendering it from this JSON, same as athlete_rows() does server-side.
+    bibs = split_multi_value(str(data.get("runner_bib") or "").replace("|", ","))
+    data["runner_gender"] = "|".join(live_gender_for_bib(bib) if bib else "" for bib in bibs)
     return data
 
 
@@ -530,14 +535,22 @@ def joined_group_positions(group: list[dict[str, str]], positions: list[str]) ->
     return "|".join((positions[index].strip() if index < len(positions) else "") for index, runner in enumerate(group) if runner.get("bib"))
 
 
+def live_gender_for_bib(bib: str) -> str:
+    # Gender is looked up live off the current runners roster rather than
+    # snapshotted at log/notice time, so setting or correcting an athlete's
+    # gender in Setup immediately re-colors every past entry for that bib
+    # too, not just new ones from that point on.
+    runner = row("SELECT gender FROM runners WHERE bib_number = ?", (bib,))
+    return ((runner["gender"] if runner else "") or "").strip().upper()
+
+
 def athlete_rows(item: Any) -> list[dict[str, str]]:
     bibs = split_multi_value(str(item["runner_bib"] or "").replace("|", ","))
     names = split_multi_value(str(item["runner_name"] or "").replace("|", ","))
     towns = split_multi_value(str(item["runner_hometown"] or "").replace("|", ","))
     cronos = split_multi_value(str(item["crono_time"] or "").replace("|", ","))
     positions = split_multi_value(str(item["runner_position"] or "").replace("|", ",")) if "runner_position" in item.keys() else []
-    genders = split_multi_value(str(item["runner_gender"] or "").replace("|", ",")) if "runner_gender" in item.keys() else []
-    count = max(len(bibs), len(names), len(towns), len(cronos), len(positions), len(genders))
+    count = max(len(bibs), len(names), len(towns), len(cronos), len(positions))
     rows_out = []
     for index in range(count):
         if index < len(bibs) and bibs[index]:
@@ -547,7 +560,7 @@ def athlete_rows(item: Any) -> list[dict[str, str]]:
                 "hometown": (towns[index] if index < len(towns) else "").strip(),
                 "crono": cronos[index] if index < len(cronos) else "",
                 "position": (positions[index] if index < len(positions) else "").strip(),
-                "gender": (genders[index] if index < len(genders) else "").strip().upper(),
+                "gender": live_gender_for_bib(bibs[index]),
             })
     return rows_out
 
@@ -1656,28 +1669,32 @@ async def checkpoint_leaderboard() -> dict[str, object]:
     latest = row("SELECT checkpoint FROM log_entries WHERE checkpoint != '' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
     checkpoint = latest["checkpoint"] if latest else ""
     if not checkpoint:
-        return {"checkpoint": None, "male": [], "female": []}
+        return {"checkpoint": None, "male": [], "female": [], "unspecified": []}
     # One row per bib: if a runner's passage was logged more than once at
     # this checkpoint (e.g. a correction), SQLite's min()-with-bare-columns
-    # behavior picks the runner_name/hometown/gender from whichever row
-    # actually has that earliest crono_time, so a correction doesn't count
-    # as a second, later passage.
+    # behavior picks the runner_name/hometown from whichever row actually
+    # has that earliest crono_time, so a correction doesn't count as a
+    # second, later passage. Gender comes live from the runners roster (not
+    # a stored snapshot) so setting/fixing it in Setup shows up immediately
+    # for passages logged before that, too.
     passages = rows(
         """
-        SELECT runner_bib, runner_name, runner_hometown, runner_gender, MIN(crono_time) AS crono_time
-        FROM log_entries
-        WHERE checkpoint = ? AND runner_bib != '' AND crono_time != '' AND hidden_at IS NULL
-        GROUP BY runner_bib
+        SELECT l.runner_bib, l.runner_name, l.runner_hometown, r.gender AS live_gender, MIN(l.crono_time) AS crono_time
+        FROM log_entries l
+        LEFT JOIN runners r ON r.bib_number = l.runner_bib
+        WHERE l.checkpoint = ? AND l.runner_bib != '' AND l.crono_time != '' AND l.hidden_at IS NULL
+        GROUP BY l.runner_bib
         ORDER BY crono_time ASC
         """,
         (checkpoint,),
     )
     male: list[dict[str, str]] = []
     female: list[dict[str, str]] = []
+    unspecified: list[dict[str, str]] = []
     for entry in passages:
-        gender = (entry["runner_gender"] or "").strip().upper()
-        bucket = male if gender == "M" else female if gender == "F" else None
-        if bucket is None or len(bucket) >= CHECKPOINT_LEADERBOARD_LIMIT:
+        gender = (entry["live_gender"] or "").strip().upper()
+        bucket = male if gender == "M" else female if gender == "F" else unspecified
+        if len(bucket) >= CHECKPOINT_LEADERBOARD_LIMIT:
             continue
         bucket.append(
             {
@@ -1687,7 +1704,7 @@ async def checkpoint_leaderboard() -> dict[str, object]:
                 "crono_time": entry["crono_time"],
             }
         )
-    return {"checkpoint": checkpoint, "male": male, "female": female}
+    return {"checkpoint": checkpoint, "male": male, "female": female, "unspecified": unspecified}
 
 
 @app.get("/api/race-timer")
