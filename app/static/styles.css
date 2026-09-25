@@ -298,7 +298,14 @@ th { color: var(--muted); font-size: 13px; }
 .checkpoint-ticker-group strong.gender-m { color: #6cb2f2; }
 .checkpoint-ticker-group strong.gender-f { color: #f286bf; }
 .checkpoint-ticker-entry { color: #dce6ea; font-size: 26px; font-weight: 600; }
-.checkpoint-ticker-entry .rank { color: #ffd23f; font-weight: 800; margin-right: 4px; }
+.checkpoint-ticker-entry .rank { font-weight: 800; margin-right: 4px; }
+/* Each rank number carries its own gender color, not just the group
+   header -- the header scrolls out of view long before the list does, so
+   without this the rank numbers all look the same yellow and you can't
+   tell M from F once you're mid-list. */
+.checkpoint-ticker-entry.gender-m .rank { color: #6cb2f2; }
+.checkpoint-ticker-entry.gender-f .rank { color: #f286bf; }
+.checkpoint-ticker-entry:not(.gender-m):not(.gender-f) .rank { color: #ffd23f; }
 @keyframes checkpoint-ticker-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }

@@ -20,6 +20,12 @@ function tickerGroupHtml(genderLabel, genderClass, entries) {
   return `<span class="checkpoint-ticker-group"><strong class="${genderClass}">${genderLabel}</strong>${items}</span>`;
 }
 
+function tickerSignature(data, buckets) {
+  return data.checkpoint + "|" + buckets.map((entries) => entries.map((entry) => entry.bib).join(",")).join(";");
+}
+
+let lastTickerSignature = null;
+
 async function refreshCheckpointTicker() {
   if (!tickerEl || !trackEl) return;
   const response = await fetch("/api/checkpoint-leaderboard");
@@ -31,8 +37,16 @@ async function refreshCheckpointTicker() {
   if (!data.checkpoint || (!male.length && !female.length && !unspecified.length)) {
     tickerEl.hidden = true;
     trackEl.style.animation = "none";
+    lastTickerSignature = null;
     return;
   }
+  // Rebuilding the HTML and restarting the CSS animation snaps the scroll
+  // position back to the start, so a plain unconditional refresh every
+  // 30s made the ticker visibly jump/reset instead of looping smoothly.
+  // Only touch it when the actual list of runners changed.
+  const signature = tickerSignature(data, [male, female, unspecified]);
+  if (signature === lastTickerSignature) return;
+  lastTickerSignature = signature;
   const html =
     `<span class="checkpoint-ticker-group"><strong>${data.checkpoint}</strong></span>` +
     tickerGroupHtml(tickerLabels.male || "M", "gender-m", male) +
