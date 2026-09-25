@@ -5,6 +5,7 @@
 // refreshed periodically as new entries come in.
 const TICKER_PIXELS_PER_SECOND = 60;
 const tickerEl = document.getElementById("checkpoint-ticker");
+const labelEl = document.getElementById("checkpoint-ticker-label");
 const trackEl = document.getElementById("checkpoint-ticker-track");
 const tickerLabels = window.CAD_LABELS || {};
 
@@ -47,8 +48,8 @@ async function refreshCheckpointTicker() {
   const signature = tickerSignature(data, [male, female, unspecified]);
   if (signature === lastTickerSignature) return;
   lastTickerSignature = signature;
+  if (labelEl) labelEl.textContent = data.checkpoint;
   const html =
-    `<span class="checkpoint-ticker-group"><strong>${data.checkpoint}</strong></span>` +
     tickerGroupHtml(tickerLabels.male || "M", "gender-m", male) +
     tickerGroupHtml(tickerLabels.female || "F", "gender-f", female) +
     tickerGroupHtml(tickerLabels.gender_unspecified || "?", "", unspecified);
