@@ -69,6 +69,12 @@ a { color: inherit; }
 .athlete-row { display: grid; grid-template-columns: repeat(5, max-content); gap: 12px; align-items: baseline; color: var(--muted); font-size: 13px; }
 .athlete-row span { white-space: nowrap; font-weight: 400; }
 .athlete-row strong { font-weight: 800; color: var(--text); }
+/* Male/Female color code, consistent across Log Gara, notice cards, the
+   Announcer page and the archive -- a colored left edge plus a faint tint
+   rather than color alone, so it still reads at a glance under bright light
+   or on a low-contrast screen. */
+.athlete-row.gender-m { border-left: 4px solid #4a90d9; padding-left: 8px; background: rgba(74, 144, 217, .1); }
+.athlete-row.gender-f { border-left: 4px solid #e0529e; padding-left: 8px; background: rgba(224, 82, 158, .12); }
 .announcer .athlete-rows { justify-items: stretch; margin: 18px auto 0; width: min(1240px, 100%); }
 .announcer .athlete-row { color: #d6eeee; font-size: clamp(15px, 1.28vw, 22px); justify-content: stretch; width: 100%; grid-template-columns: 112px minmax(170px, 1fr) minmax(130px, .75fr) 175px 185px; gap: 8px; text-align: left; }
 .announcer .athlete-row span { overflow: visible; text-overflow: clip; min-width: 0; }
@@ -271,25 +277,28 @@ th { color: var(--muted); font-size: 13px; }
   color-scheme: dark;
 }
 .announcer.light-mode { color-scheme: light; }
-.announcer main { width: 100%; text-align: center; padding: 5vw; padding-bottom: calc(5vw + 44px); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.announcer main { width: 100%; text-align: center; padding: 5vw; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.announcer.has-checkpoint-ticker main { padding-bottom: calc(5vw + 72px); }
 .checkpoint-ticker {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 40px;
+  height: 72px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: rgba(7, 16, 18, .92);
-  border-top: 2px solid var(--accent);
+  border-top: 3px solid var(--accent);
   overflow: hidden;
   white-space: nowrap;
   z-index: 500;
 }
-.checkpoint-ticker-track { display: inline-flex; align-items: center; height: 40px; will-change: transform; }
-.checkpoint-ticker-group { display: inline-flex; align-items: baseline; gap: 12px; padding: 0 28px; white-space: nowrap; }
-.checkpoint-ticker-group strong { color: #8bd3ce; text-transform: uppercase; font-size: 13px; letter-spacing: .04em; }
-.checkpoint-ticker-entry { color: #dce6ea; font-size: 15px; }
-.checkpoint-ticker-entry .rank { color: #ffd23f; font-weight: 700; margin-right: 3px; }
+.checkpoint-ticker-track { display: inline-flex; align-items: center; height: 72px; will-change: transform; }
+.checkpoint-ticker-group { display: inline-flex; align-items: baseline; gap: 18px; padding: 0 36px; white-space: nowrap; }
+.checkpoint-ticker-group strong { color: #8bd3ce; text-transform: uppercase; font-size: 20px; letter-spacing: .04em; }
+.checkpoint-ticker-group strong.gender-m { color: #6cb2f2; }
+.checkpoint-ticker-group strong.gender-f { color: #f286bf; }
+.checkpoint-ticker-entry { color: #dce6ea; font-size: 26px; font-weight: 600; }
+.checkpoint-ticker-entry .rank { color: #ffd23f; font-weight: 800; margin-right: 4px; }
 @keyframes checkpoint-ticker-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }

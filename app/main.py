@@ -536,7 +536,8 @@ def athlete_rows(item: Any) -> list[dict[str, str]]:
     towns = split_multi_value(str(item["runner_hometown"] or "").replace("|", ","))
     cronos = split_multi_value(str(item["crono_time"] or "").replace("|", ","))
     positions = split_multi_value(str(item["runner_position"] or "").replace("|", ",")) if "runner_position" in item.keys() else []
-    count = max(len(bibs), len(names), len(towns), len(cronos), len(positions))
+    genders = split_multi_value(str(item["runner_gender"] or "").replace("|", ",")) if "runner_gender" in item.keys() else []
+    count = max(len(bibs), len(names), len(towns), len(cronos), len(positions), len(genders))
     rows_out = []
     for index in range(count):
         if index < len(bibs) and bibs[index]:
@@ -546,6 +547,7 @@ def athlete_rows(item: Any) -> list[dict[str, str]]:
                 "hometown": (towns[index] if index < len(towns) else "").strip(),
                 "crono": cronos[index] if index < len(cronos) else "",
                 "position": (positions[index] if index < len(positions) else "").strip(),
+                "gender": (genders[index] if index < len(genders) else "").strip().upper(),
             })
     return rows_out
 
@@ -588,10 +590,11 @@ def display_runner_name(first_name: str, last_name: str) -> str:
 def runner_for_bib(bib: str) -> dict[str, str]:
     runner = row("SELECT * FROM runners WHERE bib_number = ? AND active = 1", (bib,))
     if not runner:
-        return {"bib": bib, "name": "", "first_name": "", "last_name": "", "hometown": ""}
+        return {"bib": bib, "name": "", "first_name": "", "last_name": "", "hometown": "", "gender": ""}
     first_name = runner["first_name"] if "first_name" in runner.keys() else str(runner["name"] or "").split(" ", 1)[0]
     last_name = runner["last_name"] if "last_name" in runner.keys() else (str(runner["name"] or "").split(" ", 1)[1] if " " in str(runner["name"] or "") else "")
-    return {"bib": runner["bib_number"], "name": display_runner_name(first_name, last_name), "first_name": first_name, "last_name": last_name, "hometown": runner["hometown"]}
+    gender = runner["gender"] if "gender" in runner.keys() else ""
+    return {"bib": runner["bib_number"], "name": display_runner_name(first_name, last_name), "first_name": first_name, "last_name": last_name, "hometown": runner["hometown"], "gender": gender}
 
 
 def parsed_race_started_at() -> datetime | None:
@@ -774,7 +777,7 @@ async def create_log(
     latest = latest_position_for_user(user)
     label = user_label(user, location)
     effective_crono = crono_time.strip() or crono_from_timer()
-    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
+    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": "", "gender": ""}]
     notice_ids: list[int] = []
     with connect() as conn:
         for group in chunks(runners, 4):
@@ -786,8 +789,8 @@ async def create_log(
                 cur = conn.execute(
                     """
                     INSERT INTO bulletins
-                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, speaker_audience, submitted_by_user_id, approved_by_user_id)
-                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+                        (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, runner_gender, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, speaker_audience, submitted_by_user_id, approved_by_user_id)
+                    VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
                     """,
                     (
                         label,
@@ -796,6 +799,7 @@ async def create_log(
                         joined_group_value(group, "name"),
                         joined_group_value(group, "hometown"),
                         joined_group_positions(group, runner_position),
+                        joined_group_value(group, "gender"),
                         checkpoint.strip(),
                         joined_group_crono(group, runner_crono, effective_crono),
                         admin["username"],
@@ -821,9 +825,9 @@ async def create_log(
                 conn.execute(
                     """
                     INSERT INTO log_entries
-                        (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time,
+                        (user_id, user_label, status, location, message, runner_bib, runner_name, runner_hometown, runner_position, runner_gender, checkpoint, crono_time,
                          created_by_username, created_by_name, bulletin_requested, bulletin_id, aprs_station, lat, lon)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user["id"],
@@ -835,6 +839,7 @@ async def create_log(
                         runner["name"],
                         runner["hometown"],
                         runner_position[index].strip() if index < len(runner_position) else "",
+                        runner.get("gender", ""),
                         checkpoint.strip(),
                         runner_crono_value,
                         admin["username"] or "",
@@ -929,7 +934,7 @@ async def direct_notice(
     admin: Any = Depends(require_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
-    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
+    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": "", "gender": ""}]
     notice_ids: list[int] = []
     with connect() as conn:
         for group in chunks(runners, 4):
@@ -939,8 +944,8 @@ async def direct_notice(
             cur = conn.execute(
                 """
                 INSERT INTO bulletins
-                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, speaker_audience, submitted_by_user_id, approved_by_user_id)
-                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+                    (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, runner_gender, checkpoint, crono_time, status, approved_at, approved_by, broadcast_all, speaker_audience, submitted_by_user_id, approved_by_user_id)
+                VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
                 """,
                 (
                     admin["display_name"],
@@ -949,6 +954,7 @@ async def direct_notice(
                     joined_group_value(group, "name"),
                     joined_group_value(group, "hometown"),
                     joined_group_positions(group, runner_position),
+                    joined_group_value(group, "gender"),
                     checkpoint.strip(),
                     joined_group_crono(group, runner_crono, effective_crono),
                     admin["username"],
@@ -1581,7 +1587,7 @@ async def notice_submit(
     user: Any = Depends(require_user_or_admin),
 ) -> RedirectResponse:
     effective_crono = crono_time.strip() or crono_from_timer()
-    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": ""}]
+    runners = [runner_for_bib(bib) for bib in split_bibs(runner_bib)] or [{"bib": "", "name": "", "hometown": "", "gender": ""}]
     notice_ids: list[int] = []
     with connect() as conn:
         for group in chunks(runners, 4):
@@ -1590,8 +1596,8 @@ async def notice_submit(
                 return RedirectResponse(("/invia-notizia" if current_language() == "it" else "/submit-notification") + "?error=message", status_code=303)
             cur = conn.execute(
                 """
-                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, status, broadcast_all, speaker_audience, submitted_by_user_id)
-                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+                INSERT INTO bulletins (source, submitter_name, message, runner_bib, runner_name, runner_hometown, runner_position, runner_gender, checkpoint, crono_time, status, broadcast_all, speaker_audience, submitted_by_user_id)
+                VALUES ('user', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
                 """,
                 (
                     user["display_name"],
@@ -1600,6 +1606,7 @@ async def notice_submit(
                     joined_group_value(group, "name"),
                     joined_group_value(group, "hometown"),
                     joined_group_positions(group, runner_position),
+                    joined_group_value(group, "gender"),
                     checkpoint.strip(),
                     joined_group_crono(group, runner_crono, effective_crono),
                     broadcast_all,
@@ -1637,30 +1644,40 @@ async def recent_notices(request: Request) -> list[dict[str, object]]:
     ]
 
 
-CHECKPOINT_LEADERBOARD_LIMIT = 5
+CHECKPOINT_LEADERBOARD_LIMIT = 10
 
 
 @app.get("/api/checkpoint-leaderboard")
-async def checkpoint_leaderboard() -> dict[str, list[dict[str, str]]]:
-    # One row per (checkpoint, bib): if a runner's passage was logged more
-    # than once at the same checkpoint (e.g. a correction), SQLite's
-    # min()-with-bare-columns behavior picks the runner_name/hometown from
-    # whichever row actually has that earliest crono_time, so a correction
-    # doesn't count as a second, later passage.
+async def checkpoint_leaderboard() -> dict[str, object]:
+    # Only the checkpoint currently being logged (the one behind the most
+    # recent entry), not every checkpoint at once -- top 10 male and top 10
+    # female separately, so both lists stay usable even once a field of a
+    # few hundred runners has passed through.
+    latest = row("SELECT checkpoint FROM log_entries WHERE checkpoint != '' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
+    checkpoint = latest["checkpoint"] if latest else ""
+    if not checkpoint:
+        return {"checkpoint": None, "male": [], "female": []}
+    # One row per bib: if a runner's passage was logged more than once at
+    # this checkpoint (e.g. a correction), SQLite's min()-with-bare-columns
+    # behavior picks the runner_name/hometown/gender from whichever row
+    # actually has that earliest crono_time, so a correction doesn't count
+    # as a second, later passage.
     passages = rows(
         """
-        SELECT checkpoint, runner_bib, runner_name, runner_hometown, MIN(crono_time) AS crono_time,
-               (SELECT id FROM tactical_callsigns WHERE name = log_entries.checkpoint) AS checkpoint_order
+        SELECT runner_bib, runner_name, runner_hometown, runner_gender, MIN(crono_time) AS crono_time
         FROM log_entries
-        WHERE checkpoint != '' AND runner_bib != '' AND crono_time != '' AND hidden_at IS NULL
-        GROUP BY checkpoint, runner_bib
-        ORDER BY checkpoint_order IS NULL, checkpoint_order, checkpoint, crono_time ASC
-        """
+        WHERE checkpoint = ? AND runner_bib != '' AND crono_time != '' AND hidden_at IS NULL
+        GROUP BY runner_bib
+        ORDER BY crono_time ASC
+        """,
+        (checkpoint,),
     )
-    leaderboard: dict[str, list[dict[str, str]]] = {}
+    male: list[dict[str, str]] = []
+    female: list[dict[str, str]] = []
     for entry in passages:
-        bucket = leaderboard.setdefault(entry["checkpoint"], [])
-        if len(bucket) >= CHECKPOINT_LEADERBOARD_LIMIT:
+        gender = (entry["runner_gender"] or "").strip().upper()
+        bucket = male if gender == "M" else female if gender == "F" else None
+        if bucket is None or len(bucket) >= CHECKPOINT_LEADERBOARD_LIMIT:
             continue
         bucket.append(
             {
@@ -1670,7 +1687,7 @@ async def checkpoint_leaderboard() -> dict[str, list[dict[str, str]]]:
                 "crono_time": entry["crono_time"],
             }
         )
-    return leaderboard
+    return {"checkpoint": checkpoint, "male": male, "female": female}
 
 
 @app.get("/api/race-timer")
@@ -1749,8 +1766,8 @@ def log_notice_event(notice: Any, action_key: str, username: str = "", display_n
         conn.execute(
             """
             INSERT INTO log_entries
-                (user_label, status, location, message, runner_bib, runner_name, runner_hometown, runner_position, checkpoint, crono_time, created_by_username, created_by_name, bulletin_requested, bulletin_id)
-            VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                (user_label, status, location, message, runner_bib, runner_name, runner_hometown, runner_position, runner_gender, checkpoint, crono_time, created_by_username, created_by_name, bulletin_requested, bulletin_id)
+            VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             """,
             (
                 TRANSLATIONS[current_language()]["notice_log_user"],
@@ -1760,6 +1777,7 @@ def log_notice_event(notice: Any, action_key: str, username: str = "", display_n
                 notice["runner_name"] or "",
                 notice["runner_hometown"] or "",
                 notice["runner_position"] or "",
+                notice["runner_gender"] or "",
                 notice["checkpoint"] or "",
                 notice["crono_time"] or "",
                 username,
@@ -2058,8 +2076,8 @@ async def export_runners(_: Any = Depends(require_admin)) -> StreamingResponse:
     # Same column names /setup/runners/import already recognizes, so the
     # export doubles as a fill-in-and-reimport template when the list is
     # still empty -- it's just the CSV header row in that case.
-    runners = rows("SELECT bib_number, first_name, last_name, hometown, active FROM runners ORDER BY active DESC, bib_number")
-    fields = ["bib_number", "first_name", "last_name", "hometown", "active"]
+    runners = rows("SELECT bib_number, first_name, last_name, hometown, gender, active FROM runners ORDER BY active DESC, bib_number")
+    fields = ["bib_number", "first_name", "last_name", "hometown", "gender", "active"]
     data = [{field: runner[field] for field in fields} for runner in runners]
     return csv_response("athletes.csv", data, fieldnames=fields)
 
@@ -2314,6 +2332,16 @@ def split_runner_name(name: str) -> tuple[str, str]:
     return parts[0], parts[1] if len(parts) > 1 else ""
 
 
+GENDER_ALIASES = {
+    "m": "M", "male": "M", "man": "M", "uomo": "M", "maschio": "M", "maschile": "M",
+    "f": "F", "female": "F", "woman": "F", "donna": "F", "femmina": "F", "femminile": "F",
+}
+
+
+def normalize_gender(value: str) -> str:
+    return GENDER_ALIASES.get(value.strip().lower(), "")
+
+
 @app.post("/setup/runners/import")
 async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_admin)) -> RedirectResponse:
     content = decode_csv_upload(await file.read())
@@ -2332,6 +2360,7 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
             last_name = csv_value(item, "last name", "last_name", "lastname", "surname", "family name", "cognome")
             name = csv_value(item, "name", "full name", "runner name", "athlete name", "nome completo", "nome atleta")
             hometown = csv_value(item, "home town", "hometown", "town", "city", "residence", "location", "citta", "città", "paese", "comune")
+            gender = normalize_gender(csv_value(item, "gender", "sex", "sesso", "genere", "m/f"))
             if name and (not first_name and not last_name):
                 first_name, last_name = split_runner_name(name)
             elif not name:
@@ -2341,11 +2370,11 @@ async def import_runners(file: UploadFile = File(...), _: Any = Depends(require_
                 continue
             conn.execute(
                 """
-                INSERT INTO runners (bib_number, name, first_name, last_name, hometown)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, first_name = excluded.first_name, last_name = excluded.last_name, hometown = excluded.hometown, active = 1
+                INSERT INTO runners (bib_number, name, first_name, last_name, hometown, gender)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, first_name = excluded.first_name, last_name = excluded.last_name, hometown = excluded.hometown, gender = excluded.gender, active = 1
                 """,
-                (bib, name, first_name, last_name, hometown),
+                (bib, name, first_name, last_name, hometown, gender),
             )
             imported_bibs.add(bib)
             imported += 1
@@ -2363,6 +2392,7 @@ async def add_runner(
     first_name: str = Form(""),
     last_name: str = Form(""),
     hometown: str = Form(""),
+    gender: str = Form(""),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     first = first_name.strip()
@@ -2371,11 +2401,11 @@ async def add_runner(
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO runners (bib_number, name, first_name, last_name, hometown)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, first_name = excluded.first_name, last_name = excluded.last_name, hometown = excluded.hometown, active = 1
+            INSERT INTO runners (bib_number, name, first_name, last_name, hometown, gender)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(bib_number) DO UPDATE SET name = excluded.name, first_name = excluded.first_name, last_name = excluded.last_name, hometown = excluded.hometown, gender = excluded.gender, active = 1
             """,
-            (bib_number.strip(), name, first, last, hometown.strip()),
+            (bib_number.strip(), name, first, last, hometown.strip(), normalize_gender(gender)),
         )
     return RedirectResponse("/setup", status_code=303)
 
@@ -2387,13 +2417,17 @@ async def update_runner(
     first_name: str = Form(""),
     last_name: str = Form(""),
     hometown: str = Form(""),
+    gender: str = Form(""),
     _: Any = Depends(require_admin),
 ) -> RedirectResponse:
     first = first_name.strip()
     last = last_name.strip()
     name = " ".join(part for part in [first, last] if part)
     with connect() as conn:
-        conn.execute("UPDATE runners SET bib_number = ?, name = ?, first_name = ?, last_name = ?, hometown = ? WHERE id = ?", (bib_number.strip(), name, first, last, hometown.strip(), runner_id))
+        conn.execute(
+            "UPDATE runners SET bib_number = ?, name = ?, first_name = ?, last_name = ?, hometown = ?, gender = ? WHERE id = ?",
+            (bib_number.strip(), name, first, last, hometown.strip(), normalize_gender(gender), runner_id),
+        )
     return RedirectResponse("/setup", status_code=303)
 
 

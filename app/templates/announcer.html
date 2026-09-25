@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="{{ t.announcer }}">
 </head>
-<body class="announcer">
+<body class="announcer {% if race_mode %}has-checkpoint-ticker{% endif %}">
   <header class="announcer-header">
     {% if logo_url %}<div class="announcer-logo"><img src="{{ logo_url }}" alt="{{ t.logo_alt }}"></div>{% endif %}
     <div class="announcer-topbar">
@@ -51,7 +51,7 @@
       {% set latest_athletes = athlete_rows(latest) %}
       <div class="athlete-rows {% if has_athlete_name(latest_athletes) %}has-name{% else %}no-name{% endif %} {% if has_athlete_hometown(latest_athletes) %}has-town{% else %}no-town{% endif %} {% if has_athlete_position(latest_athletes) %}has-position{% else %}no-position{% endif %}">
       {% for athlete in latest_athletes %}
-      <div class="athlete-row"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span>{% if athlete.name|trim %}<span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% endif %}{% if athlete.hometown|trim %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position|trim %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
+      <div class="athlete-row{% if athlete.gender == "M" %} gender-m{% elif athlete.gender == "F" %} gender-f{% endif %}"><span class="athlete-bib"><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span>{% if athlete.name|trim %}<span class="athlete-name"><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span>{% endif %}{% if athlete.hometown|trim %}<span class="athlete-town"><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% endif %}{% if athlete.position|trim %}<span class="athlete-position"><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>
       {% endfor %}
       </div>
       {% endif %}
@@ -65,12 +65,12 @@
     <button id="history-open" class="history-open-button" type="button">{{ t.older_notices }}</button>
   </main>
   <footer class="site-footer announcer-footer">{{ t.designed_by }} <span class="app-version" title="{{ app_build }}">v{{ app_version }}</span></footer>
-  <div id="checkpoint-ticker" class="checkpoint-ticker" hidden><div class="checkpoint-ticker-track" id="checkpoint-ticker-track"></div></div>
+  {% if race_mode %}<div id="checkpoint-ticker" class="checkpoint-ticker" hidden><div class="checkpoint-ticker-track" id="checkpoint-ticker-track"></div></div>{% endif %}
   <script>window.CAD_LABELS = {{ t|tojson }}; window.INITIAL_NOTICES = {{ notices|tojson }}; window.CAD_NOTIFICATION_SOUND_URL = {{ notification_sound_url|tojson }}; {% if viewer_user %}window.CAD_CURRENT_USER = {{ viewer_user|tojson }};{% endif %}</script>
   <script src="{{ asset('/static/race-timer.js') }}"></script>
   <script src="{{ asset('/static/push-notifications.js') }}"></script>
   <script src="{{ asset('/static/announcer.js') }}"></script>
-  <script src="{{ asset('/static/checkpoint-ticker.js') }}"></script>
+  {% if race_mode %}<script src="{{ asset('/static/checkpoint-ticker.js') }}"></script>{% endif %}
   <script src="{{ asset('/static/pwa.js') }}"></script>
   <script src="{{ asset('/static/native-notify.js') }}"></script>
 </body>

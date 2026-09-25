@@ -84,7 +84,7 @@
         <tr>
           <td>{{ format_dt(log.created_at) }}</td>
           <td>{{ log.user_label }}</td>
-          <td>{{ log.message }}{% if log.location %}<div class="meta">{{ t.location }}: {{ log.location }}</div>{% endif %}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
+          <td>{{ log.message }}{% if log.location %}<div class="meta">{{ t.location }}: {{ log.location }}</div>{% endif %}{% if log.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(log) %}<div class="athlete-row{% if athlete.gender == "M" %} gender-m{% elif athlete.gender == "F" %} gender-f{% endif %}"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}</td>
           <td>{% if log.show_status %}{{ log.status }}{% endif %}</td>
         </tr>
         {% endfor %}

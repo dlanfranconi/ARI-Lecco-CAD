@@ -130,7 +130,7 @@
       </label>
       <div class="table-wrap" id="athletes-table">
         <table class="setup-table">
-          <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.first_name }}</th><th>{{ t.last_name }}</th><th>{{ t.hometown }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
+          <thead><tr><th>{{ t.bib_number }}</th><th>{{ t.first_name }}</th><th>{{ t.last_name }}</th><th>{{ t.hometown }}</th><th>{{ t.gender }}</th><th>{{ t.status }}</th><th></th><th>{{ t.action }}</th></tr></thead>
           <tbody>
             <tr>
               <form method="post" action="/setup/runners">
@@ -138,6 +138,7 @@
                 <td><input name="first_name" required></td>
                 <td><input name="last_name"></td>
                 <td><input name="hometown"></td>
+                <td><select name="gender"><option value="">—</option><option value="M">M</option><option value="F">F</option></select></td>
                 <td>{{ t.active }}</td>
                 <td><button>{{ t.add_athlete }}</button></td>
                 <td></td>
@@ -150,6 +151,7 @@
                 <td><input name="first_name" value="{{ runner.first_name or '' }}" required></td>
                 <td><input name="last_name" value="{{ runner.last_name or '' }}"></td>
                 <td><input name="hometown" value="{{ runner.hometown }}"></td>
+                <td><select name="gender"><option value="" {% if not runner.gender %}selected{% endif %}>—</option><option value="M" {% if runner.gender == "M" %}selected{% endif %}>M</option><option value="F" {% if runner.gender == "F" %}selected{% endif %}>F</option></select></td>
                 <td>{{ t.active if runner.active else t.disabled }}</td>
                 <td><button>{{ t.save }}</button></td>
               </form>

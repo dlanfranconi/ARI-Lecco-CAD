@@ -9,7 +9,7 @@
       <p class="meta">{{ format_dt(item.created_at) }} {{ t.from_label }} {{ item.submitter_name or t.unknown }}</p>
       <form method="post" action="/notices/{{ item.id }}/approve" class="notice-edit-form" data-recipients>
         <label>{{ t.edit_notice }}<textarea name="message" rows="4">{{ item.message }}</textarea></label>
-        {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
+        {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row{% if athlete.gender == "M" %} gender-m{% elif athlete.gender == "F" %} gender-f{% endif %}"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
         {% set recipient_ids = recipient_ids_by_notice.get(item.id, []) %}
         <label>{{ t.notify_recipients }}
           <div class="recipient-checks">
@@ -37,7 +37,7 @@
     <article class="card">
       <p class="meta">{{ format_dt(item.approved_at or item.created_at) }} {{ t.from_label }} {{ item.submitter_name or item.source }}</p>
       <p>{{ item.message }}</p>
-      {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
+      {% if item.runner_bib %}<div class="athlete-rows">{% for athlete in athlete_rows(item) %}<div class="athlete-row{% if athlete.gender == "M" %} gender-m{% elif athlete.gender == "F" %} gender-f{% endif %}"><span><strong>{{ t.bib_number }}:</strong> {{ athlete.bib }}</span><span><strong>{{ t.runner_name }}:</strong> {{ athlete.name }}</span><span><strong>{{ t.city }}:</strong> {{ athlete.hometown }}</span>{% if athlete.position %}<span><strong>{{ t.athlete_position }}:</strong> {{ athlete.position }}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
       {% if is_admin %}<form method="post" action="/notices/{{ item.id }}/delete" data-confirm="{{ t.delete_notice_confirm }}"><button class="danger">{{ t.delete }}</button></form>{% endif %}
     </article>
     {% endfor %}

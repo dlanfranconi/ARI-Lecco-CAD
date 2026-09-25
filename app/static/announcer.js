@@ -16,12 +16,18 @@ function athleteRows(item) {
   const names = parts(item?.runner_name);
   const towns = parts(item?.runner_hometown);
   const positions = parts(item?.runner_position);
+  const genders = parts(item?.runner_gender);
   return bibs.filter(Boolean).map((bib, index) => ({
     bib,
     name: names[index] || "",
     hometown: (towns[index] || "").trim(),
-    position: (positions[index] || "").trim()
+    position: (positions[index] || "").trim(),
+    gender: (genders[index] || "").trim().toUpperCase(),
   }));
+}
+
+function genderClass(gender) {
+  return gender === "M" ? "gender-m" : gender === "F" ? "gender-f" : "";
 }
 
 function athleteRowsHtml(item) {
@@ -31,7 +37,7 @@ function athleteRowsHtml(item) {
   const hasTown = rows.some((athlete) => String(athlete.hometown || "").trim());
   const hasPosition = rows.some((athlete) => String(athlete.position || "").trim());
   return `<div class="athlete-rows ${hasName ? "has-name" : "no-name"} ${hasTown ? "has-town" : "no-town"} ${hasPosition ? "has-position" : "no-position"}">${rows.map((athlete) => `
-    <div class="athlete-row">
+    <div class="athlete-row ${genderClass(athlete.gender)}">
       <span class="athlete-bib"><strong>${labels.bib_number || "Bib Number"}:</strong> ${athlete.bib}</span>
       ${String(athlete.name || "").trim() ? `<span class="athlete-name"><strong>${labels.runner_name || labels.display_name || "Name"}:</strong> ${athlete.name}</span>` : ""}
       ${String(athlete.hometown || "").trim() ? `<span class="athlete-town"><strong>${labels.city || "City"}:</strong> ${athlete.hometown}</span>` : ""}

@@ -49,6 +49,7 @@ def init_db() -> None:
                 first_name TEXT DEFAULT '',
                 last_name TEXT DEFAULT '',
                 hometown TEXT DEFAULT '',
+                gender TEXT DEFAULT '',
                 active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -111,6 +112,7 @@ def init_db() -> None:
                 runner_name TEXT DEFAULT '',
                 runner_hometown TEXT DEFAULT '',
                 runner_position TEXT DEFAULT '',
+                runner_gender TEXT DEFAULT '',
                 checkpoint TEXT DEFAULT '',
                 crono_time TEXT DEFAULT '',
                 created_by_username TEXT DEFAULT '',
@@ -139,6 +141,7 @@ def init_db() -> None:
                 runner_name TEXT DEFAULT '',
                 runner_hometown TEXT DEFAULT '',
                 runner_position TEXT DEFAULT '',
+                runner_gender TEXT DEFAULT '',
                 checkpoint TEXT DEFAULT '',
                 crono_time TEXT DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'pending',
@@ -288,6 +291,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "last_name" not in runner_cols:
         conn.execute("ALTER TABLE runners ADD COLUMN last_name TEXT DEFAULT ''")
         conn.execute("UPDATE runners SET last_name = CASE WHEN instr(name, ' ') > 0 THEN substr(name, instr(name, ' ') + 1) ELSE '' END WHERE last_name = ''")
+    if "gender" not in runner_cols:
+        conn.execute("ALTER TABLE runners ADD COLUMN gender TEXT DEFAULT ''")
 
     aprs_pos_cols = {item[1] for item in conn.execute("PRAGMA table_info(aprs_positions)")}
     if "symbol_table" not in aprs_pos_cols:
@@ -301,6 +306,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "runner_name": "ALTER TABLE log_entries ADD COLUMN runner_name TEXT DEFAULT ''",
         "runner_hometown": "ALTER TABLE log_entries ADD COLUMN runner_hometown TEXT DEFAULT ''",
         "runner_position": "ALTER TABLE log_entries ADD COLUMN runner_position TEXT DEFAULT ''",
+        "runner_gender": "ALTER TABLE log_entries ADD COLUMN runner_gender TEXT DEFAULT ''",
         "checkpoint": "ALTER TABLE log_entries ADD COLUMN checkpoint TEXT DEFAULT ''",
         "crono_time": "ALTER TABLE log_entries ADD COLUMN crono_time TEXT DEFAULT ''",
         "created_by_username": "ALTER TABLE log_entries ADD COLUMN created_by_username TEXT DEFAULT ''",
@@ -316,6 +322,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "runner_name": "ALTER TABLE bulletins ADD COLUMN runner_name TEXT DEFAULT ''",
         "runner_hometown": "ALTER TABLE bulletins ADD COLUMN runner_hometown TEXT DEFAULT ''",
         "runner_position": "ALTER TABLE bulletins ADD COLUMN runner_position TEXT DEFAULT ''",
+        "runner_gender": "ALTER TABLE bulletins ADD COLUMN runner_gender TEXT DEFAULT ''",
         "checkpoint": "ALTER TABLE bulletins ADD COLUMN checkpoint TEXT DEFAULT ''",
         "crono_time": "ALTER TABLE bulletins ADD COLUMN crono_time TEXT DEFAULT ''",
         "hidden_at": "ALTER TABLE bulletins ADD COLUMN hidden_at TEXT",
