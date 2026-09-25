@@ -1666,7 +1666,12 @@ async def checkpoint_leaderboard() -> dict[str, object]:
     # recent entry), not every checkpoint at once -- top 10 male and top 10
     # female separately, so both lists stay usable even once a field of a
     # few hundred runners has passed through.
-    latest = row("SELECT checkpoint FROM log_entries WHERE checkpoint != '' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
+    # Must actually be a runner passage (non-empty bib) -- a general status
+    # log entry can carry a checkpoint too (e.g. "arrived at Base") without
+    # being tied to any bib, and being more recent would otherwise steal the
+    # "latest checkpoint" pick away from the checkpoint runners are really
+    # passing through.
+    latest = row("SELECT checkpoint FROM log_entries WHERE checkpoint != '' AND runner_bib != '' AND hidden_at IS NULL ORDER BY id DESC LIMIT 1")
     checkpoint = latest["checkpoint"] if latest else ""
     if not checkpoint:
         return {"checkpoint": None, "male": [], "female": [], "unspecified": []}
