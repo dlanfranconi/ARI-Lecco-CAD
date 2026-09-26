@@ -2,6 +2,10 @@ const map = L.map("map").setView([45.85, 9.39], 11);
 const markers = new Map();
 const trails = new Map();
 let trailMinutes = 60;
+// Set to true the first time the view gets auto-fit to something real
+// (route checkpoints, or failing that the first batch of live positions) --
+// after that, refreshMap() must leave the viewer's own pan/zoom alone.
+let hasFitInitialBounds = false;
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -71,7 +75,7 @@ async function refreshMap() {
 
   positions.forEach((item) => {
     const latLng = [item.lat, item.lon];
-    bounds.push(latLng);
+    if (!hasFitInitialBounds) bounds.push(latLng);
     const key = `${item.source}:${item.callsign}`;
     seen.add(key);
     const title = `${item.callsign}${item.label ? " - " + item.label : ""}`;
@@ -96,7 +100,14 @@ async function refreshMap() {
     }
   });
 
-  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+  // Only ever auto-fit the view once (whichever comes first: checkpoints
+  // on load, or the first batch of live positions) -- after that, a
+  // station moving or a new one appearing must never yank the map away
+  // from wherever the viewer has since panned/zoomed to.
+  if (bounds.length && !hasFitInitialBounds) {
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+    hasFitInitialBounds = true;
+  }
 
   const heading = document.getElementById("latest-positions-heading");
   if (heading) {
@@ -124,11 +135,19 @@ function checkpointIcon(name) {
 // race, unlike the live tracker markers refreshMap() keeps polling for.
 function renderMapCheckpoints() {
   const checkpoints = Array.isArray(window.CAD_MAP_CHECKPOINTS) ? window.CAD_MAP_CHECKPOINTS : [];
+  const bounds = [];
   checkpoints.forEach((checkpoint) => {
+    bounds.push([checkpoint.lat, checkpoint.lon]);
     L.marker([checkpoint.lat, checkpoint.lon], { icon: checkpointIcon(checkpoint.name) })
       .addTo(map)
       .bindPopup(`<strong>${checkpoint.name}</strong>`);
   });
+  // Center on the route itself right away rather than waiting for live
+  // trackers to show up (or defaulting to the hardcoded fallback view).
+  if (bounds.length) {
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+    hasFitInitialBounds = true;
+  }
 }
 renderMapCheckpoints();
 
