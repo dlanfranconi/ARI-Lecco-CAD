@@ -261,6 +261,11 @@ th { color: var(--muted); font-size: 13px; }
 .trail-duration-label { margin-bottom: 0; }
 .aprs-marker-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; font-size: 18px; background: #fff; border: 2px solid var(--accent); border-radius: 50%; box-shadow: 0 1px 4px rgba(0, 0, 0, .4); position: relative; overflow: visible; }
 .aprs-marker-label { position: absolute; left: calc(100% + 5px); top: 50%; transform: translateY(-50%); white-space: nowrap; background: rgba(255, 255, 255, .82); color: #071012; font-size: 11px; font-weight: 700; line-height: 1; padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+/* Fixed route reference points -- deliberately not circular like the
+   live tracker icons above, so a checkpoint reads as "part of the route"
+   rather than "someone's current position" at a glance. */
+.map-checkpoint-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; font-size: 22px; position: relative; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .5)); }
+.map-checkpoint-label { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 2px; white-space: nowrap; background: rgba(255, 255, 255, .85); color: #071012; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; pointer-events: none; }
 .clear-form { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
 .edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .edit-grid.compact { grid-template-columns: 1fr 1fr auto; }

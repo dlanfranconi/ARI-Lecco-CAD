@@ -107,6 +107,31 @@ async function refreshMap() {
   }
 }
 
+const CHECKPOINT_ICON = "\u{1F6A9}"; // flag, distinct from the tracker/vehicle icons above
+
+function checkpointIcon(name) {
+  return L.divIcon({
+    className: "map-checkpoint-icon",
+    html: `<span>${CHECKPOINT_ICON}</span><span class="map-checkpoint-label">${name}</span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28],
+  });
+}
+
+// Fixed route reference points (finish, aid stations, etc.), set once in
+// Setup -- rendered once here since they don't move or change during a
+// race, unlike the live tracker markers refreshMap() keeps polling for.
+function renderMapCheckpoints() {
+  const checkpoints = Array.isArray(window.CAD_MAP_CHECKPOINTS) ? window.CAD_MAP_CHECKPOINTS : [];
+  checkpoints.forEach((checkpoint) => {
+    L.marker([checkpoint.lat, checkpoint.lon], { icon: checkpointIcon(checkpoint.name) })
+      .addTo(map)
+      .bindPopup(`<strong>${checkpoint.name}</strong>`);
+  });
+}
+renderMapCheckpoints();
+
 const trailSelect = document.getElementById("trail-duration");
 if (trailSelect) {
   trailMinutes = Number(trailSelect.value) || 60;

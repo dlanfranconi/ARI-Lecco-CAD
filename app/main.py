@@ -1017,6 +1017,7 @@ async def setup(request: Request, admin: Any = Depends(require_admin)) -> HTMLRe
     )
     stations = rows("SELECT * FROM aprs_stations ORDER BY active DESC, callsign")
     tactical_callsigns = rows("SELECT * FROM tactical_callsigns ORDER BY active DESC, name")
+    map_checkpoints = rows("SELECT * FROM map_checkpoints ORDER BY active DESC, id")
     archives = rows("SELECT id, race_name, archived_at, reason FROM race_archives ORDER BY id DESC LIMIT 50")
     runners = rows("""
         SELECT *, COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), name) AS full_name
@@ -1026,7 +1027,7 @@ async def setup(request: Request, admin: Any = Depends(require_admin)) -> HTMLRe
             CASE WHEN bib_number GLOB '[0-9]*' AND bib_number NOT GLOB '*[^0-9]*' THEN CAST(bib_number AS INTEGER) END,
             bib_number
     """)
-    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, archives=archives, runners=runners)
+    return page(request, "setup.html", users=users, stations=stations, tactical_callsigns=tactical_callsigns, map_checkpoints=map_checkpoints, archives=archives, runners=runners)
 
 
 COLOR_SCHEMES = {"teal", "ocean", "violet", "forest", "amber", "slate"}
@@ -1477,7 +1478,8 @@ def _float_or_none(value: object) -> float | None:
 
 @app.get("/map", response_class=HTMLResponse)
 async def aprs_map(request: Request, _: Any = Depends(require_user_or_admin)) -> HTMLResponse:
-    return page(request, "map.html", aprs_enabled=bool(current_aprsfi_api_key()))
+    checkpoints = [dict(c) for c in rows("SELECT id, name, lat, lon FROM map_checkpoints WHERE active = 1 ORDER BY id")]
+    return page(request, "map.html", aprs_enabled=bool(current_aprsfi_api_key()), map_checkpoints=checkpoints)
 
 
 @app.get("/api/map")
@@ -2304,6 +2306,34 @@ async def delete_tactical_callsign(tac_id: int, _: Any = Depends(require_admin))
         if tac:
             conn.execute("UPDATE users SET tactical_callsign = '' WHERE tactical_callsign = ?", (tac["name"],))
         conn.execute("DELETE FROM tactical_callsigns WHERE id = ?", (tac_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/checkpoints")
+async def add_map_checkpoint(name: str = Form(...), lat: float = Form(...), lon: float = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("INSERT INTO map_checkpoints (name, lat, lon) VALUES (?, ?, ?)", (name.strip(), lat, lon))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/checkpoints/{checkpoint_id}")
+async def update_map_checkpoint(checkpoint_id: int, name: str = Form(...), lat: float = Form(...), lon: float = Form(...), _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE map_checkpoints SET name = ?, lat = ?, lon = ? WHERE id = ?", (name.strip(), lat, lon, checkpoint_id))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/checkpoints/{checkpoint_id}/toggle")
+async def toggle_map_checkpoint(checkpoint_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("UPDATE map_checkpoints SET active = CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id = ?", (checkpoint_id,))
+    return RedirectResponse("/setup", status_code=303)
+
+
+@app.post("/setup/checkpoints/{checkpoint_id}/delete")
+async def delete_map_checkpoint(checkpoint_id: int, _: Any = Depends(require_admin)) -> RedirectResponse:
+    with connect() as conn:
+        conn.execute("DELETE FROM map_checkpoints WHERE id = ?", (checkpoint_id,))
     return RedirectResponse("/setup", status_code=303)
 
 

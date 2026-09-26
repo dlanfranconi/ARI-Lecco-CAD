@@ -27,4 +27,4 @@
   <div id="position-list" class="cards"></div>
 </section>
 {% endblock %}
-{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }};</script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{{ asset('/static/map.js') }}"></script>{% endblock %}
+{% block scripts %}<script>window.CAD_LABELS = {{ t|tojson }}; window.CAD_MAP_CHECKPOINTS = {{ map_checkpoints|tojson }};</script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{{ asset('/static/map.js') }}"></script>{% endblock %}

@@ -4,7 +4,7 @@
 <section class="grid">
   <form method="post" action="/logs" class="panel" data-runner-compose data-recipients data-recipients-restore>
     <div class="section-title">
-      <h1>{{ t.race_log }}</h1>
+      <h1>{{ t.race_log if race_mode else t.event_log }}</h1>
       <a id="pending-count-pill" class="pill" href="/notices" data-label="{{ t.pending_notices }}"><span id="pending-count">{{ pending_count }}</span> {{ t.pending_notices }}</a>
     </div>
     {% if request.query_params.get("log_error") == "operator" %}<p class="error">{{ t.select_operator_error }}</p>{% endif %}
@@ -68,7 +68,7 @@
 {% else %}
 <section class="panel">
   <div class="section-title">
-    <h1>{{ t.race_log }}</h1>
+    <h1>{{ t.race_log if race_mode else t.event_log }}</h1>
     <a class="button" href="/submit-notification">{{ t.submit_notice_link }}</a>
   </div>
 </section>

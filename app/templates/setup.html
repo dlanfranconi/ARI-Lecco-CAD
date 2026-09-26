@@ -44,6 +44,44 @@
       </div>
     </section>
 
+    <section class="panel full-span" data-box="map_checkpoints">
+      <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
+      <h1>{{ t.map_checkpoints }}</h1>
+      <p class="meta">{{ t.map_checkpoints_hint }}</p>
+      <div class="table-wrap compact-table">
+        <table class="setup-table">
+          <thead><tr><th>{{ t.checkpoint_name }}</th><th>{{ t.latitude }}</th><th>{{ t.longitude }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <form method="post" action="/setup/checkpoints">
+                <td><input name="name" required></td>
+                <td><input name="lat" type="number" step="any" required></td>
+                <td><input name="lon" type="number" step="any" required></td>
+                <td>{{ t.active }}</td>
+                <td><button>{{ t.add }}</button></td>
+                <td></td>
+              </form>
+            </tr>
+            {% for checkpoint in map_checkpoints %}
+            <tr>
+              <form method="post" action="/setup/checkpoints/{{ checkpoint.id }}">
+                <td><input name="name" value="{{ checkpoint.name }}" required></td>
+                <td><input name="lat" type="number" step="any" value="{{ checkpoint.lat }}" required></td>
+                <td><input name="lon" type="number" step="any" value="{{ checkpoint.lon }}" required></td>
+                <td>{{ t.active if checkpoint.active else t.disabled }}</td>
+                <td><button>{{ t.save }}</button></td>
+              </form>
+              <td class="actions-cell">
+                <form method="post" action="/setup/checkpoints/{{ checkpoint.id }}/toggle"><button class="secondary">{{ t.disable if checkpoint.active else t.enable }}</button></form>
+                <form method="post" action="/setup/checkpoints/{{ checkpoint.id }}/delete"><button class="danger">{{ t.remove }}</button></form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="panel full-span" data-box="all_users">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
       <h2>{{ t.all_users }} <button type="button" class="list-toggle secondary" data-target="all-users-table" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h2>
