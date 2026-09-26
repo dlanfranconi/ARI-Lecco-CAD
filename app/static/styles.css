@@ -541,7 +541,7 @@ label.checkbox-row { display: flex; align-items: center; gap: 8px; }
 /* The checkpoint ticker (z-index 500) is a fixed bottom bar too -- lift the
    secondary logo clear of it whenever the ticker can appear (Race mode),
    rather than letting the ticker cover it. */
-.announcer.has-checkpoint-ticker .announcer-logo-secondary { bottom: calc(72px + 16px + env(safe-area-inset-bottom, 0px)); }
+.announcer.has-checkpoint-ticker .announcer-logo-secondary { bottom: calc(72px + 8px + env(safe-area-inset-bottom, 0px)); }
 .announcer-footer { color: #789195; margin-top: 32px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
 .announcer .athlete-row { grid-template-columns: 112px minmax(180px, 1fr) minmax(150px, .8fr) 185px; }
 .announcer.light-mode .announcer-footer { color: #546970; }
