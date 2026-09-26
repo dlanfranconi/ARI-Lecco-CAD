@@ -9,12 +9,12 @@
   <div class="stack full-width" id="reorder-top-zone">
     <section class="panel full-span" data-box="tactical_callsigns">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h1>{{ t.tactical_callsigns }}</h1>
+      <h1>{{ t.tactical_callsigns }} <button type="button" class="list-toggle secondary" data-target="tactical-callsigns-table" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h1>
       <label>{{ t.tactical_callsign }}
         <select id="tac-filter"><option value="">{{ t.tactical_callsigns }}</option>{% for tac in tactical_callsigns %}<option value="tac-{{ tac.id }}">{{ tac.name }}</option>{% endfor %}</select>
       </label>
       {% if tactical_callsigns %}<div class="actions"><button type="button" id="save-all-tactical" data-saving-label="{{ t.saving }}">{{ t.save_all }}</button></div>{% endif %}
-      <div class="table-wrap compact-table">
+      <div class="table-wrap compact-table" id="tactical-callsigns-table">
         <table class="setup-table tac-table">
           <thead><tr><th>{{ t.tactical_callsign }}</th><th>{{ t.preposition }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
           <tbody>
@@ -48,10 +48,10 @@
 
     <section class="panel full-span" data-box="map_checkpoints">
       <span class="drag-handle" draggable="true" hidden>&#10021;</span><button type="button" class="width-toggle" hidden>&#8596;</button>
-      <h1>{{ t.map_checkpoints }}</h1>
+      <h1>{{ t.map_checkpoints }} <button type="button" class="list-toggle secondary" data-target="map-checkpoints-table" data-show-label="{{ t.show_list }}" data-hide-label="{{ t.hide_list }}">{{ t.hide_list }}</button></h1>
       <p class="meta">{{ t.map_checkpoints_hint }}</p>
       {% if map_checkpoints %}<div class="actions"><button type="button" id="save-all-checkpoints" data-saving-label="{{ t.saving }}">{{ t.save_all }}</button></div>{% endif %}
-      <div class="table-wrap compact-table">
+      <div class="table-wrap compact-table" id="map-checkpoints-table">
         <table class="setup-table">
           <thead><tr><th>{{ t.checkpoint_name }}</th><th>{{ t.latitude }}</th><th>{{ t.longitude }}</th><th>{{ t.status }}</th><th></th><th></th></tr></thead>
           <tbody>
