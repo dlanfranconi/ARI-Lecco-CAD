@@ -358,6 +358,19 @@
       <h2>{{ t.exports }}</h2>
       {% if request.query_params.get("clear_error") %}<p class="error">{{ t.clear_confirm_error }} {{ t.type_clear }}.</p>{% endif %}
       <div class="actions"><a class="button secondary" href="/export/logs.csv">{{ t.export_logs }}</a><a class="button secondary" href="/export/aprs.csv">{{ t.export_aprs_csv }}</a><a class="button secondary" href="/export/dstar.csv">{{ t.export_dstar_csv }}</a><a class="button secondary" href="/export/aprs.geojson">{{ t.export_geojson }} APRS</a><a class="button secondary" href="/export/dstar.geojson">{{ t.export_geojson }} D-STAR</a></div>
+
+      <h3>{{ t.ics214_title }}</h3>
+      <p class="meta">{{ t.ics214_hint }}</p>
+      <form method="post" action="/export/ics214.pdf" class="grid two">
+        <label>{{ t.ics214_incident_name }}<input name="incident_name" value="{{ race_name }}"></label>
+        <label>{{ t.ics214_op_from }}<input name="op_from" type="datetime-local"></label>
+        <label>{{ t.ics214_op_to }}<input name="op_to" type="datetime-local"></label>
+        <label>{{ t.ics214_prepared_name }}<input name="prepared_name" value="{{ current_user.display_name }}"></label>
+        <label>{{ t.ics214_prepared_position }}<input name="prepared_position"></label>
+        <label>{{ t.ics214_prepared_agency }}<input name="prepared_agency"></label>
+        <button>{{ t.ics214_generate }}</button>
+      </form>
+
       <p class="warning">{{ t.clear_all_requires_archive }}</p>
       <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="logs"><label>{{ t.clear_logs_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_logs_only }}</button></form>
       <form method="post" action="/clear-race" class="clear-form"><input type="hidden" name="action" value="notices"><label>{{ t.clear_notices_only }}<input name="confirm" placeholder="{{ t.type_clear }}"></label><button class="danger">{{ t.clear_notices_only }}</button></form>

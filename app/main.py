@@ -25,6 +25,7 @@ from .config import settings
 from .db import connect, init_db, row, rows, save_setting, setting
 from .i18n import TRANSLATIONS, normalize_language
 from . import iperf, mdns, netmon, tls, webpush
+from .ics214 import build_ics214_pdf
 
 app = FastAPI(title="ARI Lecco CAD")
 templates = Jinja2Templates(directory="app/templates")
@@ -2122,6 +2123,54 @@ async def export_runners(_: Any = Depends(require_admin)) -> StreamingResponse:
     fields = ["bib_number", "first_name", "last_name", "hometown", "gender", "active"]
     data = [{field: runner[field] for field in fields} for runner in runners]
     return csv_response("athletes.csv", data, fieldnames=fields)
+
+
+def format_operational_period_input(value: str) -> str:
+    # From an <input type="datetime-local">: already the wall-clock time the
+    # admin typed, so just reformat it for display -- unlike format_dt(),
+    # no UTC-assumed timezone conversion applies here.
+    if not value:
+        return ""
+    try:
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M").strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return value
+
+
+@app.post("/export/ics214.pdf")
+async def export_ics214(
+    incident_name: str = Form(""),
+    op_from: str = Form(""),
+    op_to: str = Form(""),
+    prepared_name: str = Form(""),
+    prepared_position: str = Form(""),
+    prepared_agency: str = Form(""),
+    admin: Any = Depends(require_admin),
+) -> StreamingResponse:
+    log_rows = rows("SELECT * FROM log_entries WHERE hidden_at IS NULL ORDER BY id ASC")
+    entries = []
+    for entry in log_rows:
+        activity = entry["message"] or entry["status"] or ""
+        entries.append({
+            "time": format_dt(entry["created_at"]),
+            "activity": f"{entry['user_label']}: {activity}" if entry["user_label"] else activity,
+        })
+    fields = {
+        "incident_name": incident_name.strip() or setting("race_name", ""),
+        "op_from": format_operational_period_input(op_from.strip()),
+        "op_to": format_operational_period_input(op_to.strip()),
+        "prepared_name": prepared_name.strip() or admin["display_name"],
+        "prepared_position": prepared_position.strip(),
+        "prepared_agency": prepared_agency.strip(),
+        "signature_line": f"Prepared by: {prepared_name.strip() or admin['display_name']} -- {format_dt(local_now().isoformat())}",
+    }
+    pdf_bytes = build_ics214_pdf(fields, entries)
+    filename = f"ics214-{local_now().strftime('%Y%m%d-%H%M%S')}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
+    )
 
 
 @app.get("/export/users.csv")
