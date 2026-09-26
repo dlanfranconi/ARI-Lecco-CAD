@@ -1233,6 +1233,20 @@ def deactivate_station_if_orphaned(conn: Any, station_id: int | None) -> None:
         conn.execute("UPDATE aprs_stations SET active = 0 WHERE id = ?", (station_id,))
 
 
+def default_password_hash(password: str, username: str | None) -> str:
+    # A brand-new account (local "add user" or a fresh row from a users
+    # CSV import) needs a real, usable password even when none was given
+    # explicitly -- falling back to an empty hash meant the account could
+    # never actually log in. The username itself, lowercased, is the
+    # sensible default (matches CAD_ADMIN_USERNAME/PASSWORD's own "dispatch"
+    # convention); only truly password-less when there's no username either.
+    if password:
+        return hash_password(password)
+    if username:
+        return hash_password(username.strip().lower())
+    return ""
+
+
 @app.post("/setup/users")
 async def add_user(
     display_name: str = Form(...),
@@ -1248,7 +1262,7 @@ async def add_user(
     _: Any = Depends(require_superadmin),
 ) -> RedirectResponse:
     clean_username = username.strip() or None
-    password_hash = hash_password(password) if password else ""
+    password_hash = default_password_hash(password, clean_username)
     role = role if role in {"superadmin", "admin", "user", "viewer"} else "user"
     with connect() as conn:
         if tactical_callsign:
@@ -1318,7 +1332,7 @@ async def import_users(file: UploadFile = File(...), _: Any = Depends(require_su
                     conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), existing["id"]))
                 updated += 1
             else:
-                password_hash = hash_password(password) if password else ""
+                password_hash = default_password_hash(password, clean_username)
                 conn.execute(
                     """
                     INSERT INTO users (display_name, operator_callsign, tactical_callsign, default_location, aprs_station_id, dstar_callsign, username, password_hash, role, in_speaker_group, active)
@@ -2182,7 +2196,11 @@ def csv_response(filename: str, data: list[Any], fieldnames: list[str] | None = 
         writer.writeheader()
         for item in data:
             writer.writerow(dict(item))
-    return StreamingResponse(io.StringIO(output.getvalue()), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    return StreamingResponse(
+        io.StringIO(output.getvalue()),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
+    )
 
 
 def build_archive_snapshot() -> dict[str, Any]:

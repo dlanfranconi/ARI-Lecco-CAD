@@ -182,3 +182,30 @@ if (reorderGrid) {
     saveButton.hidden = true;
   });
 }
+
+// Bulk save: these tables use one <form> per row (each already posts and
+// redirects independently on its own Save click). A "Save All" button lets
+// an admin edit several rows first and save them all together in one click
+// instead of one row at a time -- it submits every row's form via fetch,
+// waits for them all to land, then reloads once so the page reflects every
+// change together.
+function initBulkSave(buttonId, rowSelector) {
+  const button = document.getElementById(buttonId);
+  if (!button) return;
+  const originalLabel = button.textContent;
+  button.addEventListener("click", async () => {
+    const forms = Array.from(document.querySelectorAll(`${rowSelector} form[method="post"]`));
+    if (!forms.length) return;
+    button.disabled = true;
+    button.textContent = button.dataset.savingLabel || originalLabel;
+    try {
+      await Promise.all(forms.map((form) => fetch(form.action, { method: "POST", body: new FormData(form) })));
+    } finally {
+      window.location.reload();
+    }
+  });
+}
+initBulkSave("save-all-tactical", ".tac-row");
+initBulkSave("save-all-checkpoints", ".checkpoint-row");
+initBulkSave("save-all-users", ".user-row");
+initBulkSave("save-all-athletes", ".runner-row");
