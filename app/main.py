@@ -399,6 +399,7 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
     context.setdefault("mdns_hostname", current_mdns_hostname())
     context.setdefault("public_url", current_public_url())
+    context.setdefault("app_title", setting("app_title", "") or TRANSLATIONS[lang]["app_title"])
     race_mode = race_mode_enabled()
     setup_bucket = setup_box_order_bucket(user, race_mode)
     context.setdefault("setup_box_order", current_setup_box_order(setup_bucket))
@@ -1061,6 +1062,7 @@ async def update_restricted_settings(
     # admin needs to touch day-to-day. app_mode is handled by the
     # admin-open /setup/settings instead (see above).
     language: str | None = Form(None),
+    app_title: str | None = Form(None),
     app_timezone: str | None = Form(None),
     app_locale: str | None = Form(None),
     ntp_server: str | None = Form(None),
@@ -1075,6 +1077,8 @@ async def update_restricted_settings(
 ) -> RedirectResponse:
     if language is not None:
         save_setting("language", normalize_language(language))
+    if app_title is not None:
+        save_setting("app_title", app_title.strip())
     if app_timezone is not None:
         save_setting("app_timezone", app_timezone.strip() or settings.app_timezone)
     if app_locale is not None:

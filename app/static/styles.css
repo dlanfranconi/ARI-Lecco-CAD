@@ -487,6 +487,7 @@ th { color: var(--muted); font-size: 13px; }
 }
 .announcer.light-mode .announcer-header { background: #f8fbfb; border-bottom-color: rgba(0, 0, 0, .1); }
 .announcer-topbar { display: flex; align-items: center; gap: 10px; }
+.announcer-topbar-controls { display: flex; align-items: center; gap: 10px; }
 .announcer-clock { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: #8bd3ce; background: rgba(7,16,18,.72); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; }
 .contrast-toggle { width: 42px; padding: 0; font-size: 24px; background: #dce6ea; color: #071012; }
 /* #account-toggle's .ghost style (white icon, transparent bg) assumes it
@@ -547,16 +548,20 @@ label.checkbox-row { display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 860px) {
   /* Phone header: clock and controls no longer fit on one row next to the
-     logo, so the clock sits on its own row (top-right), the rest of the
-     controls wrap onto a row underneath it (still right-aligned), and the
-     club logo stretches to the header's full height on the left instead
-     of shrinking down -- it was clipping/crowding the clock and controls
-     the old single-row layout before this. */
-  .announcer-header { align-items: stretch; }
-  .announcer-logo { display: flex; align-items: stretch; }
-  .announcer-logo img { max-width: 120px; max-height: none; height: 100%; width: auto; }
-  .announcer-topbar { flex-direction: column; align-items: flex-end; gap: 6px; margin-left: auto; }
-  .announcer-topbar-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+     logo, so this switches to an explicit 2x2 grid -- logo spans both rows
+     on the left (full header height), clock is row 1 / right-aligned,
+     the rest of the controls are row 2 / right-aligned underneath it.
+     .announcer-topbar itself becomes display:contents so its two children
+     (the clock, the controls wrapper) place directly onto the header's
+     grid instead of being sized/stretched as a single nested flex box --
+     an earlier flex+stretch+height:100% version collapsed/distorted the
+     clock and buttons instead of just repositioning them. */
+  .announcer-header { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 10px; row-gap: 6px; flex-wrap: nowrap; }
+  .announcer-logo { grid-row: 1 / 3; grid-column: 1; display: flex; align-items: center; }
+  .announcer-logo img { max-width: 110px; max-height: none; height: 100%; width: auto; }
+  .announcer-topbar { display: contents; }
+  .announcer-clock { grid-row: 1; grid-column: 2; justify-self: end; font-size: 22px; padding: 5px 8px; }
+  .announcer-topbar-controls { grid-row: 2; grid-column: 2; justify-self: end; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .announcer-logo-secondary { bottom: 70px; right: 10px; }
   .announcer-logo-secondary img { max-width: 96px; max-height: 40px; }
   .announcer.has-checkpoint-ticker .announcer-logo-secondary { bottom: calc(70px + 72px + env(safe-area-inset-bottom, 0px)); }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% block title %}{{ t.app_title }}{% endblock %}</title>
+  <title>{% block title %}{{ app_title }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ asset('/static/styles.css') }}">
   <link rel="manifest" href="{{ asset('/static/manifest.json') }}">
   <link rel="icon" href="{{ asset('/static/icons/favicon-32.png') }}">
@@ -11,14 +11,14 @@
   <meta name="theme-color" content="#071012">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="{{ t.app_title }}">
+  <meta name="apple-mobile-web-app-title" content="{{ app_title }}">
   {% block head %}{% endblock %}
 </head>
 <body>
   {% if dispatch_user %}
   <header class="topbar">
     <button id="nav-toggle" class="nav-toggle ghost icon-button" type="button" aria-label="{{ t.menu }}" aria-expanded="false">☰</button>
-    <a class="brand" href="{% if current_user.role in ['admin', 'superadmin', 'user'] %}/{% else %}/notices{% endif %}">{% if logo_url %}<img class="topbar-logo" src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}<span>{{ t.app_title }}</span></a>
+    <a class="brand" href="{% if current_user.role in ['admin', 'superadmin', 'user'] %}/{% else %}/notices{% endif %}">{% if logo_url %}<img class="topbar-logo" src="{{ logo_url }}" alt="{{ t.logo_alt }}">{% endif %}<span>{{ app_title }}</span></a>
     <nav id="topbar-nav">
       {% if current_user.role in ['admin', 'superadmin', 'user'] %}
       <a href="/">{{ t.race_log if race_mode else t.event_log }}</a>
