@@ -265,6 +265,11 @@
       <p class="meta">{{ t.aprs_api_key_hint }} <a href="https://aprs.fi/account/" target="_blank" rel="noopener">{{ t.aprs_api_key_link_text }}</a></p>
       <label>{{ t.aprs_api_key }}<input name="aprsfi_api_key" value="{{ aprsfi_api_key }}" autocomplete="off"></label>
       <label>{{ t.aprs_poll_seconds }}<input name="aprs_poll_seconds" type="number" min="30" step="1" value="{{ aprs_poll_seconds }}"></label>
+      <h3>{{ t.direwolf_title }}</h3>
+      <p class="meta">{{ t.direwolf_hint }}</p>
+      <label class="checkbox-row"><input type="checkbox" name="direwolf_enabled_checkbox" value="1" {% if direwolf_enabled %}checked{% endif %}> {{ t.direwolf_enable }}</label>
+      <label>{{ t.direwolf_host }}<input name="direwolf_host" value="{{ direwolf_host }}" placeholder="127.0.0.1"></label>
+      <label>{{ t.direwolf_port }}<input name="direwolf_port" type="number" min="1" max="65535" step="1" value="{{ direwolf_port }}"></label>
       <button>{{ t.save_settings }}</button>
     </form>
     {% endif %}

@@ -25,6 +25,7 @@ from .config import settings
 from .db import connect, init_db, row, rows, save_setting, setting
 from .i18n import TRANSLATIONS, normalize_language
 from . import iperf, mdns, netmon, tls, webpush
+from .direwolf_agw import direwolf_agw_loop
 from .ics309 import build_ics309_pdf
 
 app = FastAPI(title="ARI Lecco CAD")
@@ -76,6 +77,8 @@ async def startup() -> None:
         # polling, device pings, and mDNS registration.
         return
     app.state.aprs_task = asyncio.create_task(aprs_loop())
+    if direwolf_enabled():
+        app.state.direwolf_task = asyncio.create_task(direwolf_agw_loop(current_direwolf_host(), current_direwolf_port()))
     if settings.network_monitor_enabled:
         app.state.netmon_task = asyncio.create_task(network_monitor_loop())
     if settings.mdns_enabled:
@@ -99,7 +102,7 @@ async def startup() -> None:
 async def shutdown() -> None:
     if settings.is_https_child:
         return
-    for task_name in ("aprs_task", "netmon_task"):
+    for task_name in ("aprs_task", "direwolf_task", "netmon_task"):
         task = getattr(app.state, task_name, None)
         if task:
             task.cancel()
@@ -142,6 +145,22 @@ def current_aprs_poll_seconds() -> int:
         return int(raw)
     except ValueError:
         return settings.aprs_poll_seconds
+
+
+def direwolf_enabled() -> bool:
+    return setting("direwolf_enabled", "0") == "1"
+
+
+def current_direwolf_host() -> str:
+    return setting("direwolf_host", "127.0.0.1")
+
+
+def current_direwolf_port() -> int:
+    raw = setting("direwolf_port", "8000")
+    try:
+        return int(raw)
+    except ValueError:
+        return 8000
 
 
 def race_mode_enabled() -> bool:
@@ -398,6 +417,9 @@ def page(request: Request, name: str, **context: object) -> HTMLResponse:
     context.setdefault("color_scheme", setting("color_scheme", "teal"))
     context.setdefault("aprsfi_api_key", current_aprsfi_api_key())
     context.setdefault("aprs_poll_seconds", current_aprs_poll_seconds())
+    context.setdefault("direwolf_enabled", direwolf_enabled())
+    context.setdefault("direwolf_host", current_direwolf_host())
+    context.setdefault("direwolf_port", current_direwolf_port())
     context.setdefault("mdns_hostname", current_mdns_hostname())
     context.setdefault("public_url", current_public_url())
     context.setdefault("app_title", setting("app_title", "") or TRANSLATIONS[lang]["app_title"])
@@ -1070,6 +1092,9 @@ async def update_restricted_settings(
     athlete_name_display: str | None = Form(None),
     aprsfi_api_key: str | None = Form(None),
     aprs_poll_seconds: str | None = Form(None),
+    direwolf_enabled_checkbox: bool = Form(False),
+    direwolf_host: str = Form(""),
+    direwolf_port: str = Form(""),
     mdns_hostname: str | None = Form(None),
     public_url: str | None = Form(None),
     network_monitor_poll_seconds: str | None = Form(None),
@@ -1093,6 +1118,25 @@ async def update_restricted_settings(
     if aprs_poll_seconds is not None:
         poll_seconds = int(aprs_poll_seconds) if aprs_poll_seconds.strip().isdigit() else settings.aprs_poll_seconds
         save_setting("aprs_poll_seconds", str(max(poll_seconds, 30)))
+    if aprsfi_api_key is not None:
+        # Same <form> as the aprs.fi fields above -- aprsfi_api_key being
+        # present is how we know this specific form (not General or
+        # Network, which post to this same route) was actually submitted,
+        # so an unchecked checkbox here really does mean "disable".
+        was_enabled = direwolf_enabled()
+        was_host, was_port = current_direwolf_host(), current_direwolf_port()
+        save_setting("direwolf_enabled", "1" if direwolf_enabled_checkbox else "0")
+        save_setting("direwolf_host", direwolf_host.strip() or "127.0.0.1")
+        port_value = int(direwolf_port) if direwolf_port.strip().isdigit() else 8000
+        save_setting("direwolf_port", str(port_value))
+        now_enabled = direwolf_enabled_checkbox
+        config_changed = (was_host, was_port) != (current_direwolf_host(), current_direwolf_port())
+        existing_task = getattr(app.state, "direwolf_task", None)
+        if existing_task and (not now_enabled or config_changed):
+            existing_task.cancel()
+            app.state.direwolf_task = None
+        if now_enabled and (not was_enabled or config_changed):
+            app.state.direwolf_task = asyncio.create_task(direwolf_agw_loop(current_direwolf_host(), current_direwolf_port()))
     if public_url is not None:
         save_setting("public_url", public_url.strip().rstrip("/"))
     if network_monitor_poll_seconds is not None:
