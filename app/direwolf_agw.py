@@ -197,14 +197,23 @@ async def _run_connection(host: str, port: int) -> None:
                 raise ValueError(f"implausible AGW frame length {datalen}, resyncing via reconnect")
             data = await _read_exact(reader, datalen) if datalen else b""
             if datakind not in _MONITOR_FRAME_KINDS:
+                # Diagnostic visibility while this is still being verified
+                # against real Direwolf servers -- an unexpected frame kind
+                # here (something other than 'U'/'T'/known AGW housekeeping
+                # replies) is exactly what we'd want to see in the logs.
+                kind_repr = chr(datakind) if 32 <= datakind < 127 else hex(datakind)
+                logger.debug("Direwolf AGW: skipping frame kind %s (%d bytes)", kind_repr, datalen)
                 continue
             parsed = parse_monitor_frame(data)
             if not parsed:
+                logger.info("Direwolf AGW: frame kind %r payload didn't match the expected monitor header format: %r", chr(datakind), data[:200])
                 continue
             callsign, info_field = parsed
             position = parse_position(info_field)
-            if position:
-                store_position(callsign, position)
+            if not position:
+                logger.info("Direwolf AGW: heard %s but its info field isn't a position report this parses: %r", callsign, info_field[:150])
+                continue
+            store_position(callsign, position)
     finally:
         writer.close()
         with suppress(Exception):
