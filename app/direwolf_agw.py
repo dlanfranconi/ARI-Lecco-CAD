@@ -62,6 +62,13 @@ assert _HEADER_LEN == 36, _HEADER_LEN
 _KIND_ENABLE_RAW = ord("k")
 _KIND_ENABLE_MONITOR = ord("m")
 _KIND_UNPROTO_MONITOR = ord("U")
+# A UI frame Direwolf transmits itself (its own PBEACON/OBEACON, e.g. the
+# digipeater's own position) is reported separately from ones it merely
+# heard on the air -- same header-line + info-field payload shape, just a
+# different frame kind. Skipping this one meant the digipeater's own
+# station never showed up even though everyone else's did.
+_KIND_OWN_TRANSMITTED = ord("T")
+_MONITOR_FRAME_KINDS = {_KIND_UNPROTO_MONITOR, _KIND_OWN_TRANSMITTED}
 _MAX_REASONABLE_DATALEN = 65536
 _RECONNECT_DELAY_SECONDS = 15
 
@@ -189,7 +196,7 @@ async def _run_connection(host: str, port: int) -> None:
             if not (0 <= datalen <= _MAX_REASONABLE_DATALEN):
                 raise ValueError(f"implausible AGW frame length {datalen}, resyncing via reconnect")
             data = await _read_exact(reader, datalen) if datalen else b""
-            if datakind != _KIND_UNPROTO_MONITOR:
+            if datakind not in _MONITOR_FRAME_KINDS:
                 continue
             parsed = parse_monitor_frame(data)
             if not parsed:
