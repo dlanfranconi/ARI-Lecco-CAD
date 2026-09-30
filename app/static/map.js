@@ -79,7 +79,12 @@ async function refreshMap() {
     const key = `${item.source}:${item.callsign}`;
     seen.add(key);
     const title = `${item.callsign}${item.label ? " - " + item.label : ""}`;
-    const html = `<strong>${title}</strong><br>${item.source}<br>${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}<br>${item.station_time}`;
+    // feed_source tells the two APRS paths (internet aprs.fi poll vs a
+    // local Direwolf/AGW feed) apart -- D-STAR has neither, so it's blank
+    // there and this collapses to just the source line as before.
+    const feedLabel = item.feed_source === "direwolf" ? "Direwolf" : item.feed_source === "aprsfi" ? "aprs.fi" : "";
+    const sourceLine = feedLabel ? `${item.source} (${feedLabel})` : item.source;
+    const html = `<strong>${title}</strong><br>${sourceLine}<br>${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}<br>${item.station_time}`;
     if (markers.has(key)) {
       markers.get(key).setLatLng(latLng).setIcon(iconFor(item)).setPopupContent(html);
     } else {
@@ -88,7 +93,7 @@ async function refreshMap() {
 
     const card = document.createElement("article");
     card.className = "card";
-    card.innerHTML = `<strong>${title}</strong><p class="meta">${item.source} ${item.station_time}</p><p>${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</p>`;
+    card.innerHTML = `<strong>${title}</strong><p class="meta">${sourceLine} ${item.station_time}</p><p>${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</p>`;
     list.appendChild(card);
   });
 

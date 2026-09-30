@@ -142,8 +142,8 @@ def store_position(callsign: str, position: dict[str, Any]) -> bool:
         conn.execute(
             """
             INSERT INTO aprs_positions
-                (station_id, callsign, lat, lon, comment, aprs_time, symbol_table, symbol_code)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (station_id, callsign, lat, lon, comment, aprs_time, symbol_table, symbol_code, feed_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'direwolf')
             """,
             (
                 station["id"],

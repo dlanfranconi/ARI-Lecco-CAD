@@ -92,6 +92,7 @@ def init_db() -> None:
                 aprs_time TEXT DEFAULT '',
                 symbol_table TEXT DEFAULT '',
                 symbol_code TEXT DEFAULT '',
+                feed_source TEXT DEFAULT 'aprsfi',
                 fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(station_id) REFERENCES aprs_stations(id) ON DELETE CASCADE
             );
@@ -308,6 +309,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE aprs_positions ADD COLUMN symbol_table TEXT DEFAULT ''")
     if "symbol_code" not in aprs_pos_cols:
         conn.execute("ALTER TABLE aprs_positions ADD COLUMN symbol_code TEXT DEFAULT ''")
+    if "feed_source" not in aprs_pos_cols:
+        # Every existing row predates the Direwolf/AGW feed, so they were
+        # all from the aprs.fi poll -- the column default backfills that.
+        conn.execute("ALTER TABLE aprs_positions ADD COLUMN feed_source TEXT DEFAULT 'aprsfi'")
 
     log_cols = {item[1] for item in conn.execute("PRAGMA table_info(log_entries)")}
     for column, sql in {

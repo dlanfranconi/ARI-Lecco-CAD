@@ -1553,7 +1553,7 @@ async def api_map(_: Any = Depends(require_user_or_admin)) -> list[dict[str, obj
 def combined_latest_positions() -> list[dict[str, object]]:
     aprs_latest = rows(
         """
-        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, p.aprs_time, p.symbol_table, p.symbol_code, s.label, 'APRS' AS source
+        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, p.aprs_time, p.symbol_table, p.symbol_code, p.feed_source, s.label, 'APRS' AS source
         FROM aprs_positions p
         JOIN (SELECT station_id, MAX(id) AS id FROM aprs_positions GROUP BY station_id) latest ON latest.id = p.id
         JOIN aprs_stations s ON s.id = p.station_id AND s.active = 1
@@ -1561,7 +1561,7 @@ def combined_latest_positions() -> list[dict[str, object]]:
     )
     dstar_latest = rows(
         """
-        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, '' AS aprs_time, '' AS symbol_table, '' AS symbol_code, '' AS label, 'D-STAR' AS source
+        SELECT p.callsign, p.lat, p.lon, p.speed, p.course, p.altitude, p.comment, p.fetched_at, '' AS aprs_time, '' AS symbol_table, '' AS symbol_code, '' AS feed_source, '' AS label, 'D-STAR' AS source
         FROM dstar_positions p
         JOIN (SELECT UPPER(callsign) AS callsign_key, MAX(id) AS id FROM dstar_positions GROUP BY UPPER(callsign)) latest ON latest.id = p.id
         """

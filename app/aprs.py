@@ -55,8 +55,8 @@ async def poll_aprs_once() -> int:
             conn.execute(
                 """
                 INSERT INTO aprs_positions
-                    (station_id, callsign, lat, lon, speed, course, altitude, comment, aprs_time, symbol_table, symbol_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (station_id, callsign, lat, lon, speed, course, altitude, comment, aprs_time, symbol_table, symbol_code, feed_source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'aprsfi')
                 """,
                 (
                     station_id,
