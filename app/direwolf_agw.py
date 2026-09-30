@@ -21,14 +21,11 @@ standard GPS trackers (including the LoRa_APRS_Tracker firmware already in
 use in this deployment), not the full APRS spec. A report this parser
 doesn't recognize is silently skipped rather than guessed at.
 
-NOTE: this hasn't been exercised against a real Direwolf instance (no way
-to do that in this environment) -- the AGW frame header format below
-follows the documented AGWPE wire protocol as closely as can be verified
-from spec/reference-implementation knowledge, including the 2 bytes of
-struct alignment padding real AGWPE servers (Direwolf included) emit
-before the two 4-byte integer fields. If positions never show up after
-enabling this, the first thing to check is Direwolf's own log for
-"AGW port has been enabled" and confirm the host/port Setup was given.
+Validated live against a real Direwolf instance (2026-09-30): both a
+heard-from-another-station 'U' frame and a digipeater's own 'T'
+(own-transmitted PBEACON) frame are correctly received, parsed, and
+stored, with the AGW connection surviving a Direwolf restart via the
+reconnect loop.
 """
 from __future__ import annotations
 
@@ -197,23 +194,14 @@ async def _run_connection(host: str, port: int) -> None:
                 raise ValueError(f"implausible AGW frame length {datalen}, resyncing via reconnect")
             data = await _read_exact(reader, datalen) if datalen else b""
             if datakind not in _MONITOR_FRAME_KINDS:
-                # Diagnostic visibility while this is still being verified
-                # against real Direwolf servers -- an unexpected frame kind
-                # here (something other than 'U'/'T'/known AGW housekeeping
-                # replies) is exactly what we'd want to see in the logs.
-                kind_repr = chr(datakind) if 32 <= datakind < 127 else hex(datakind)
-                logger.debug("Direwolf AGW: skipping frame kind %s (%d bytes)", kind_repr, datalen)
                 continue
             parsed = parse_monitor_frame(data)
             if not parsed:
-                logger.info("Direwolf AGW: frame kind %r payload didn't match the expected monitor header format: %r", chr(datakind), data[:200])
                 continue
             callsign, info_field = parsed
             position = parse_position(info_field)
-            if not position:
-                logger.info("Direwolf AGW: heard %s but its info field isn't a position report this parses: %r", callsign, info_field[:150])
-                continue
-            store_position(callsign, position)
+            if position:
+                store_position(callsign, position)
     finally:
         writer.close()
         with suppress(Exception):
