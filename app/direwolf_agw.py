@@ -52,7 +52,15 @@ _HEADER_FORMAT = "<BBBBBB10s10s2xII"
 _HEADER_LEN = struct.calcsize(_HEADER_FORMAT)
 assert _HEADER_LEN == 36, _HEADER_LEN
 
-_KIND_ENABLE_MONITOR = ord("k")
+# AGWPE has two historically-documented "give me everything heard on the
+# air" commands -- 'k' (raw frame reception) and 'm' (monitoring) -- and
+# which one a given server actually implements varies. Sending both on
+# connect is harmless (an unsupported command is just ignored) and avoids
+# guessing wrong and silently receiving nothing, which is exactly what
+# happened testing against a real Direwolf: the connection and handshake
+# worked, but zero 'U' frames ever arrived with only 'k' sent.
+_KIND_ENABLE_RAW = ord("k")
+_KIND_ENABLE_MONITOR = ord("m")
 _KIND_UNPROTO_MONITOR = ord("U")
 _MAX_REASONABLE_DATALEN = 65536
 _RECONNECT_DELAY_SECONDS = 15
@@ -172,7 +180,7 @@ async def _read_exact(reader: asyncio.StreamReader, size: int) -> bytes:
 async def _run_connection(host: str, port: int) -> None:
     reader, writer = await asyncio.open_connection(host, port)
     try:
-        writer.write(_build_frame(_KIND_ENABLE_MONITOR))
+        writer.write(_build_frame(_KIND_ENABLE_RAW) + _build_frame(_KIND_ENABLE_MONITOR))
         await writer.drain()
         logger.info("Direwolf AGW: connected to %s:%s, monitoring enabled", host, port)
         while True:
