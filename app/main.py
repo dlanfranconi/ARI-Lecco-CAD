@@ -1461,6 +1461,8 @@ async def update_user(
         password = ""
     clean_username = username.strip() or None
     with connect() as conn:
+        previous = conn.execute("SELECT aprs_station_id FROM users WHERE id = ?", (user_id,)).fetchone()
+        previous_station_id = previous["aprs_station_id"] if previous else None
         if tactical_callsign:
             conn.execute("INSERT OR IGNORE INTO tactical_callsigns (name) VALUES (?)", (tactical_callsign,))
         station_id = aprs_station_id_for_callsign(conn, aprs_callsign)
@@ -1475,6 +1477,11 @@ async def update_user(
         )
         if password:
             conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), user_id))
+        # Clearing or swapping a user's APRS callsign shouldn't leave the old
+        # station still active/visible on the map -- same reasoning as
+        # deleting/disabling the user (see deactivate_station_if_orphaned).
+        if previous_station_id and previous_station_id != station_id:
+            deactivate_station_if_orphaned(conn, previous_station_id)
     return RedirectResponse("/setup", status_code=303)
 
 
