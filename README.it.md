@@ -396,11 +396,80 @@ curl -X POST http://IP-SERVER/api/dstar/positions \
   -d '{"callsign":"IU2ABC","lat":45.85,"lon":9.39,"source":"d-rats"}'
 ```
 
-Nella Configurazione CAD, assegna lo stesso nominativo D-STAR all'utente/operatore. Le nuove voci di log da quell'utente allegheranno l'ultima posizione APRS o D-STAR disponibile.
+Nella Configurazione CAD, assegna lo stesso nominativo D-STAR all'utente/operatore. Le nuove voci di log da quell'utente allegheranno l'ultima posizione APRS o D-STAR disponibile. Le posizioni inserite in questo modo appaiono sulla mappa live (`/map`) con un'icona propria e l'etichetta di origine "D-STAR" — nessuna configurazione aggiuntiva necessaria lato CAD una volta che una posizione e' stata inviata.
 
-D-RATS di per se non espone attualmente un semplice target HTTP integrato per l'invio a CAD. Il ponte puo essere alimentato da qualsiasi fonte disponibile sul PC D-RATS: un'esportazione D-RATS, uno script locale che legge i dati di posizione D-RATS, o un'utilita D-PRS/GPS D-STAR che puo richiamare un comando quando arriva un frame GPS.
+### Consigliato: ponte verso la funzione integrata "GPS Export" di D-RATS
 
-Osservatore continuo del flusso D-RATS:
+D-RATS ha una propria impostazione "GPS Export" (in D-RATS: **Settings → GPS Export**, la casella "export GPS messages as JSON string"). Quando e' attiva, D-RATS invia un messaggio JSON — la propria posizione e ogni posizione che sente da altre stazioni — tramite una connessione TCP semplice verso l'IP/porta che configuri li, ogni volta che riceve un fix GPS. `scripts/drats_mapserver_bridge.py` resta in ascolto su quella porta, traduce i nomi dei campi di D-RATS nel formato richiesto dall'API CAD, e inoltra automaticamente ogni posizione a `/api/dstar/positions`.
+
+**Requisiti:** Python 3.8+ sulla macchina che esegue il ponte (il PC D-RATS stesso, oppure qualsiasi altra macchina che possa sia raggiungere il server CAD sia essere raggiunta da D-RATS). Nessun pacchetto aggiuntivo — lo script usa solo la libreria standard di Python, quindi non c'e' nulla da installare con `pip`.
+
+**1. Configura D-RATS verso il ponte.** In D-RATS → Settings → GPS Export: attiva la funzione, imposta l'IP dove eseguirai il ponte (`127.0.0.1` se lo esegui sullo stesso PC di D-RATS, altrimenti l'IP LAN di quella macchina), e scegli una porta, ad es. `9900`.
+
+**2. Esegui il ponte**, puntato sulla stessa porta e sul server CAD:
+
+```bash
+python3 scripts/drats_mapserver_bridge.py \
+  --listen-host 0.0.0.0 --listen-port 9900 \
+  --cad-url http://IP-SERVER \
+  --token change-this-token
+```
+
+**Come mantenerlo in esecuzione:**
+
+- *Il modo piu' rapido, per una singola giornata di gara:* lascia semplicemente aperta quella finestra di terminale sul PC D-RATS — ogni posizione inoltrata viene stampata in diretta, il che serve anche da monitoraggio.
+- *Linux/Mac, scollegato dal terminale:*
+  ```bash
+  nohup python3 scripts/drats_mapserver_bridge.py \
+    --listen-host 0.0.0.0 --listen-port 9900 \
+    --cad-url http://IP-SERVER --token change-this-token \
+    > drats_bridge.log 2>&1 &
+  ```
+  poi controlla in qualsiasi momento con `tail -f drats_bridge.log`.
+- *Windows:* salva il comando sopra (senza `nohup`/`&`) in un file `.bat` e fai doppio clic, oppure aggiungilo come Attivita' Pianificata all'accesso. Lasciare aperta la finestra della console e' l'opzione piu' semplice per un PC da postazione radio durante un evento.
+- *Linux, come servizio systemd vero e proprio* (sopravvive ai riavvii):
+  ```ini
+  # /etc/systemd/system/drats-bridge.service
+  [Unit]
+  Description=Ponte D-RATS verso ARI Lecco CAD
+  After=network.target
+
+  [Service]
+  ExecStart=/usr/bin/python3 /percorso/scripts/drats_mapserver_bridge.py --listen-host 0.0.0.0 --listen-port 9900 --cad-url http://IP-SERVER --token change-this-token
+  Restart=on-failure
+  User=pi
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+  Poi `sudo systemctl enable --now drats-bridge`, e visualizza i log con `journalctl -u drats-bridge -f`.
+
+**Come verificare che funzioni davvero:**
+
+- All'avvio il ponte stampa `Listening for D-RATS GPS pushes on <host>:<porta>` — se non lo vedi, non e' riuscito ad agganciare la porta (verifica che non sia gia' in uso).
+- Ogni posizione inviata da D-RATS produce una riga: `forwarded CALLSIGN (lat, lon): {"ok": true, "id": ...}` in caso di successo.
+- Un invio da D-RATS non interpretabile produce `ignoring unparseable push from ...`; una posizione senza nominativo o con coordinate `(0, 0)` produce `ignoring incomplete fix: ...` (D-RATS lo invia prima di avere un fix GPS reale — innocuo, significa solo che non c'e' ancora una posizione utilizzabile).
+- Se l'inoltro verso CAD fallisce (token sbagliato, server non raggiungibile, ecc.) vedrai `failed to forward CALLSIGN: <errore>` — il testo dell'errore indica lo stato HTTP o il problema di connessione effettivo.
+- Se hai reindirizzato l'output su un file (`nohup`/systemd), usa `tail -f` su quel log (o `journalctl -u drats-bridge -f`) invece di guardare un terminale.
+- Lato CAD, verifica che la posizione sia arrivata aprendo `/map` — la stazione dovrebbe apparire con un marcatore etichettato D-STAR entro un intervallo di fix GPS. Puoi anche controllare i log del container CAD (`docker logs <container>`) per la richiesta in arrivo `POST /api/dstar/positions` e il suo stato HTTP (`200` successo, `401` token non corrispondente, `400` lat/lon mancanti o non validi).
+- Per verificare l'endpoint CAD da solo, senza D-RATS, usa il test manuale con `curl` mostrato sopra — se quello funziona ma il ponte no, il problema e' tra D-RATS e il ponte (IP/porta sbagliati nelle impostazioni GPS Export di D-RATS, o un firewall che blocca quella porta), non il server CAD.
+
+### Alternativa: script singolo o flusso CSV
+
+Se preferisci non usare la funzione GPS Export di D-RATS (o stai alimentando posizioni da qualcosa diverso da D-RATS), due script di supporto piu' semplici coprono i due casi comuni:
+
+**Invio singolo** — richiama questo script una volta per ogni aggiornamento di posizione dal tuo script/cron/trigger:
+
+```bash
+python3 scripts/post_dstar_position.py \
+  --cad-url http://IP-SERVER \
+  --token change-this-token \
+  --callsign IU2ABC \
+  --lat 45.85 \
+  --lon 9.39
+```
+
+**Osservatore CSV continuo** — punta su un file e aggiungi righe `callsign,lat,lon[,commento]`: come `tail -f`, osserva le nuove righe e invia ciascuna automaticamente:
 
 ```bash
 python3 scripts/watch_dstar_positions.py \
@@ -409,13 +478,11 @@ python3 scripts/watch_dstar_positions.py \
   --file dstar_positions.csv
 ```
 
-Aggiungi righe a `dstar_positions.csv` in questo formato:
-
 ```csv
 IU2ABC,45.85,9.39,commento opzionale
 ```
 
-Qualsiasi helper lato D-RATS, utilita D-PRS o software radio in grado di scrivere i frame GPS ricevuti come CSV puo alimentare quel file.
+Entrambi gli script stampano su stdout la risposta JSON del server CAD (o un errore) per ogni posizione inviata — per verificarne il funzionamento si applica lo stesso approccio "lascia aperto il terminale" / `nohup ... > log 2>&1 &` / `tail -f` descritto sopra per il ponte.
 
 ## Import CSV atleti
 
